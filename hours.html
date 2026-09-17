@@ -18,7 +18,7 @@ dd.closed{color:#66625B}
 <body>
 <div class="card">
   <h1>☕ קפה קורטדו</h1>
-  <p class="sub" id="sub">שעות הפעילות השבוע</p>
+  <p class="sub" id="sub">שעות הפעילות</p>
   <dl id="hours"><dt>טוען…</dt><dd></dd></dl>
   <p class="foot">קיבוץ שניר · מתעדכן אוטומטית מלוח המשמרות</p>
 </div>
@@ -31,7 +31,9 @@ const db = getFirestore(initializeApp(firebaseConfig));
 onSnapshot(doc(db, "public", "hours"), snap => {
   const dl = document.getElementById("hours"); dl.replaceChildren();
   if (!snap.exists()){ dl.innerHTML = "<dt>השעות יפורסמו בקרוב</dt><dd></dd>"; return; }
-  const h = snap.data().hours || {};
+  const d = snap.data();
+  if (d.range) document.getElementById("sub").textContent = `שעות הפעילות · ${d.range}`;
+  const h = d.hours || {};
   for (const k of Object.keys(DAYS)){
     const r = (h[k] || []).map(x => x.join("–")).join(", ");
     const dt = document.createElement("dt"); dt.textContent = DAYS[k];

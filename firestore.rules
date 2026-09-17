@@ -3,29 +3,53 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
+
     function isOwner() {
       return signedIn() && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
     }
+
+    // חבר צוות מאושר: המנהל הוסיף אותו לרשימה. בלי זה — אין גישה לשום דבר.
+    function member() {
+      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+    function allowed() { return isOwner() || member(); }
+
     function weekOpen(wid) {
       return exists(/databases/$(database)/documents/weeks/$(wid))
         && get(/databases/$(database)/documents/weeks/$(wid)).data.open == true;
     }
 
-    // משמרות: כולם רואים, רק המנהל משנה.
-    match /weeks/{wid} {
-      allow read: if signedIn();
+    // רשימת המאושרים. המנהל מנהל אותה; כל אחד יכול לבדוק רק את עצמו.
+    match /members/{uid} {
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
       allow write: if isOwner();
     }
 
-    // שיבוץ: כל אחד רושם ומוחק רק את עצמו, ורק בשבוע פתוח. המנהל יכול להסיר כל אחד.
+    // בקשות הצטרפות: משתמש חדש מבקש להצטרף, המנהל מאשר.
+    match /joinRequests/{uid} {
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name','email','photo','at'])
+        && request.resource.data.name is string && request.resource.data.name.size() < 80;
+      allow delete: if isOwner();
+    }
+
+    // משמרות: הצוות רואה, רק המנהל משנה.
+    match /weeks/{wid} {
+      allow read: if allowed();
+      allow write: if isOwner();
+    }
+
+    // שיבוץ: כל אחד רושם ומוחק רק את עצמו, ורק בשבוע פתוח. המנהל מסיר כל אחד.
     match /signups/{id} {
-      allow read: if signedIn();
-      allow create: if signedIn()
+      allow read: if allowed();
+      allow create: if allowed()
         && request.resource.data.uid == request.auth.uid
         && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['week','shift','uid','at'])
         && weekOpen(request.resource.data.week);
-      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isOwner());
+      allow delete: if allowed() && (resource.data.uid == request.auth.uid || isOwner());
       allow update: if false;
     }
 
@@ -33,25 +57,28 @@ service cloud.firestore {
     match /posts/{id} { allow read, write: if isOwner(); }
     match /team/{id}  { allow read, write: if isOwner(); }
 
-    // יומן משמרת: כל עובד מדווח על עצמו (מסמך לכל תאריך), וכולם רואים את הסיכום.
+    // יומן משמרת: כל עובד מדווח על עצמו, וכולם רואים את הסיכום.
     match /log/{id} {
-      allow read: if signedIn();
-      allow create, update: if signedIn()
+      allow read: if allowed();
+      allow create, update: if allowed()
         && request.resource.data.uid == request.auth.uid
-        && id == request.resource.data.date + '_' + request.auth.uid;
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (request.resource.data.customers == null || request.resource.data.customers is int)
+        && request.resource.data.keys().hasOnly(['date','customers','peak','weather','promo','notes','uid','by','at']);
       allow delete: if isOwner();
     }
 
-    // שעות פתיחה לדף הנחיתה: כולם קוראים (גם בלי כניסה), רק המנהל כותב.
-    match /public/{id} {
+    // שעות פתיחה לדף הציבורי: כולם קוראים, רק המנהל כותב.
+    match /public/hours {
       allow read: if true;
       allow write: if isOwner();
     }
 
-    // כרטיס משתמש: כל אחד כותב רק את שלו.
+    // כרטיס משתמש: כל אחד כותב וקורא רק את שלו; המנהל רואה את כולם.
     match /users/{uid} {
-      allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+      allow write: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name','email','photo','lastSeen']);
     }
   }
 }

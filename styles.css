@@ -95,7 +95,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 .hol{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:4px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pchip{font-size:12px;border-radius:4px;padding:1px 4px;background:var(--sunken);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-inline-start:3px solid var(--accent)}
 .pchip.draft{border-inline-start-color:var(--warn)} .pchip.done{border-inline-start-color:var(--ok);opacity:.75}
-@media (max-width:560px){.cell{min-height:56px}.pchip,.hol{font-size:0;height:6px;padding:0}}
+@media (max-width:560px){
+  .cell{min-height:64px}
+  .pchip,.hol{font-size:10px;padding:1px 3px;min-height:16px}
+  .cell .pchip:nth-of-type(n+3){display:none}
+}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:4px;vertical-align:middle;background:var(--accent)}
 .legend .l-draft::before{background:var(--warn)} .legend .l-done::before{background:var(--ok)} .legend .l-hol::before{background:var(--warn-soft);border:1px solid var(--warn)}
@@ -123,3 +127,7 @@ h3.sub{font-family:var(--body);font-size:14px;color:var(--muted);margin:8px 0 0;
 .reco{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .reco p{margin:0;padding:8px 10px;border-radius:10px;background:var(--accent-soft)}
 textarea{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;width:100%;resize:vertical}
+
+/* מסך הצטרפות */
+#waiting{align-items:flex-start}
+#cPreview{margin-top:4px}

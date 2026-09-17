@@ -35,6 +35,12 @@
       <p class="small" id="authNote"></p>
     </section>
 
+    <section class="card center" id="waiting" hidden>
+      <h2>ממתין לאישור</h2>
+      <p>נכנסת בהצלחה. המנהל צריך לאשר אותך פעם אחת, ואז תראה כאן את המשמרות.</p>
+      <p class="small">שלח לו הודעה שנכנסת, והוא יאשר בלחיצה אחת.</p>
+    </section>
+
     <nav class="tabs" id="tabs" role="tablist" hidden>
       <button role="tab" id="tab-shifts" aria-controls="p-shifts" aria-selected="true">משמרות</button>
       <button role="tab" id="tab-posts" aria-controls="p-posts" aria-selected="false" data-owner>פרסום</button>
@@ -104,7 +110,12 @@
           <label for="cIdea">על מה הפוסט<input id="cIdea" type="text" placeholder="למשל: לאטה תפוחים לסוכות"></label>
           <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ כתוב לי פוסט</button></div>
           <label for="cText">טקסט הפוסט<textarea id="cText" rows="7" placeholder="כתוב כאן…"></textarea></label>
-          <label for="cImage">קישור לתמונה (חובה לאינסטגרם)<input id="cImage" type="url" dir="ltr" placeholder="https://…"></label>
+          <label for="cPhoto">תמונה (חובה לאינסטגרם)
+            <input id="cPhoto" type="file" accept="image/*" capture="environment">
+          </label>
+          <div class="status" id="photoStatus" role="status"></div>
+          <img id="cPreview" alt="" hidden style="max-width:160px;border-radius:10px">
+          <input id="cImage" type="url" dir="ltr" hidden>
           <div class="actions">
             <button id="saveIdea">שמור כרעיון</button>
             <button class="primary" id="saveReady">מוכן לפרסום</button>
@@ -160,6 +171,10 @@
           </div>
           <div class="status" id="teamStatus" role="status"></div>
           <div id="teamTable"></div>
+          <h2 style="margin-top:14px">גישה לאפליקציה</h2>
+          <p class="small">רק מי שמאושר כאן יכול לראות משמרות ולהשתבץ. שלח לעובד את הקישור, הוא ייכנס עם גוגל, ויופיע כאן לאישור.</p>
+          <div class="actions"><button id="copyAppLink">העתק קישור לצוות</button></div>
+          <div id="accessList"></div>
           <p class="small">השם צריך להיות זהה לשם שהעובד מופיע בו במשמרות, כדי שהתזכורת תתאים לו.</p>
         </div>
       </div>

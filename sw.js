@@ -1,6 +1,6 @@
 // מטמון בסיסי כדי שהאפליקציה תיפתח מהר, וגם כשאין רשת.
-const CACHE = "cortado-shell-v1";
-const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./config.js", "./manifest.webmanifest"];
+const CACHE = "cortado-shell-v2";
+const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./config.js", "./manifest.webmanifest", "./hours.html"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()).catch(() => {}));
 });

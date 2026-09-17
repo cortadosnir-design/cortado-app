@@ -2,8 +2,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp }
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import { firebaseConfig, OWNER_EMAILS, WORKER_URL } from "./config.js";
 
 /* ===== עזרים ===== */
@@ -81,15 +82,18 @@ async function withBusy(btn, fn){
 /* ===== Firebase ===== */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const dbs = getFirestore(app);
+let dbs;
+try { dbs = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch { dbs = getFirestore(app); }
+const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
 
 /* ===== מצב ===== */
-let me = null, isOwner = false;
+let me = null, isOwner = false, isMember = false;
 let weekStart = (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 4) s.setDate(s.getDate()+7); return s; })();
 let week = null, signups = [], unsubWeek = null, unsubSignups = null;
-let posts = [], team = [], logs = [], unsubPosts = null, unsubTeam = null, unsubLogs = null;
-let remRows = null, remWeekId = null;
+let posts = [], team = [], logs = [], members = [], joinReqs = [], unsubPosts = null, unsubTeam = null, unsubLogs = null, unsubMembers = null, unsubJoin = null;
+let remRows = null, remWeekId = null, unsubRem = null;
 let calMonth = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); })();
 let editingPost = null, editingMember = null, busy = false;
 
@@ -127,18 +131,32 @@ getRedirectResult(auth).catch(() => {});
 onAuthStateChanged(auth, async (user) => {
   me = user;
   isOwner = !!user && OWNER_EMAILS.map(e => e.toLowerCase()).includes((user.email || "").toLowerCase());
+  isMember = isOwner;
+  if (user && !isOwner){
+    try { const m = await getDoc(doc(dbs, "members", user.uid)); isMember = m.exists(); } catch { isMember = false; }
+  }
   $("signin").hidden = !!user;
-  $("tabs").hidden = !user;
+  $("waiting").hidden = !(user && !isMember);
+  $("tabs").hidden = !(user && isMember);
   $("who").hidden = !user;
   $("managerPanel").hidden = !isOwner;
   document.querySelectorAll("[data-owner]").forEach(n => n.hidden = !isOwner);
   document.querySelectorAll("[data-api]").forEach(n => n.hidden = !(isOwner && WORKER_URL));
   if (isOwner && WORKER_URL) $("pubNote").textContent = "הפוסט מתפרסם ישירות מהאפליקציה. לאינסטגרם צריך תמונה.";
-  if (!user){
-    [unsubWeek, unsubSignups, unsubPosts, unsubTeam, unsubLogs].forEach(u => u && u());
-    unsubWeek = unsubSignups = unsubPosts = unsubTeam = unsubLogs = null;
+  if (!user || !isMember){
+    [unsubWeek, unsubSignups, unsubPosts, unsubTeam, unsubLogs, unsubRem, unsubMembers, unsubJoin].forEach(u => u && u());
+    unsubWeek = unsubSignups = unsubPosts = unsubTeam = unsubLogs = unsubRem = unsubMembers = unsubJoin = null;
     week = null; signups = []; posts = []; team = []; logs = [];
     TABS.forEach(t => $("p-" + t).hidden = true);
+    if (user && !isMember){
+      $("myName").textContent = user.displayName || user.email || "";
+      if (user.photoURL) $("avatar").src = user.photoURL;
+      try {
+        await setDoc(doc(dbs, "joinRequests", user.uid), {
+          name: user.displayName || "", email: user.email || "", photo: user.photoURL || "", at: serverTimestamp()
+        });
+      } catch {}
+    }
     render(); return;
   }
   $("myName").textContent = user.displayName || user.email || "";
@@ -151,9 +169,21 @@ onAuthStateChanged(auth, async (user) => {
   let tab = "shifts";
   try { const t = localStorage.getItem("cortado-tab"); if (t && TABS.includes(t) && (isOwner || t === "shifts" || t === "log")) tab = t; } catch {}
   selectTab(tab);
+  await loadMemberNames();
   subscribeWeek();
   subscribeShared();
 });
+
+/* ===== שמות חברי צוות (לא נשמרים בשיבוץ) ===== */
+let memberNames = {};
+async function loadMemberNames(){
+  if (isOwner) return; // למנהל יש מאזין חי
+  try {
+    const snap = await getDocs(collection(dbs, "members"));
+    memberNames = {}; snap.docs.forEach(d => memberNames[d.id] = (d.data().name || "חבר צוות"));
+  } catch {}
+}
+const nameOf = (uid) => (me && uid === me.uid) ? "אתה" : (memberNames[uid] || "חבר צוות");
 
 /* ===== משמרות ===== */
 function subscribeWeek(){
@@ -171,13 +201,12 @@ const shifts = () => (week && Array.isArray(week.shifts)) ? [...week.shifts].sor
 const isOpen = () => !!(week && week.open);
 
 async function saveWeek(patch){
-  if (busy) return; busy = true;
   try {
     await setDoc(doc(dbs, "weeks", weekId(weekStart)), { shifts: shifts(), open: isOpen(), ...patch, updatedAt: serverTimestamp() }, { merge: true });
     status("managerStatus", "ok", "נשמר.");
   } catch (e){
     status("managerStatus", "bad", e.code === "permission-denied" ? "רק המנהל יכול לשנות משמרות." : "השמירה נכשלה. נסה שוב.");
-  } finally { busy = false; }
+  }
 }
 $("addShift").addEventListener("click", () => {
   const day = +$("fDay").value, start = $("fStart").value, end = $("fEnd").value, need = Math.max(1, +$("fNeed").value || 1);
@@ -190,6 +219,7 @@ $("copyPrev").addEventListener("click", async () => {
     const prev = snap.exists() && Array.isArray(snap.data().shifts) ? snap.data().shifts : [];
     if (!prev.length) { status("managerStatus", "warn", "בשבוע שעבר לא היו משמרות."); return; }
     if (shifts().length && !confirm("להחליף את המשמרות של השבוע?")) return;
+    for (const u of signups) { try { await deleteDoc(doc(dbs, "signups", u.id)); } catch {} }
     saveWeek({ shifts: prev.map(s => ({ ...s })) });
   } catch { status("managerStatus", "bad", "לא הצלחתי לקרוא את שבוע שעבר."); }
 });
@@ -206,10 +236,8 @@ async function join(s){
   if (!me) return;
   const wid = weekId(weekStart);
   try {
-    await setDoc(doc(dbs, "signups", `${wid}_${s.id}_${me.uid}`), {
-      week: wid, shift: s.id, uid: me.uid, name: me.displayName || me.email || "", photo: me.photoURL || "", at: serverTimestamp()
-    });
-  } catch (e){ alert(e.code === "permission-denied" ? "השבוע עדיין לא פתוח לשיבוץ." : "ההרשמה לא נשמרה. נסה שוב."); }
+    await setDoc(doc(dbs, "signups", `${wid}_${s.id}_${me.uid}`), { week: wid, shift: s.id, uid: me.uid, at: serverTimestamp() });
+  } catch (e){ alert(e.code === "permission-denied" ? "לא הצלחתי לרשום אותך — ייתכן שהשיבוץ נסגר. רענן את הדף." : "ההרשמה לא נשמרה. נסה שוב."); }
 }
 const leave = async (id) => { try { await deleteDoc(doc(dbs, "signups", id)); } catch { alert("הביטול לא נשמר."); } };
 
@@ -225,11 +253,13 @@ function render(){
   const need = list.reduce((a,s) => a + (s.need || 1), 0);
   const filled = list.reduce((a,s) => a + Math.min((byShift[s.id] || []).length, s.need || 1), 0);
   const emptyShifts = list.filter(s => !(byShift[s.id] || []).length).length;
-  const mine = me ? signups.filter(s => s.uid === me.uid).length : 0;
+  const mine = me ? signups.filter(s => s.uid === me.uid && list.some(x => x.id === s.shift)).length : 0;
+  const over = list.filter(s => (byShift[s.id] || []).length > (s.need || 1)).length;
   const sum = $("summary"); sum.replaceChildren();
   if (list.length){
     sum.append(el("span", { class: "chip " + (filled === need ? "ok" : filled ? "warn" : "bad"), text: `${filled} מתוך ${need} מקומות מאוישים` }));
     if (emptyShifts) sum.append(el("span", { class: "chip bad", text: `${emptyShifts} משמרות ריקות` }));
+    if (over) sum.append(el("span", { class: "chip warn", text: `${over} משמרות עם יותר רשומים מהדרוש` }));
     if (mine) sum.append(el("span", { class: "chip ok", text: `אתה רשום ל-${mine} משמרות` }));
   }
   const n = $("notice"); n.replaceChildren();
@@ -253,8 +283,7 @@ function render(){
       const pl = el("div", { class: "people" });
       for (const p of people){
         const row = el("div", { class: "person" });
-        if (p.photo) row.append(el("img", { src: p.photo, alt: "", referrerpolicy: "no-referrer" }));
-        row.append(el("span", { class: "nm", text: me && p.uid === me.uid ? "אתה" : (p.name || "חבר צוות") }));
+        row.append(el("span", { class: "nm", text: nameOf(p.uid) }));
         if (isOwner && !(me && p.uid === me.uid)) row.append(el("button", { text: "✕", "aria-label": "הסר", onclick: () => leave(p.id) }));
         pl.append(row);
       }
@@ -263,8 +292,9 @@ function render(){
       if (me && isOpen()) card.append(mineHere
         ? el("button", { class: "join mine", text: "רשום ✓ · לחץ לביטול", onclick: () => leave(mineHere.id) })
         : el("button", { class: "join", text: people.length >= cap ? "מלא" : "אני משתבץ", disabled: people.length >= cap, onclick: () => join(s) }));
-      if (isOwner) card.append(el("button", { class: "link", text: "מחק משמרת", onclick: () => {
+      if (isOwner) card.append(el("button", { class: "link", text: "מחק משמרת", onclick: async () => {
         if ((byShift[s.id] || []).length && !confirm("רשומים למשמרת הזו. למחוק בכל זאת?")) return;
+        for (const p of (byShift[s.id] || [])) { try { await deleteDoc(doc(dbs, "signups", p.id)); } catch {} }
         saveWeek({ shifts: shifts().filter(x => x.id !== s.id) });
       }}));
       col.append(card);
@@ -299,6 +329,15 @@ function subscribeShared(){
   if (unsubTeam) unsubTeam();
   unsubTeam = onSnapshot(collection(dbs, "team"),
     (snap) => { team = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderTeam(); renderReminders(); }, () => {});
+  if (unsubMembers) unsubMembers();
+  unsubMembers = onSnapshot(collection(dbs, "members"), (snap) => {
+    members = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    memberNames = {}; members.forEach(m => memberNames[m.uid] = m.name || "חבר צוות");
+    renderAccess(); render();
+  }, () => {});
+  if (unsubJoin) unsubJoin();
+  unsubJoin = onSnapshot(collection(dbs, "joinRequests"),
+    (snap) => { joinReqs = snap.docs.map(d => ({ uid: d.id, ...d.data() })); renderAccess(); }, () => {});
 }
 
 /* ===== פרסום ===== */
@@ -345,6 +384,7 @@ function newPost(date, preset = {}){
   $("cTime").value = "07:30";
   $("cPillar").value = preset.pillar || PILLARS[0];
   $("cIdea").value = preset.idea || ""; $("cText").value = ""; $("cImage").value = "";
+  $("cPreview").hidden = true; $("cPhoto").value = ""; status("photoStatus");
   $("composer").dataset.holiday = preset.holiday || "";
   $("delPost").hidden = true; status("compStatus"); dateHint();
   $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -355,8 +395,10 @@ function loadPost(id){
   $("compTitle").textContent = p.status === "done" ? "פוסט שפורסם" : "עריכת פוסט";
   $("cDate").value = p.date || ""; $("cTime").value = p.time || "07:30";
   $("cPillar").value = p.pillar || PILLARS[0]; $("cIdea").value = p.idea || ""; $("cText").value = p.text || ""; $("cImage").value = p.image || "";
+  if (p.image){ $("cPreview").src = p.image; $("cPreview").hidden = false; } else $("cPreview").hidden = true;
   $("composer").dataset.holiday = p.holiday || "";
   $("delPost").hidden = false; status("compStatus"); dateHint();
+  if (p.needsPhoto) $("dateHint").textContent = "📷 לצלם: " + p.needsPhoto + " · " + $("dateHint").textContent;
   $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 function dateHint(){
@@ -380,15 +422,30 @@ async function savePost(st){
     status("compStatus", "ok", st === "done" ? "סומן כפורסם." : st === "ready" ? "נשמר כמוכן לפרסום." : "נשמר כרעיון.");
   } catch (e){ status("compStatus", "bad", e.code === "permission-denied" ? "רק המנהל יכול לשמור פוסטים." : "השמירה נכשלה."); }
 }
-$("saveIdea").addEventListener("click", () => savePost("idea"));
-$("saveReady").addEventListener("click", () => savePost("ready"));
-$("markDone").addEventListener("click", () => savePost("done"));
+$("saveIdea").addEventListener("click", () => withBusy($("saveIdea"), () => savePost("idea")));
+$("saveReady").addEventListener("click", () => withBusy($("saveReady"), () => savePost("ready")));
+$("markDone").addEventListener("click", () => withBusy($("markDone"), () => savePost("done")));
 $("copyText").addEventListener("click", () => copyText($("cText").value, $("copyText"), "העתק טקסט"));
 $("newPost").addEventListener("click", () => newPost());
 $("delPost").addEventListener("click", async () => {
   if (!editingPost || !confirm("למחוק את הפוסט?")) return;
   try { await deleteDoc(doc(dbs, "posts", editingPost)); newPost(); status("compStatus", "ok", "נמחק."); }
   catch { status("compStatus", "bad", "המחיקה נכשלה."); }
+});
+
+/* ===== העלאת תמונה ===== */
+$("cPhoto").addEventListener("change", async () => {
+  const f = $("cPhoto").files && $("cPhoto").files[0];
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024){ status("photoStatus", "warn", "התמונה גדולה מדי (עד 8MB)."); return; }
+  status("photoStatus", "warn", "מעלה תמונה…");
+  try {
+    const path = `posts/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+    await uploadBytes(sRef(storage, path), f, { contentType: f.type || "image/jpeg" });
+    const url = await getDownloadURL(sRef(storage, path));
+    $("cImage").value = url; $("cPreview").src = url; $("cPreview").hidden = false;
+    status("photoStatus", "ok", "התמונה הועלתה.");
+  } catch (e){ status("photoStatus", "bad", "ההעלאה נכשלה. ודא ש-Storage מופעל ב-Firebase."); }
 });
 
 /* ===== חכם: כתיבה, תוכנית, פרסום ===== */
@@ -402,12 +459,19 @@ $("aiWrite").addEventListener("click", () => withBusy($("aiWrite"), async () => 
 async function publishTo(net){
   const text = $("cText").value.trim(), image = $("cImage").value.trim();
   if (!text && !image){ status("compStatus", "warn", "אין מה לפרסם."); return; }
-  if (net === "instagram" && !image){ status("compStatus", "warn", "אינסטגרם דורש קישור לתמונה."); return; }
-  if (!confirm(`לפרסם עכשיו ב${net === "facebook" ? "פייסבוק" : "אינסטגרם"}?\n\n${text}`)) return;
+  if (net === "instagram" && !image){ status("compStatus", "warn", "אינסטגרם דורש תמונה. העלה תמונה למעלה."); return; }
+  const netName = net === "facebook" ? "פייסבוק" : "אינסטגרם";
+  // תזמון: רק פייסבוק תומך, ורק אם השעה בעתיד (לפחות 10 דקות)
+  const when = ($("cDate").value && $("cTime").value) ? new Date(`${$("cDate").value}T${$("cTime").value}`) : null;
+  const future = when && when.getTime() > Date.now() + 10*60000;
+  const scheduled = future && net === "facebook";
+  const q = scheduled ? `לתזמן ב${netName} ל-${DAYS[when.getDay()]} ${dm(when)} בשעה ${$("cTime").value}?` : `לפרסם עכשיו ב${netName}?`;
+  if (future && net === "instagram" && !confirm(`אינסטגרם לא תומך בתזמון דרך האפליקציה — הפוסט יעלה עכשיו.\nלהמשיך?`)) return;
+  if (!confirm(`${q}\n\n${text}`)) return;
   try {
-    await api("/publish/" + net, { text, image });
-    await savePost("done");
-    status("compStatus", "ok", `פורסם ב${net === "facebook" ? "פייסבוק" : "אינסטגרם"}.`);
+    await api("/publish/" + net, { text, image, scheduledAt: scheduled ? when.toISOString() : null });
+    await savePost(scheduled ? "ready" : "done");
+    status("compStatus", "ok", scheduled ? `תוזמן ב${netName} ל-${dm(when)} ${$("cTime").value}.` : `פורסם ב${netName}.`);
   } catch (e){ status("compStatus", "bad", e.message); }
 }
 $("pubFb").addEventListener("click", () => withBusy($("pubFb"), () => publishTo("facebook")));
@@ -421,15 +485,21 @@ $("aiPlan").addEventListener("click", () => withBusy($("aiPlan"), async () => {
   try {
     const { plan } = await api("/ai/plan", { from: ymd(from), days: 14, holidays: hol, hours: lastHours.length ? hoursText() : "",
       insights: peak != null ? `שעת העומס בדרך כלל ${pad(peak)}:00` : "" });
-    let n = 0;
+    let n = 0, bad = 0;
+    const seen = new Set(posts.map(x => `${x.date}|${x.idea}`));
     for (const p of plan){
-      if (!p || !p.date || !p.text) continue;
-      if (posts.some(x => x.date === p.date && x.idea === p.idea)) continue;
-      await setDoc(doc(collection(dbs, "posts")), { date: p.date, time: p.time || "07:30", pillar: p.pillar || PILLARS[0], idea: p.idea || "", text: p.text,
-        needsPhoto: p.needsPhoto || "", image: "", status: "ready", holiday: "", updatedAt: serverTimestamp() });
-      n++;
+      if (!p || !p.text || !/^\d{4}-\d{2}-\d{2}$/.test(String(p.date || ""))){ bad++; continue; }
+      const key = `${p.date}|${p.idea || ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      try {
+        await setDoc(doc(collection(dbs, "posts")), { date: p.date, time: /^\d{2}:\d{2}$/.test(p.time || "") ? p.time : "07:30",
+          pillar: p.pillar || PILLARS[0], idea: p.idea || "", text: p.text, needsPhoto: p.needsPhoto || "",
+          image: "", status: "ready", holiday: "", updatedAt: serverTimestamp() });
+        n++;
+      } catch { bad++; }
     }
-    status("planStatus", "ok", `נוספו ${n} פוסטים ללוח. לחץ עליהם כדי לערוך או לפרסם.`);
+    status("planStatus", n ? "ok" : "warn", `נוספו ${n} פוסטים ללוח.` + (bad ? ` ${bad} דולגו.` : "") + (n ? " לחץ עליהם כדי לערוך או לפרסם." : ""));
   } catch (e){ status("planStatus", "bad", e.message); }
 }));
 
@@ -448,9 +518,18 @@ $("pushHours").addEventListener("click", () => withBusy($("pushHours"), async ()
   const keys = ["sun","mon","tue","wed","thu","fri","sat"];
   const hours = {}; lastHours.forEach((h,i) => { hours[keys[i]] = h.map(r => r.split("–")); });
   if (!Object.values(hours).some(v => v.length)){ status("hoursStatus", "warn", "אין עדיין משמרות מאוישות השבוע."); return; }
-  if (!confirm("לעדכן את שעות הפתיחה בפייסבוק, בדף הנחיתה ולפרסם פוסט שעות?")) return;
+  const thisWeek = weekId(sundayOf(new Date()));
+  if (weekId(weekStart) !== thisWeek &&
+      !confirm(`שים לב: השבוע שמוצג הוא ${dm(weekStart)}–${dm(addDays(weekStart,6))}, ולא השבוע הנוכחי.\nלפרסם בכל זאת את השעות של השבוע הזה?`)) return;
+  // ימים שיפורסמו כ"סגור" — כולל ימים שתוכננו ואף אחד לא נרשם אליהם
+  const planned = new Set(shifts().map(x => x.day));
+  const closed = lastHours.map((h,i) => (!h.length && planned.has(i)) ? DAYS[i] : null).filter(Boolean);
+  const emptyDays = lastHours.map((h,i) => !h.length ? DAYS[i] : null).filter(Boolean);
+  if (closed.length && !confirm(`תוכננו משמרות ב${closed.join(", ")} אבל אף אחד לא נרשם אליהן, אז הן יפורסמו כ"סגור".\nלהמשיך?`)) return;
+  if (!confirm(`לעדכן שעות בפייסבוק, בדף הציבורי, ולפרסם פוסט?\nימים שיוצגו כסגורים: ${emptyDays.join(", ") || "אין"}`)) return;
   const done = [], failed = [];
-  try { await setDoc(doc(dbs, "public", "hours"), { hours, text: hoursText(), week: weekId(weekStart), updatedAt: serverTimestamp() }); done.push("דף הנחיתה"); } catch { failed.push("דף הנחיתה"); }
+  try { await setDoc(doc(dbs, "public", "hours"), { hours, text: hoursText(), week: weekId(weekStart),
+    range: `${dm(weekStart)}–${dm(addDays(weekStart, 6))}`, updatedAt: serverTimestamp() }); done.push("הדף הציבורי"); } catch { failed.push("דף הנחיתה"); }
   try { await api("/hours/facebook", { hours }); done.push("שעות בפייסבוק"); } catch (e){ failed.push("שעות בפייסבוק: " + e.message); }
   try { await api("/publish/facebook", { text: hoursText() }); done.push("פוסט בפייסבוק"); } catch (e){ failed.push("פוסט בפייסבוק: " + e.message); }
   status("hoursStatus", failed.length ? "warn" : "ok", `עודכן: ${done.join(", ") || "כלום"}.` + (failed.length ? ` נכשל: ${failed.join(" · ")}` : ""));
@@ -472,7 +551,7 @@ $("fbStatus").addEventListener("click", () => withBusy($("fbStatus"), async () =
 }));
 
 /* ===== צוות ===== */
-$("tSave").addEventListener("click", async () => {
+$("tSave").addEventListener("click", () => withBusy($("tSave"), async () => {
   const m = { name: $("tName").value.trim(), phone: $("tPhone").value.trim(), email: $("tEmail").value.trim(), role: $("tRole").value.trim() };
   if (!m.name){ status("teamStatus", "warn", "צריך לפחות שם."); return; }
   if (team.some(x => x.name === m.name && x.id !== editingMember)){ status("teamStatus", "warn", "כבר יש עובד בשם הזה."); return; }
@@ -482,7 +561,7 @@ $("tSave").addEventListener("click", async () => {
     editingMember = null; ["tName","tPhone","tEmail","tRole"].forEach(i => $(i).value = "");
     $("tSave").textContent = "הוסף עובד"; status("teamStatus", "ok", "נשמר.");
   } catch (e){ status("teamStatus", "bad", e.code === "permission-denied" ? "רק המנהל יכול לערוך את הצוות." : "השמירה נכשלה."); }
-});
+}));
 function renderTeam(){
   const t = $("teamTable"); t.replaceChildren();
   if (!team.length){ t.append(el("p", { class: "small", text: "עוד אין עובדים. הוסף את הראשון בטופס." })); return; }
@@ -497,24 +576,60 @@ function renderTeam(){
   t.append(el("div", { class: "scroll" }, el("table", { class: "t" }, el("thead", {}, el("tr", {}, ...["עובד","קשר",""].map(h => el("th", { text: h })))), tb)));
 }
 
+/* ===== גישה: אישור עובדים ===== */
+$("copyAppLink").addEventListener("click", () => copyText(location.href.split("#")[0], $("copyAppLink"), "העתק קישור לצוות"));
+function renderAccess(){
+  const box = $("accessList"); if (!box) return;
+  box.replaceChildren();
+  const pending = joinReqs.filter(r => !members.some(m => m.uid === r.uid));
+  if (pending.length){
+    box.append(el("p", {}, el("b", { text: "מחכים לאישור" })));
+    pending.forEach(r => box.append(el("div", { class: "rem" },
+      el("span", { text: `${r.name || "ללא שם"} · ${r.email || ""}` }),
+      el("button", { class: "primary", text: "אשר", onclick: async () => {
+        try {
+          await setDoc(doc(dbs, "members", r.uid), { name: r.name || "", email: r.email || "", at: serverTimestamp() });
+          await deleteDoc(doc(dbs, "joinRequests", r.uid)).catch(() => {});
+          status("teamStatus", "ok", `${r.name || "העובד"} אושר.`);
+        } catch { status("teamStatus", "bad", "האישור נכשל."); }
+      }}),
+      el("button", { class: "link", text: "דחה", onclick: () => deleteDoc(doc(dbs, "joinRequests", r.uid)).catch(() => {}) }))));
+  }
+  box.append(el("p", { style: "margin-top:8px" }, el("b", { text: "מאושרים" })));
+  if (!members.length) box.append(el("p", { class: "small", text: "עוד אין עובדים מאושרים." }));
+  members.forEach(m => box.append(el("div", { class: "rem" },
+    el("span", { text: `${m.name || "ללא שם"} · ${m.email || ""}` }),
+    el("button", { class: "link", text: "הסר גישה", onclick: async () => {
+      if (!confirm(`להסיר את הגישה של ${m.name || "העובד"}?`)) return;
+      try { await deleteDoc(doc(dbs, "members", m.uid)); } catch { status("teamStatus", "bad", "ההסרה נכשלה."); }
+    }}))));
+}
+
 /* ===== תזכורות ===== */
 async function renderReminders(){
-  const box = $("remList"); if (!box) return;
+  const box = $("remList"); if (!box || !me) return;
   const tomorrow = addDays(new Date(), 1);
   const ws = sundayOf(tomorrow), wid = weekId(ws);
   if (remWeekId !== wid){
-    remWeekId = wid; remRows = null; box.replaceChildren(el("p", { class: "small", text: "טוען…" }));
+    remWeekId = wid; remRows = null;
+    box.replaceChildren(el("p", { class: "small", text: "טוען…" }));
+    if (unsubRem) unsubRem();
     try {
-      const [wSnap, sSnap] = await Promise.all([
-        getDoc(doc(dbs, "weeks", wid)),
-        new Promise((res, rej) => { const u = onSnapshot(query(collection(dbs, "signups"), where("week", "==", wid)), (s) => { u(); res(s); }, rej); })
-      ]);
-      remRows = { shifts: wSnap.exists() && Array.isArray(wSnap.data().shifts) ? wSnap.data().shifts : [], ups: sSnap.docs.map(d => ({ id: d.id, ...d.data() })) };
-    } catch { box.replaceChildren(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })); return; }
+      const wSnap = await getDoc(doc(dbs, "weeks", wid));
+      const shiftsOf = wSnap.exists() && Array.isArray(wSnap.data().shifts) ? wSnap.data().shifts : [];
+      // מאזין חי: מי שנרשם עכשיו מופיע מיד
+      unsubRem = onSnapshot(query(collection(dbs, "signups"), where("week", "==", wid)),
+        (snap) => { remRows = { shifts: shiftsOf, ups: snap.docs.map(d => ({ id: d.id, ...d.data() })) }; drawReminders(); },
+        () => box.replaceChildren(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })));
+    } catch { box.replaceChildren(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })); }
+    return;
   }
+  drawReminders();
+}
+function drawReminders(){
+  const box = $("remList"); if (!box || !remRows) return;
   box.replaceChildren();
-  if (!remRows) return;
-  const day = tomorrow.getDay();
+  const tomorrow = addDays(new Date(), 1), day = tomorrow.getDay();
   const rows = remRows.shifts.filter(s => s.day === day).sort((a,b) => toMin(a.start) - toMin(b.start));
   box.append(el("p", {}, el("b", { text: `מחר · ${DAYS[day]} ${dm(tomorrow)}` })));
   if (!rows.length){ box.append(el("p", { class: "small", text: "אין משמרות מחר." })); return; }
@@ -523,10 +638,11 @@ async function renderReminders(){
     const line = el("div", { class: "rem" }, el("span", { class: "num", text: `${s.start}–${s.end}` }));
     if (!ups.length) line.append(el("span", { class: "pill bad", text: "אף אחד לא רשום" }));
     ups.forEach(u => {
-      const member = team.find(m => (m.name || "").trim() === (u.name || "").trim());
-      const text = `היי ${u.name} 👋\nתזכורת: מחר (${DAYS[day]} ${dm(tomorrow)}) את/ה במשמרת בעגלת קורטדו, ${s.start}–${s.end}.\nאם יש בעיה, עדכן/י אותי מוקדם. תודה! ☕`;
+      const who = nameOf(u.uid);
+      const member = team.find(m => (m.uid && m.uid === u.uid) || (m.name || "").trim() === who.trim());
+      const text = `היי ${member ? member.name : who} 👋\nתזכורת: מחר (${DAYS[day]} ${dm(tomorrow)}) את/ה במשמרת בעגלת קורטדו, ${s.start}–${s.end}.\nאם יש בעיה, עדכן/י אותי מוקדם. תודה! ☕`;
       const wa = member && waLink(member.phone, text);
-      line.append(el("span", { text: u.name || "חבר צוות" }));
+      line.append(el("span", { text: who }));
       if (wa) line.append(el("a", { class: "btn wa", href: wa, target: "_blank", rel: "noopener", text: "וואטסאפ" }));
       else line.append(el("button", { class: "link", text: "העתק הודעה", onclick: (ev) => copyText(text, ev.target, "העתק הודעה") }));
     });
@@ -535,7 +651,19 @@ async function renderReminders(){
 }
 
 /* ===== יומן ותובנות ===== */
-$("lSave").addEventListener("click", async () => {
+$("lDate").addEventListener("change", async () => {
+  if (!me || !$("lDate").value) return;
+  try {
+    const d = await getDoc(doc(dbs, "log", `${$("lDate").value}_${me.uid}`));
+    if (d.exists()){
+      const l = d.data();
+      $("lCustomers").value = l.customers ?? ""; $("lPeak").value = l.peak || "";
+      $("lWeather").value = l.weather || ""; $("lPromo").value = l.promo || ""; $("lNotes").value = l.notes || "";
+      status("logStatus", "warn", "כבר דיווחת על היום הזה. שמירה תעדכן את הדיווח.");
+    } else { ["lCustomers","lPeak","lPromo","lNotes"].forEach(i => $(i).value = ""); status("logStatus"); }
+  } catch {}
+});
+$("lSave").addEventListener("click", () => withBusy($("lSave"), async () => {
   const date = $("lDate").value;
   if (!date){ status("logStatus", "warn", "בחר תאריך."); return; }
   const cust = $("lCustomers").value === "" ? null : Math.max(0, +$("lCustomers").value);
@@ -547,7 +675,7 @@ $("lSave").addEventListener("click", async () => {
     status("logStatus", "ok", "הדיווח נשמר. תודה!");
     ["lCustomers","lPeak","lPromo","lNotes"].forEach(i => $(i).value = "");
   } catch (e){ status("logStatus", "bad", "השמירה נכשלה. נסה שוב."); }
-});
+}));
 const peakHour = () => {
   const counts = new Array(24).fill(0);
   logs.forEach(l => { if (l.peak) counts[+l.peak.slice(0,2)]++; });
