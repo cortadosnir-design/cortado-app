@@ -12,7 +12,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/weeks/$(wid)).data.open == true;
     }
 
-    // כל מי שמחובר רואה את המשמרות. רק המנהל משנה אותן.
+    // משמרות: כולם רואים, רק המנהל משנה.
     match /weeks/{wid} {
       allow read: if signedIn();
       allow write: if isOwner();
@@ -27,6 +27,19 @@ service cloud.firestore {
         && weekOpen(request.resource.data.week);
       allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isOwner());
       allow update: if false;
+    }
+
+    // לוח התוכן ורשימת הצוות: המנהל בלבד.
+    match /posts/{id} { allow read, write: if isOwner(); }
+    match /team/{id}  { allow read, write: if isOwner(); }
+
+    // יומן משמרת: כל עובד מדווח על עצמו (מסמך לכל תאריך), וכולם רואים את הסיכום.
+    match /log/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && id == request.resource.data.date + '_' + request.auth.uid;
+      allow delete: if isOwner();
     }
 
     // כרטיס משתמש: כל אחד כותב רק את שלו.

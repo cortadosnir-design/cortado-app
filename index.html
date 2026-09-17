@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2C5A87">
-<title>משמרות קורטדו</title>
+<title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +16,7 @@
   <header class="top">
     <div>
       <div class="eyebrow">עגלת קפה קורטדו</div>
-      <h1>משמרות</h1>
+      <h1>קורטדו אופרציה</h1>
     </div>
     <div class="who" id="who" hidden>
       <img id="avatar" alt="" width="32" height="32">
@@ -35,7 +35,15 @@
       <p class="small" id="authNote"></p>
     </section>
 
-    <section id="board" hidden>
+    <nav class="tabs" id="tabs" role="tablist" hidden>
+      <button role="tab" id="tab-shifts" aria-controls="p-shifts" aria-selected="true">משמרות</button>
+      <button role="tab" id="tab-posts" aria-controls="p-posts" aria-selected="false" data-owner>פרסום</button>
+      <button role="tab" id="tab-team" aria-controls="p-team" aria-selected="false" data-owner>צוות ותזכורות</button>
+      <button role="tab" id="tab-log" aria-controls="p-log" aria-selected="false">יומן משמרת</button>
+    </nav>
+
+    <!-- ===== משמרות ===== -->
+    <section id="p-shifts" class="tabpanel" role="tabpanel" hidden>
       <div class="weeknav">
         <button id="prevWeek" aria-label="שבוע קודם">→</button>
         <div class="range" id="range">…</div>
@@ -45,27 +53,129 @@
       <div id="summary" class="summary"></div>
       <div id="notice"></div>
       <div class="days" id="days"></div>
+
+      <section class="card" id="managerPanel" hidden>
+        <h2>ניהול השבוע</h2>
+        <div class="form">
+          <label for="fDay">יום<select id="fDay"></select></label>
+          <label for="fStart">משעה<input id="fStart" type="time" value="06:30"></label>
+          <label for="fEnd">עד<input id="fEnd" type="time" value="11:00"></label>
+          <label for="fNeed">אנשים<input id="fNeed" type="number" min="1" max="6" value="1"></label>
+          <button class="primary" id="addShift">הוסף משמרת</button>
+        </div>
+        <div class="actions">
+          <button id="copyPrev">העתק משבוע שעבר</button>
+          <button class="primary" id="toggleOpen">פתח לשיבוץ</button>
+          <button id="shareLink">העתק קישור לצוות</button>
+        </div>
+        <div id="managerStatus" class="status" role="status"></div>
+        <details>
+          <summary>שעות פתיחה מחושבות</summary>
+          <dl class="hours" id="hours"></dl>
+          <button id="copyHours">העתק טקסט לפרסום</button>
+        </details>
+      </section>
     </section>
 
-    <section class="card" id="managerPanel" hidden>
-      <h2>ניהול השבוע</h2>
-      <div class="form">
-        <label for="fDay">יום<select id="fDay"></select></label>
-        <label for="fStart">משעה<input id="fStart" type="time" value="06:30"></label>
-        <label for="fEnd">עד<input id="fEnd" type="time" value="11:00"></label>
-        <label for="fNeed">אנשים<input id="fNeed" type="number" min="1" max="6" value="1"></label>
-        <button class="primary" id="addShift">הוסף משמרת</button>
+    <!-- ===== פרסום ===== -->
+    <section id="p-posts" class="tabpanel" role="tabpanel" hidden>
+      <div class="two">
+        <div class="card">
+          <div class="calhead">
+            <button id="calPrev" aria-label="חודש קודם">→</button>
+            <h2 id="calTitle">…</h2>
+            <button id="calNext" aria-label="חודש הבא">←</button>
+          </div>
+          <div class="cal" id="cal"></div>
+          <div class="legend"><span class="l-idea">רעיון</span><span class="l-draft">מוכן</span><span class="l-done">פורסם</span><span class="l-hol">חג</span></div>
+        </div>
+        <div class="card" id="composer">
+          <h2 id="compTitle">פוסט חדש</h2>
+          <div class="two-col">
+            <label for="cDate">תאריך<input id="cDate" type="date"></label>
+            <label for="cTime">שעה<input id="cTime" type="time" value="07:30"></label>
+          </div>
+          <p class="small" id="dateHint"></p>
+          <label for="cPillar">סוג תוכן<select id="cPillar"></select></label>
+          <label for="cIdea">על מה הפוסט<input id="cIdea" type="text" placeholder="למשל: לאטה תפוחים לסוכות"></label>
+          <label for="cText">טקסט הפוסט<textarea id="cText" rows="7" placeholder="כתוב כאן…"></textarea></label>
+          <div class="actions">
+            <button id="saveIdea">שמור כרעיון</button>
+            <button class="primary" id="saveReady">מוכן לפרסום</button>
+            <button id="markDone">סמן שפורסם</button>
+          </div>
+          <div class="actions">
+            <button id="copyText">העתק טקסט</button>
+            <button class="link" id="newPost">+ פוסט חדש</button>
+            <button class="link" id="delPost" hidden>מחק</button>
+          </div>
+          <div class="status" id="compStatus" role="status"></div>
+          <p class="small">הפרסום עצמו נעשה כרגע בהדבקה לפייסבוק. פרסום אוטומטי יתווסף בשלב הבא.</p>
+        </div>
       </div>
-      <div class="actions">
-        <button id="copyPrev">העתק משבוע שעבר</button>
-        <button class="primary" id="toggleOpen">פתח לשיבוץ</button>
+      <div class="card">
+        <h2>מועדים קרובים</h2>
+        <div class="ideas" id="holidays"></div>
       </div>
-      <div id="managerStatus" class="status" role="status"></div>
-      <details>
-        <summary>שעות פתיחה מחושבות</summary>
-        <dl class="hours" id="hours"></dl>
-        <button id="copyHours">העתק טקסט לפרסום</button>
-      </details>
+    </section>
+
+    <!-- ===== צוות ===== -->
+    <section id="p-team" class="tabpanel" role="tabpanel" hidden>
+      <div class="two">
+        <div class="card">
+          <h2>תזכורות למחר</h2>
+          <div id="remList"></div>
+          <p class="small">לחיצה על וואטסאפ פותחת הודעה מוכנה לעובד. שליחה אוטומטית תתווסף בשלב הבא.</p>
+        </div>
+        <div class="card">
+          <h2>הצוות</h2>
+          <div class="teamform">
+            <label for="tName">שם<input id="tName" type="text" placeholder="כמו שמופיע במשמרות"></label>
+            <label for="tPhone">טלפון<input id="tPhone" type="tel" dir="ltr" placeholder="050-0000000"></label>
+            <label for="tEmail">מייל (לא חובה)<input id="tEmail" type="email" dir="ltr"></label>
+            <label for="tRole">תפקיד<input id="tRole" type="text" placeholder="בריסטה"></label>
+            <button class="primary" id="tSave">הוסף עובד</button>
+          </div>
+          <div class="status" id="teamStatus" role="status"></div>
+          <div id="teamTable"></div>
+          <p class="small">השם צריך להיות זהה לשם שהעובד מופיע בו במשמרות, כדי שהתזכורת תתאים לו.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== יומן ===== -->
+    <section id="p-log" class="tabpanel" role="tabpanel" hidden>
+      <div class="two">
+        <div class="card">
+          <h2>דיווח סוף משמרת</h2>
+          <p class="small">דקה אחת בסוף כל משמרת. מכאן נבנות התובנות.</p>
+          <div class="two-col">
+            <label for="lDate">תאריך<input id="lDate" type="date"></label>
+            <label for="lCustomers">כמה לקוחות (בערך)<input id="lCustomers" type="number" min="0" max="999"></label>
+          </div>
+          <div class="two-col">
+            <label for="lPeak">שעת העומס<input id="lPeak" type="time"></label>
+            <label for="lWeather">מזג אוויר<select id="lWeather"></select></label>
+          </div>
+          <label for="lPromo">מבצע או אירוע<input id="lPromo" type="text" placeholder="אם היה"></label>
+          <label for="lNotes">הערות<input id="lNotes" type="text"></label>
+          <div class="actions"><button class="primary" id="lSave">שמור דיווח</button></div>
+          <div class="status" id="logStatus" role="status"></div>
+        </div>
+        <div class="card" id="insights">
+          <h2>תובנות</h2>
+          <div class="kpis" id="logKpis"></div>
+          <h3 class="sub">ממוצע לקוחות לפי יום</h3>
+          <div id="chartDays"></div>
+          <h3 class="sub">שעות העומס</h3>
+          <div id="chartHours"></div>
+          <div class="reco" id="reco"></div>
+        </div>
+      </div>
+      <div class="card" id="recentWrap" hidden>
+        <h2>דיווחים אחרונים</h2>
+        <div id="recent"></div>
+      </div>
     </section>
   </main>
 
@@ -74,7 +184,6 @@
     <span class="small">קפה קורטדו · קיבוץ שניר</span>
   </footer>
 </div>
-
 <script type="module" src="app.js"></script>
 </body>
 </html>
