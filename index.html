@@ -73,6 +73,10 @@
           <summary>שעות פתיחה מחושבות</summary>
           <dl class="hours" id="hours"></dl>
           <button id="copyHours">העתק טקסט לפרסום</button>
+          <div class="actions" data-api hidden style="margin-top:8px">
+            <button class="primary" id="pushHours">עדכן שעות בכל מקום</button>
+          </div>
+          <div class="status" id="hoursStatus" role="status"></div>
         </details>
       </section>
     </section>
@@ -98,11 +102,17 @@
           <p class="small" id="dateHint"></p>
           <label for="cPillar">סוג תוכן<select id="cPillar"></select></label>
           <label for="cIdea">על מה הפוסט<input id="cIdea" type="text" placeholder="למשל: לאטה תפוחים לסוכות"></label>
+          <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ כתוב לי פוסט</button></div>
           <label for="cText">טקסט הפוסט<textarea id="cText" rows="7" placeholder="כתוב כאן…"></textarea></label>
+          <label for="cImage">קישור לתמונה (חובה לאינסטגרם)<input id="cImage" type="url" dir="ltr" placeholder="https://…"></label>
           <div class="actions">
             <button id="saveIdea">שמור כרעיון</button>
             <button class="primary" id="saveReady">מוכן לפרסום</button>
             <button id="markDone">סמן שפורסם</button>
+          </div>
+          <div class="actions" data-api hidden>
+            <button class="primary" id="pubFb">פרסם בפייסבוק</button>
+            <button class="primary" id="pubIg">פרסם באינסטגרם</button>
           </div>
           <div class="actions">
             <button id="copyText">העתק טקסט</button>
@@ -110,9 +120,21 @@
             <button class="link" id="delPost" hidden>מחק</button>
           </div>
           <div class="status" id="compStatus" role="status"></div>
-          <p class="small">הפרסום עצמו נעשה כרגע בהדבקה לפייסבוק. פרסום אוטומטי יתווסף בשלב הבא.</p>
+          <p class="small" id="pubNote">הפרסום עצמו נעשה כרגע בהדבקה לפייסבוק.</p>
         </div>
       </div>
+      <div class="card" data-api hidden>
+        <div class="calhead"><h2>תוכנית תוכן אוטומטית</h2><button class="primary" id="aiPlan">✨ בנה לי שבועיים</button></div>
+        <p class="small">המערכת כותבת 6–8 פוסטים מוכנים, לפי החגים, השעות והנתונים מהיומן. הם נכנסים ללוח כטיוטות שאפשר לערוך.</p>
+        <div class="status" id="planStatus" role="status"></div>
+      </div>
+      <details class="card" data-api hidden>
+        <summary>חיבור עמוד פייסבוק (הגדרה חד-פעמית)</summary>
+        <p class="small">הדבק כאן את הטוקן הזמני מ-Graph API Explorer. תקבל בחזרה מזהים וטוקן ארוך-טווח להעתקה ל-Cloudflare.</p>
+        <label for="fbUserToken">טוקן משתמש זמני<textarea id="fbUserToken" rows="3" dir="ltr"></textarea></label>
+        <div class="actions"><button class="primary" id="fbSetup">חבר עמוד</button><button id="fbStatus">בדוק חיבור</button></div>
+        <pre class="small" id="fbSetupOut" dir="ltr" style="white-space:pre-wrap;user-select:all"></pre>
+      </details>
       <div class="card">
         <h2>מועדים קרובים</h2>
         <div class="ideas" id="holidays"></div>
@@ -170,6 +192,9 @@
           <h3 class="sub">שעות העומס</h3>
           <div id="chartHours"></div>
           <div class="reco" id="reco"></div>
+          <div class="actions" data-api hidden><button id="aiInsights">✨ נתח לי את הנתונים</button></div>
+          <div class="status" id="insightsStatus" role="status"></div>
+          <div class="reco" id="aiReco"></div>
         </div>
       </div>
       <div class="card" id="recentWrap" hidden>

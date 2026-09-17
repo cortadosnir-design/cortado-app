@@ -42,6 +42,12 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    // שעות פתיחה לדף הנחיתה: כולם קוראים (גם בלי כניסה), רק המנהל כותב.
+    match /public/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+
     // כרטיס משתמש: כל אחד כותב רק את שלו.
     match /users/{uid} {
       allow read: if signedIn();

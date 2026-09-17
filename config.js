@@ -13,3 +13,6 @@ export const firebaseConfig = {
 // מי יכול לנהל משמרות: לפתוח שבוע, להוסיף, למחוק ולהסיר עובדים.
 // שינוי כאן חייב להיעשות גם ב-firestore.rules, בפונקציה isOwner.
 export const OWNER_EMAILS = ["cortado.snir@gmail.com"];
+
+// כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
+export const WORKER_URL = "";

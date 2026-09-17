@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRe
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { firebaseConfig, OWNER_EMAILS } from "./config.js";
+import { firebaseConfig, OWNER_EMAILS, WORKER_URL } from "./config.js";
 
 /* ===== עזרים ===== */
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
@@ -62,6 +62,22 @@ async function copyText(text, btn, label){
   if (btn) setTimeout(() => btn.textContent = label, 2000);
 }
 
+/* ===== השרת (Worker) ===== */
+async function api(path, body){
+  if (!WORKER_URL) throw new Error("השרת עוד לא מוגדר.");
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(WORKER_URL.replace(/\/$/, "") + path, {
+    method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify(body || {})
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.message || "השרת החזיר שגיאה.");
+  return data;
+}
+async function withBusy(btn, fn){
+  const t = btn.textContent; btn.disabled = true; btn.textContent = "רגע…";
+  try { return await fn(); } finally { btn.disabled = false; btn.textContent = t; }
+}
+
 /* ===== Firebase ===== */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -116,6 +132,8 @@ onAuthStateChanged(auth, async (user) => {
   $("who").hidden = !user;
   $("managerPanel").hidden = !isOwner;
   document.querySelectorAll("[data-owner]").forEach(n => n.hidden = !isOwner);
+  document.querySelectorAll("[data-api]").forEach(n => n.hidden = !(isOwner && WORKER_URL));
+  if (isOwner && WORKER_URL) $("pubNote").textContent = "הפוסט מתפרסם ישירות מהאפליקציה. לאינסטגרם צריך תמונה.";
   if (!user){
     [unsubWeek, unsubSignups, unsubPosts, unsubTeam, unsubLogs].forEach(u => u && u());
     unsubWeek = unsubSignups = unsubPosts = unsubTeam = unsubLogs = null;
@@ -326,7 +344,7 @@ function newPost(date, preset = {}){
   $("cDate").value = date || ymd(addDays(new Date(), 1));
   $("cTime").value = "07:30";
   $("cPillar").value = preset.pillar || PILLARS[0];
-  $("cIdea").value = preset.idea || ""; $("cText").value = "";
+  $("cIdea").value = preset.idea || ""; $("cText").value = ""; $("cImage").value = "";
   $("composer").dataset.holiday = preset.holiday || "";
   $("delPost").hidden = true; status("compStatus"); dateHint();
   $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -336,7 +354,7 @@ function loadPost(id){
   editingPost = id;
   $("compTitle").textContent = p.status === "done" ? "פוסט שפורסם" : "עריכת פוסט";
   $("cDate").value = p.date || ""; $("cTime").value = p.time || "07:30";
-  $("cPillar").value = p.pillar || PILLARS[0]; $("cIdea").value = p.idea || ""; $("cText").value = p.text || "";
+  $("cPillar").value = p.pillar || PILLARS[0]; $("cIdea").value = p.idea || ""; $("cText").value = p.text || ""; $("cImage").value = p.image || "";
   $("composer").dataset.holiday = p.holiday || "";
   $("delPost").hidden = false; status("compStatus"); dateHint();
   $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -354,7 +372,7 @@ $("cDate").addEventListener("change", dateHint);
 async function savePost(st){
   if (!$("cDate").value){ status("compStatus", "warn", "בחר תאריך."); return; }
   const data = { date: $("cDate").value, time: $("cTime").value, pillar: $("cPillar").value, idea: $("cIdea").value.trim(),
-    text: $("cText").value, status: st, holiday: $("composer").dataset.holiday || "", updatedAt: serverTimestamp() };
+    text: $("cText").value, image: $("cImage").value.trim(), status: st, holiday: $("composer").dataset.holiday || "", updatedAt: serverTimestamp() };
   try {
     const ref = editingPost ? doc(dbs, "posts", editingPost) : doc(collection(dbs, "posts"));
     await setDoc(ref, data, { merge: true });
@@ -372,6 +390,86 @@ $("delPost").addEventListener("click", async () => {
   try { await deleteDoc(doc(dbs, "posts", editingPost)); newPost(); status("compStatus", "ok", "נמחק."); }
   catch { status("compStatus", "bad", "המחיקה נכשלה."); }
 });
+
+/* ===== חכם: כתיבה, תוכנית, פרסום ===== */
+const holidayName = () => { const h = $("composer").dataset.holiday; const x = HOLIDAYS.find(y => y[0] === h); return x ? x[1] : ""; };
+$("aiWrite").addEventListener("click", () => withBusy($("aiWrite"), async () => {
+  try {
+    const { text } = await api("/ai/post", { pillar: $("cPillar").value, idea: $("cIdea").value.trim(), date: $("cDate").value, holiday: holidayName(), hours: lastHours.length ? hoursText() : "" });
+    $("cText").value = text; status("compStatus", "ok", "נכתב. ערוך אם צריך, ואז שמור או פרסם.");
+  } catch (e){ status("compStatus", "bad", e.message); }
+}));
+async function publishTo(net){
+  const text = $("cText").value.trim(), image = $("cImage").value.trim();
+  if (!text && !image){ status("compStatus", "warn", "אין מה לפרסם."); return; }
+  if (net === "instagram" && !image){ status("compStatus", "warn", "אינסטגרם דורש קישור לתמונה."); return; }
+  if (!confirm(`לפרסם עכשיו ב${net === "facebook" ? "פייסבוק" : "אינסטגרם"}?\n\n${text}`)) return;
+  try {
+    await api("/publish/" + net, { text, image });
+    await savePost("done");
+    status("compStatus", "ok", `פורסם ב${net === "facebook" ? "פייסבוק" : "אינסטגרם"}.`);
+  } catch (e){ status("compStatus", "bad", e.message); }
+}
+$("pubFb").addEventListener("click", () => withBusy($("pubFb"), () => publishTo("facebook")));
+$("pubIg").addEventListener("click", () => withBusy($("pubIg"), () => publishTo("instagram")));
+
+$("aiPlan").addEventListener("click", () => withBusy($("aiPlan"), async () => {
+  const from = addDays(new Date(), 1);
+  const hol = HOLIDAYS.filter(h => { const d = fromYmd(h[0]); return d >= from && d <= addDays(from, 16); }).map(h => `${h[1]} ${h[0]}`).join(", ");
+  const peak = peakHour();
+  status("planStatus", "warn", "כותב… זה לוקח כחצי דקה.");
+  try {
+    const { plan } = await api("/ai/plan", { from: ymd(from), days: 14, holidays: hol, hours: lastHours.length ? hoursText() : "",
+      insights: peak != null ? `שעת העומס בדרך כלל ${pad(peak)}:00` : "" });
+    let n = 0;
+    for (const p of plan){
+      if (!p || !p.date || !p.text) continue;
+      if (posts.some(x => x.date === p.date && x.idea === p.idea)) continue;
+      await setDoc(doc(collection(dbs, "posts")), { date: p.date, time: p.time || "07:30", pillar: p.pillar || PILLARS[0], idea: p.idea || "", text: p.text,
+        needsPhoto: p.needsPhoto || "", image: "", status: "ready", holiday: "", updatedAt: serverTimestamp() });
+      n++;
+    }
+    status("planStatus", "ok", `נוספו ${n} פוסטים ללוח. לחץ עליהם כדי לערוך או לפרסם.`);
+  } catch (e){ status("planStatus", "bad", e.message); }
+}));
+
+$("aiInsights").addEventListener("click", () => withBusy($("aiInsights"), async () => {
+  status("insightsStatus", "warn", "מנתח…");
+  try {
+    const { text } = await api("/ai/insights", { log: logs.slice(0, 120).map(l => ({ date: l.date, customers: l.customers, peak: l.peak, weather: l.weather, promo: l.promo })),
+      posts: posts.filter(p => p.status === "done").slice(0, 30).map(p => ({ date: p.date, pillar: p.pillar, idea: p.idea })) });
+    $("aiReco").replaceChildren(...text.split(/\n+/).filter(Boolean).map(t => el("p", { text: t.replace(/^[-•*\d.]+\s*/, "") })));
+    status("insightsStatus");
+  } catch (e){ status("insightsStatus", "bad", e.message); }
+}));
+
+// שעות בלחיצה אחת: פייסבוק (שדה השעות), אינסטגרם (פוסט), דף הנחיתה (Firestore)
+$("pushHours").addEventListener("click", () => withBusy($("pushHours"), async () => {
+  const keys = ["sun","mon","tue","wed","thu","fri","sat"];
+  const hours = {}; lastHours.forEach((h,i) => { hours[keys[i]] = h.map(r => r.split("–")); });
+  if (!Object.values(hours).some(v => v.length)){ status("hoursStatus", "warn", "אין עדיין משמרות מאוישות השבוע."); return; }
+  if (!confirm("לעדכן את שעות הפתיחה בפייסבוק, בדף הנחיתה ולפרסם פוסט שעות?")) return;
+  const done = [], failed = [];
+  try { await setDoc(doc(dbs, "public", "hours"), { hours, text: hoursText(), week: weekId(weekStart), updatedAt: serverTimestamp() }); done.push("דף הנחיתה"); } catch { failed.push("דף הנחיתה"); }
+  try { await api("/hours/facebook", { hours }); done.push("שעות בפייסבוק"); } catch (e){ failed.push("שעות בפייסבוק: " + e.message); }
+  try { await api("/publish/facebook", { text: hoursText() }); done.push("פוסט בפייסבוק"); } catch (e){ failed.push("פוסט בפייסבוק: " + e.message); }
+  status("hoursStatus", failed.length ? "warn" : "ok", `עודכן: ${done.join(", ") || "כלום"}.` + (failed.length ? ` נכשל: ${failed.join(" · ")}` : ""));
+}));
+
+$("fbSetup").addEventListener("click", () => withBusy($("fbSetup"), async () => {
+  const out = $("fbSetupOut"); out.textContent = "מחליף לטוקן ארוך…";
+  try {
+    const { pages } = await api("/setup/pages", { userToken: $("fbUserToken").value.trim() });
+    if (!pages.length){ out.textContent = "לא נמצאו עמודים שאתה מנהל."; return; }
+    out.textContent = pages.map(p => `# ${p.name}${p.ig ? " · Instagram: @" + p.ig : ""}\nFB_PAGE_ID=${p.FB_PAGE_ID}\nFB_PAGE_TOKEN=${p.FB_PAGE_TOKEN}\nIG_USER_ID=${p.IG_USER_ID || "(אין חשבון עסקי מקושר)"}`).join("\n\n");
+    $("fbUserToken").value = "";
+  } catch (e){ out.textContent = "שגיאה: " + e.message; }
+}));
+$("fbStatus").addEventListener("click", () => withBusy($("fbStatus"), async () => {
+  const out = $("fbSetupOut");
+  try { const s = await api("/status", {}); out.textContent = `Gemini: ${s.gemini ? "מחובר" : "חסר מפתח"}\nפייסבוק: ${s.facebook ? (s.pageName ? "מחובר – " + s.pageName : "שגיאה: " + s.facebookError) : "לא מוגדר"}\nאינסטגרם: ${s.instagram ? "מוגדר" : "לא מוגדר"}`; }
+  catch (e){ out.textContent = "שגיאה: " + e.message; }
+}));
 
 /* ===== צוות ===== */
 $("tSave").addEventListener("click", async () => {
