@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner() {
+      return signedIn() && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
+    }
+    function weekOpen(wid) {
+      return exists(/databases/$(database)/documents/weeks/$(wid))
+        && get(/databases/$(database)/documents/weeks/$(wid)).data.open == true;
+    }
+
+    // כל מי שמחובר רואה את המשמרות. רק המנהל משנה אותן.
+    match /weeks/{wid} {
+      allow read: if signedIn();
+      allow write: if isOwner();
+    }
+
+    // שיבוץ: כל אחד רושם ומוחק רק את עצמו, ורק בשבוע פתוח. המנהל יכול להסיר כל אחד.
+    match /signups/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid
+        && weekOpen(request.resource.data.week);
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isOwner());
+      allow update: if false;
+    }
+
+    // כרטיס משתמש: כל אחד כותב רק את שלו.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}
