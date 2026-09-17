@@ -15,4 +15,4 @@ export const firebaseConfig = {
 export const OWNER_EMAILS = ["cortado.snir@gmail.com"];
 
 // כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
-export const WORKER_URL = "";
+export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
