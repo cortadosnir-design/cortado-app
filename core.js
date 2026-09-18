@@ -107,9 +107,9 @@ export const S = {
   me: null, isOwner: false, isMember: false,
   weekStart: (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 4) s.setDate(s.getDate()+7); return s; })(),
   week: null, availability: [], signups: [],
-  posts: [], team: [], logs: [], members: [], joinReqs: [],
-  memory: null, timing: null, reach: null,
-  memberNames: {},
+  posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [],
+  memory: null, timing: null, reach: null, creative: {},
+  memberNames: {}, rosterNames: {},
   subs: [],
 };
 
@@ -117,6 +117,23 @@ export function track(unsub){ if (unsub) S.subs.push(unsub); return unsub; }
 export function dropSubs(){ S.subs.forEach(u => { try { u(); } catch {} }); S.subs = []; }
 
 export const nameOf = (uid) => (S.me && uid === S.me.uid) ? "אתה" : (S.memberNames[uid] || "חבר צוות");
+
+// רשומה של זמינות או שיבוץ יכולה להגיע משני מקורות: קישור אישי (token) או כניסה עם גוגל (uid).
+export function whoOf(rec){
+  if (!rec) return "חבר צוות";
+  if (rec.token) return S.rosterNames[rec.token] || rec.name || "חבר צוות";
+  if (rec.uid) return nameOf(rec.uid);
+  return rec.name || "חבר צוות";
+}
+export const keyOf = (rec) => (rec && (rec.token || rec.uid)) || "";
+
+// קוד אקראי לקישור אישי. 20 תווים, ~100 ביט — לא ניתן לניחוש.
+export function makeToken(){
+  const a = new Uint8Array(15);
+  crypto.getRandomValues(a);
+  return btoa(String.fromCharCode(...a)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+export const zLink = (token) => location.href.replace(/[^/]*$/, "") + "z.html#" + token;
 
 /* ===== מגשר עדכונים בין המודולים ===== */
 const listeners = {};

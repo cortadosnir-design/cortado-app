@@ -1,6 +1,6 @@
 // משמרות: זמינות → המנהל בונה את השבוע → אישור → שיבוץ עצמי → נעילה.
 import { S, db, DAYS, DAYS_SHORT, $, el, clear, ymd, dm, addDays, fromYmd, toMin, fromMin, weekId, holidayOn,
-  status, copyText, withBusy, nameOf, track, emit,
+  status, copyText, withBusy, nameOf, whoOf, keyOf, track, emit,
   doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
 
 const PHASES = {
@@ -187,8 +187,15 @@ function renderApproval(){
   if (!shifts.length){ box.append(el("p", { class: "small", text: "הגדר קודם ימים ומשמרות." })); $("approveBtn").disabled = true; return; }
 
   const { subs, perDay } = coverage();
-  const team = Math.max(S.members.length, subs);
-  box.append(el("p", { class: "small", text: `${subs} מתוך ${team} עובדים שלחו זמינות.` }));
+  const active = S.roster.filter(r => r.active !== false);
+  const sent = new Set(S.availability.map(a => a.token).filter(Boolean));
+  const missing = active.filter(r => !sent.has(r.token));
+  box.append(el("p", { class: "small", text: `${subs} מתוך ${active.length || subs} עובדים שלחו זמינות.` }));
+  if (missing.length){
+    const chips = el("div", { class: "summary" });
+    missing.forEach(r => chips.append(el("span", { class: "chip warn", text: r.name || "ללא שם" })));
+    box.append(el("p", { class: "small", text: "עוד לא שלחו:" }), chips);
+  }
 
   const problems = [];
   const tbl = el("table", { class: "t" });
@@ -209,7 +216,7 @@ function renderApproval(){
 
   if (S.availability.some(a => a.note)){
     const notes = el("div", { class: "notes" });
-    S.availability.filter(a => a.note).forEach(a => notes.append(el("p", { class: "small", text: `${nameOf(a.uid)}: ${a.note}` })));
+    S.availability.filter(a => a.note).forEach(a => notes.append(el("p", { class: "small", text: `${whoOf(a)}: ${a.note}` })));
     box.append(el("h3", { class: "sub", text: "הערות מהצוות" }), notes);
   }
   if (problems.length) box.append(el("div", { class: "notice", text: "לב לזה — " + problems.join(" · ") }));
@@ -259,8 +266,8 @@ function renderBoard(){
       people.forEach(p => {
         const mine = S.me && p.uid === S.me.uid;
         list.append(el("div", { class: "person" },
-          el("span", { class: "nm", text: nameOf(p.uid) }),
-          (mine || S.isOwner) && ph !== "locked" ? el("button", { title: "הסר", text: "✕", onclick: () => leave(p.id) }) : null));
+          el("span", { class: "nm", text: whoOf(p) }),
+          (mine || S.isOwner) && ph !== "locked" ? el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => leave(p.id) }) : null));
       });
       for (let k = people.length; k < need; k++) list.append(el("div", { class: "slot", text: "מקום פנוי" }));
       card.append(list);
@@ -330,7 +337,7 @@ export function render(){
     sum.append(el("span", { class: "chip", text: `${S.availability.length} שלחו זמינות` }));
 
   // מה מוצג למי
-  $("availCard").hidden = !(ph === "availability" || ph === "review") || S.isOwner && !myAvail() && false;
+  $("availCard").hidden = S.isOwner || !(ph === "availability" || ph === "review");
   $("boardCard").hidden = !shifts.length && !S.isOwner;
   $("mgrCard").hidden = !S.isOwner;
   $("approveCard").hidden = !(S.isOwner && (ph === "availability" || ph === "review"));

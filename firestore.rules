@@ -9,71 +9,88 @@ service cloud.firestore {
         && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
     }
 
-    // חבר צוות מאושר: המנהל הוסיף אותו לרשימה. בלי זה — אין גישה לשום דבר.
+    // חבר צוות שנכנס עם גוגל (מסלול המנהלים). העובדים הרגילים לא צריכים את זה.
     function member() {
       return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid));
     }
     function allowed() { return isOwner() || member(); }
+
+    // קוד אישי תקף = מישהו שהמנהל הנפיק לו קישור. הקוד באורך 20 תווים אקראיים,
+    // ואי אפשר לגלות אותו בלי לקבל אותו. זה מה שמחליף סיסמה.
+    function validToken(t) {
+      return t is string && t.size() >= 10 && t.size() <= 64
+        && exists(/databases/$(database)/documents/roster/$(t));
+    }
 
     function weekPhase(wid) {
       return exists(/databases/$(database)/documents/weeks/$(wid))
         ? get(/databases/$(database)/documents/weeks/$(wid)).data.phase : 'availability';
     }
 
-    // רשימת המאושרים. המנהל מנהל אותה; כל אחד בודק רק את עצמו.
-    match /members/{uid} {
-      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+    // ── רשימת העובדים והקישורים האישיים ──
+    // get בלבד: צריך לדעת את הקוד המדויק. אי אפשר לרשום את הקולקציה ולגלות קודים.
+    match /roster/{token} {
+      allow get: if true;
+      allow list: if isOwner();
       allow write: if isOwner();
     }
 
-    // בקשות הצטרפות.
-    match /joinRequests/{uid} {
-      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
-      allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name','email','photo','at'])
-        && request.resource.data.name is string && request.resource.data.name.size() < 80;
-      allow delete: if isOwner();
-    }
-
-    // השבוע: הצוות רואה, רק המנהל בונה.
+    // ── השבוע ──
     match /weeks/{wid} {
-      allow read: if allowed();
+      allow get: if true;              // דף העובד צריך לדעת אילו משמרות יש
+      allow list: if allowed();
       allow write: if isOwner();
     }
 
-    // זמינות: כל עובד כותב רק את עצמו, ורק כל עוד השבוע לא ננעל.
+    // ── זמינות ──
     match /availability/{id} {
-      allow read: if allowed();
-      allow create, update: if allowed()
-        && request.resource.data.uid == request.auth.uid
-        && id == request.resource.data.week + '_' + request.auth.uid
-        && request.resource.data.keys().hasOnly(['week','uid','days','note','at'])
+      allow get: if true;
+      allow list: if allowed();
+      allow create, update: if
+        request.resource.data.keys().hasOnly(['week','token','uid','name','days','note','at'])
         && request.resource.data.days is map
         && request.resource.data.days.size() <= 7
         && (!('note' in request.resource.data) || request.resource.data.note.size() < 300)
-        && weekPhase(request.resource.data.week) != 'locked';
-      allow delete: if isOwner() || (allowed() && resource.data.uid == request.auth.uid);
+        && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
+        && weekPhase(request.resource.data.week) != 'locked'
+        && (
+          isOwner()
+          || (validToken(request.resource.data.token)
+              && id == request.resource.data.week + '_' + request.resource.data.token)
+          || (allowed() && request.resource.data.uid == request.auth.uid
+              && id == request.resource.data.week + '_' + request.auth.uid)
+        );
+      allow delete: if isOwner();
     }
 
-    // שיבוץ: רק בשבוע שהמנהל אישר ופתח. כל אחד רושם ומוחק את עצמו.
+    // ── שיבוץ למשמרות ──
+    // נפתח רק אחרי שהמנהל אישר את השבוע (phase == 'open').
     match /signups/{id} {
-      allow read: if allowed();
-      allow create: if allowed()
-        && request.resource.data.uid == request.auth.uid
-        && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid
-        && request.resource.data.keys().hasOnly(['week','shift','uid','at'])
-        && weekPhase(request.resource.data.week) == 'open';
-      allow delete: if allowed() && (resource.data.uid == request.auth.uid || isOwner());
+      allow get, list: if true;
+      allow create: if
+        request.resource.data.keys().hasOnly(['week','shift','token','uid','name','at'])
+        && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
+        && weekPhase(request.resource.data.week) == 'open'
+        && (
+          isOwner()
+          || (validToken(request.resource.data.token)
+              && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.resource.data.token)
+          || (allowed() && request.resource.data.uid == request.auth.uid
+              && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid)
+        );
+      allow delete: if isOwner()
+        || (resource.data.token != null && weekPhase(resource.data.week) == 'open')
+        || (allowed() && resource.data.uid == request.auth.uid);
       allow update: if false;
     }
 
-    // קריאייטיב, לוח התוכן, זיכרון המותג ורשימת הצוות: המנהל בלבד.
+    // ── קריאייטיב, לוח התוכן וזיכרון המותג: המנהל בלבד ──
     match /creative/{wid} { allow read, write: if isOwner(); }
     match /posts/{id}    { allow read, write: if isOwner(); }
     match /brand/{doc}   { allow read, write: if isOwner(); }
     match /team/{id}     { allow read, write: if isOwner(); }
 
-    // יומן משמרת: כל עובד מדווח על עצמו, וכולם רואים את הסיכום.
+    // ── יומן משמרת ──
     match /log/{id} {
       allow read: if allowed();
       allow create, update: if allowed()
@@ -84,17 +101,30 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
-    // שעות פתיחה לדף הציבורי: כולם קוראים, רק המנהל כותב.
+    // ── שעות פתיחה לדף הציבורי ──
     match /public/hours {
       allow read: if true;
       allow write: if isOwner();
     }
 
-    // כרטיס משתמש.
+    // ── כרטיס משתמש (רק למי שנכנס עם גוגל) ──
     match /users/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
       allow write: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['name','email','photo','lastSeen']);
+    }
+
+    // ── בקשות הצטרפות דרך גוגל ──
+    match /members/{uid} {
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+      allow write: if isOwner();
+    }
+    match /joinRequests/{uid} {
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name','email','photo','at'])
+        && request.resource.data.name is string && request.resource.data.name.size() < 80;
+      allow delete: if isOwner();
     }
   }
 }

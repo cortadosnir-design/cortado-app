@@ -132,7 +132,10 @@
             <label for="cFormat">פורמט<select id="cFormat"></select></label>
           </div>
           <p class="small" id="formatHint"></p>
-          <label for="cPillar">סוג תוכן<select id="cPillar"></select></label>
+          <label for="cPillar">סוג תוכן
+            <input id="cPillar" type="text" list="pillarList" placeholder="כתוב מה שבא לך, או בחר מהרשימה" autocomplete="off">
+          </label>
+          <datalist id="pillarList"></datalist>
           <label for="cIdea">על מה הפוסט<input id="cIdea" type="text" placeholder="למשל: דוכן אורח — ג׳חנון משדה נחמיה"></label>
           <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ כתוב לי</button></div>
           <label for="cText">טקסט<textarea id="cText" rows="8" placeholder="כתוב כאן…"></textarea></label>
@@ -157,6 +160,31 @@
         </div>
 
         <div class="side">
+          <div class="card" id="posterCard">
+            <h2>תמונת הפוסט</h2>
+            <p class="small">הצילום שלך, הטיפוגרפיה שלנו. הכל נשאר בדפדפן — שום דבר לא עולה לשרת.</p>
+            <div class="two-col">
+              <label for="posterLayout">סגנון<select id="posterLayout"></select></label>
+              <label for="posterSize">גודל<select id="posterSize"></select></label>
+            </div>
+            <label for="posterTheme">צבעים<select id="posterTheme"></select></label>
+            <label for="posterBadge">תווית קטנה<input id="posterBadge" type="text" placeholder="למשל: דוכן אורח"></label>
+            <label for="posterHead">כותרת<input id="posterHead" type="text" placeholder="המשפט שעוצר את הגלילה"></label>
+            <label for="posterSub">שורה שנייה<input id="posterSub" type="text" placeholder="לא חובה"></label>
+            <label for="posterPhoto">צילום מהעגלה
+              <input id="posterPhoto" type="file" accept="image/*" capture="environment">
+            </label>
+            <div class="actions">
+              <button id="posterFromPost">קח מהפוסט</button>
+              <button class="link" id="posterClearPhoto">הסר תמונה</button>
+            </div>
+            <div class="posterwrap">
+              <img id="posterPreview" alt="תצוגה מקדימה של תמונת הפוסט" hidden>
+              <span class="small mono" id="posterMeta"></span>
+            </div>
+            <div class="actions"><button class="primary" id="posterSave">הורד PNG</button></div>
+            <div class="status" id="posterStatus" role="status"></div>
+          </div>
           <div class="card">
             <h2>לתזמון השבוע</h2>
             <p class="small">הפרסום עצמו נעשה במתזמן החיצוני שלכם. מכאן מוציאים את הכל מוכן.</p>
@@ -312,6 +340,7 @@
         </div>
         <div class="card">
           <h2>הצוות</h2>
+          <p class="small">כל עובד מקבל קישור אישי קבוע. הוא לוחץ, מסמן זמינות, שולח. בלי חשבון, בלי סיסמה, בלי התקנה.</p>
           <div class="teamform">
             <label for="tName">שם<input id="tName" type="text" placeholder="כמו שמופיע במשמרות"></label>
             <label for="tPhone">טלפון<input id="tPhone" type="tel" dir="ltr" placeholder="050-0000000"></label>
@@ -322,9 +351,9 @@
           <div class="status" id="teamStatus" role="status"></div>
           <div id="teamTable"></div>
 
-          <h2 style="margin-top:14px">גישה לאפליקציה</h2>
-          <p class="small">רק מי שמאושר כאן יכול למלא זמינות ולראות משמרות. שלח לעובד את הקישור, הוא ייכנס עם גוגל, ויופיע כאן לאישור.</p>
-          <div class="actions"><button id="copyAppLink">העתק קישור לצוות</button></div>
+          <h2 style="margin-top:14px">גישה דרך גוגל (למנהלים)</h2>
+          <p class="small">העובדים לא צריכים את זה — הם נכנסים בקישור האישי. זה רק למי שצריך גישה מלאה לאפליקציה.</p>
+          <div class="actions"><button id="copyAppLink">העתק קישור לאפליקציה</button></div>
           <div id="accessList"></div>
         </div>
       </div>

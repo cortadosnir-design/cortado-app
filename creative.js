@@ -202,7 +202,7 @@ export function newPost(date, preset = {}){
   const t = suggestTime(d, net);
   $("cTime").value = preset.time || t.time;
   $("timeWhy").textContent = t.why ? (t.learned ? "נלמד מהנתונים שלכם: " : "") + t.why : "";
-  $("cPillar").value = preset.pillar || "event";
+  $("cPillar").value = preset.pillar || "";
   $("cFormat").value = preset.format || "reel";
   $("cIdea").value = preset.idea || angleOf(d) || "";
   $("cText").value = "";
@@ -220,7 +220,7 @@ export function loadPost(id){
   editing = id; aiOrigin = p.aiDraft || null; pendingImage = null;
   $("cDate").value = p.date || ""; $("cTime").value = p.time || "";
   $("cNet").value = (p.network && p.network[0]) || "instagram";
-  $("cPillar").value = p.pillar || "event"; $("cFormat").value = p.format || "reel";
+  $("cPillar").value = p.pillar || ""; $("cFormat").value = p.format || "reel";
   $("cIdea").value = p.idea || ""; $("cText").value = p.text || "";
   $("cHash").value = (p.hashtags || []).join(" ") || defaultHashtags().join(" ");
   $("cImage").value = p.image || "";
@@ -263,7 +263,7 @@ async function write(btn){
       const r = await ai("/ai/post", {
         idea, date, day: DAYS[fromYmd(date).getDay()],
         holiday: (holidayOn(date) || [])[1] || "",
-        pillar: $("cPillar").value, format: $("cFormat").value, network: $("cNet").value,
+        pillar: $("cPillar").value.trim().slice(0, 60), format: $("cFormat").value, network: $("cNet").value,
         angle: angleOf(date),
       });
       if (r.text){ $("cText").value = r.text; aiOrigin = r.text; }
@@ -295,7 +295,7 @@ async function buildWeek(btn){
         await setDoc(doc(db, "posts", id), {
           date: it.date, time: t, network: [net],
           format: FORMATS.some(f => f.key === it.format) ? it.format : "reel",
-          pillar: PILLARS.some(p => p.key === it.pillar) ? it.pillar : "event",
+          pillar: String(it.pillar || "").slice(0, 60),
           idea: String(it.idea || "").slice(0, 200),
           text: String(it.text).slice(0, 2200),
           hashtags: Array.isArray(it.hashtags) ? it.hashtags.slice(0, 15) : defaultHashtags(),
@@ -326,7 +326,7 @@ async function savePost(newStatus, btn){
       }
       const body = {
         date, time: $("cTime").value || "", network: [$("cNet").value],
-        format: $("cFormat").value, pillar: $("cPillar").value,
+        format: $("cFormat").value, pillar: $("cPillar").value.trim().slice(0, 60),
         idea: $("cIdea").value.trim().slice(0, 200), text: text.slice(0, 2200),
         hashtags: $("cHash").value.split(/\s+/).filter(t => t.startsWith("#")).slice(0, 15),
         image, status: newStatus, at: serverTimestamp(),
@@ -409,7 +409,7 @@ export function render(){
 
 /* ===== חיווט ===== */
 export function init(){
-  PILLARS.forEach(p => $("cPillar").append(el("option", { value: p.key, text: p.label })));
+  PILLARS.forEach(p => $("pillarList").append(el("option", { value: p.label, text: p.note || "" })));
   FORMATS.forEach(f => $("cFormat").append(el("option", { value: f.key, text: f.label })));
 
   $("cDate").addEventListener("change", () => {

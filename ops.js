@@ -1,6 +1,6 @@
 // תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
 import { S, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
-  status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, track,
+  status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, whoOf, track, makeToken, zLink,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
 
 const MIN_ENTRIES = 5;
@@ -8,8 +8,13 @@ const WEATHER = ["","נעים","חם","שרב","גשום","קר","רוח"];
 let editingMember = null, remState = null, remWeek = null, unsubRem = null;
 
 export function subscribe(){
-  track(onSnapshot(collection(db, "team"),
-    (snap) => { S.team = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderTeam(); drawReminders(); }, () => {}));
+  track(onSnapshot(collection(db, "roster"),
+    (snap) => {
+      S.roster = snap.docs.map(d => ({ token: d.id, ...d.data() }));
+      S.rosterNames = {};
+      S.roster.forEach(r => S.rosterNames[r.token] = r.name || "חבר צוות");
+      renderRoster(); drawReminders();
+    }, () => {}));
   track(onSnapshot(collection(db, "log"),
     (snap) => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.date||"").localeCompare(a.date||"")); renderLog(); }, () => {}));
   if (S.isOwner){
@@ -24,26 +29,63 @@ export function subscribe(){
   }
 }
 
-/* ===== צוות ===== */
-function renderTeam(){
+/* ===== צוות: לכל עובד קישור אישי קבוע ===== */
+const inviteText = (r) => `היי ${r.name} 👋\nזה הקישור האישי שלך למשמרות בקורטדו. שמור אותו — הוא קבוע, ומכאן ממלאים זמינות ותופסים משמרות.\nאין צורך בסיסמה או בהתקנה.\n\n${zLink(r.token)}`;
+
+function renderRoster(){
   const t = clear($("teamTable"));
-  if (!S.team.length){ t.append(el("p", { class: "small", text: "עוד אין עובדים. הוסף את הראשון בטופס." })); return; }
-  const tb = el("tbody");
-  [...S.team].sort((a,b) => (b.active === false ? -1 : 0) - (a.active === false ? -1 : 0) || (a.name||"").localeCompare(b.name||"", "he"))
-    .forEach(m => tb.append(el("tr", { style: m.active === false ? "opacity:.55" : "" },
-      el("td", {}, el("b", { text: m.name }), m.role ? el("div", { class: "small", text: m.role }) : null),
-      el("td", {}, waLink(m.phone) ? el("span", { class: "pill ok", text: "וואטסאפ" }) : el("span", { class: "pill warn", text: "אין טלפון" })),
-      el("td", {},
-        el("button", { class: "link", text: "עריכה", onclick: () => {
-          editingMember = m.id;
-          $("tName").value = m.name || ""; $("tPhone").value = m.phone || "";
-          $("tEmail").value = m.email || ""; $("tRole").value = m.role || "";
-          $("tSave").textContent = "שמור"; $("tName").focus();
-        } }),
-        el("button", { class: "link", text: m.active === false ? "הפעל" : "השבת",
-          onclick: () => updateDoc(doc(db, "team", m.id), { active: m.active === false }).catch(() => status("teamStatus", "bad", "העדכון נכשל.")) })))));
-  t.append(el("div", { class: "scroll" }, el("table", { class: "t" },
-    el("thead", {}, el("tr", {}, ...["עובד","קשר",""].map(h => el("th", { text: h })))), tb)));
+  if (!S.roster.length){
+    t.append(el("p", { class: "small", text: "עוד אין עובדים. הוסף את הראשון למעלה — הוא יקבל קישור אישי." }));
+    return;
+  }
+  const list = [...S.roster].sort((a,b) =>
+    (b.active === false ? -1 : 0) - (a.active === false ? -1 : 0) || (a.name||"").localeCompare(b.name||"", "he"));
+
+  list.forEach(r => {
+    const link = zLink(r.token);
+    const wa = waLink(r.phone, inviteText(r));
+    const row = el("div", { class: "rosterrow" + (r.active === false ? " off" : "") });
+    row.append(el("div", { class: "grow" },
+      el("div", {}, el("b", { text: r.name || "ללא שם" }),
+        r.role ? el("span", { class: "small", text: " · " + r.role }) : null,
+        r.active === false ? el("span", { class: "pill bad", text: "מושבת" }) : null),
+      el("div", { class: "small mono clip", dir: "ltr", text: link })));
+    const acts = el("div", { class: "actions" });
+    if (wa) acts.append(el("a", { class: "btn wa", href: wa, target: "_blank", rel: "noopener", text: "שלח בוואטסאפ" }));
+    else acts.append(el("button", { text: "שתף", onclick: () => shareInvite(r) }));
+    acts.append(el("button", { text: "העתק קישור", onclick: (e) => copyText(link, e.currentTarget, "העתק קישור") }));
+    acts.append(el("button", { class: "link", text: "עריכה", onclick: () => {
+      editingMember = r.token;
+      $("tName").value = r.name || ""; $("tPhone").value = r.phone || "";
+      $("tEmail").value = r.email || ""; $("tRole").value = r.role || "";
+      $("tSave").textContent = "שמור"; $("tName").focus();
+    } }));
+    acts.append(el("button", { class: "link", text: r.active === false ? "הפעל" : "השבת",
+      onclick: () => updateDoc(doc(db, "roster", r.token), { active: r.active === false })
+        .catch(() => status("teamStatus", "bad", "העדכון נכשל.")) }));
+    acts.append(el("button", { class: "link", text: "קישור חדש", title: "מבטל את הקישור הישן",
+      onclick: () => resetToken(r) }));
+    row.append(acts);
+    t.append(row);
+  });
+}
+
+async function shareInvite(r){
+  const text = inviteText(r);
+  if (navigator.share){ try { await navigator.share({ text }); return; } catch {} }
+  copyText(text, null, null);
+  status("teamStatus", "ok", "ההודעה הועתקה. הדבק בוואטסאפ.");
+}
+
+// מחליף את הקוד: הקישור הישן מפסיק לעבוד מיד.
+async function resetToken(r){
+  if (!confirm(`להנפיק ל${r.name} קישור חדש? הקישור הישן יפסיק לעבוד.`)) return;
+  const token = makeToken();
+  try {
+    await setDoc(doc(db, "roster", token), { name: r.name || "", phone: r.phone || "", email: r.email || "", role: r.role || "", active: true, at: serverTimestamp() });
+    await deleteDoc(doc(db, "roster", r.token));
+    status("teamStatus", "ok", "הונפק קישור חדש. שלח אותו לעובד.");
+  } catch { status("teamStatus", "bad", "לא הצלחתי להנפיק קישור חדש."); }
 }
 
 /* ===== הרשאות ===== */
@@ -105,8 +147,9 @@ function drawReminders(){
     const line = el("div", { class: "rem" }, el("span", { class: "num", text: `${s.start}–${s.end}` }));
     if (!ups.length) line.append(el("span", { class: "pill bad", text: "אף אחד לא רשום" }));
     ups.forEach(u => {
-      const who = nameOf(u.uid);
-      const member = S.team.find(m => (m.uid && m.uid === u.uid) || (m.name || "").trim() === who.trim());
+      const who = whoOf(u);
+      const member = S.roster.find(m => m.token === u.token) ||
+        S.roster.find(m => (m.name || "").trim() === who.trim());
       const text = `היי ${member ? member.name : who} 👋\nתזכורת: מחר (${DAYS[day]} ${dm(tomorrow)}) את/ה במשמרת בעגלת קורטדו, ${s.start}–${s.end}.\nאם יש בעיה, עדכן/י אותי מוקדם. תודה! ☕`;
       const wa = member && waLink(member.phone, text);
       line.append(el("span", { text: who }));
@@ -193,13 +236,16 @@ export function init(){
   $("tSave").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     const name = $("tName").value.trim();
     if (!name){ status("teamStatus", "warn", "צריך שם."); return; }
-    const body = { name, phone: $("tPhone").value.trim(), email: $("tEmail").value.trim(), role: $("tRole").value.trim(), active: true };
+    const body = { name, phone: $("tPhone").value.trim(), email: $("tEmail").value.trim(), role: $("tRole").value.trim() };
     try {
-      const id = editingMember || ("t" + Date.now().toString(36));
-      await setDoc(doc(db, "team", id), body, { merge: true });
+      const isNew = !editingMember;
+      const token = editingMember || makeToken();
+      if (isNew) body.active = true;
+      body.at = serverTimestamp();
+      await setDoc(doc(db, "roster", token), body, { merge: true });
       editingMember = null; $("tSave").textContent = "הוסף עובד";
       ["tName","tPhone","tEmail","tRole"].forEach(i => $(i).value = "");
-      status("teamStatus", "ok", "נשמר.");
+      status("teamStatus", "ok", isNew ? `${name} נוסף. שלח לו את הקישור האישי.` : "נשמר.");
     } catch { status("teamStatus", "bad", "השמירה נכשלה."); }
   }));
 
