@@ -83,6 +83,8 @@ async function launch(btn){
         days: h, text: hoursText(), at: serverTimestamp(),
       });
       results.page = { state: "ok", note: "עודכן. הדף הציבורי כבר מציג את השעות החדשות." };
+      // מסמן על השבוע שהשעות שוגרו, כדי שהצעד הבא יידע להתקדם.
+      setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)), { launchedAt: serverTimestamp() }, { merge: true }).catch(() => {});
     } catch {
       results.page = { state: "fail", note: "העדכון נכשל. נסה שוב." };
     }

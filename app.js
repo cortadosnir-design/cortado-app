@@ -9,6 +9,7 @@ import * as Reach from "./reach.js";
 import * as Ops from "./ops.js";
 import * as Poster from "./poster.js";
 import * as Launch from "./launch.js";
+import * as Now from "./now.js";
 
 const TABS = ["shifts","creative","reach","log","team"];
 const OWNER_TABS = ["creative","reach","team"];
@@ -28,6 +29,7 @@ function selectTab(name){
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
+on("tab", (name) => { selectTab(name); window.scrollTo({ top: 0, behavior: "smooth" }); });
 
 /* ===== ניווט בין שבועות ===== */
 on("weekchange", (delta) => {
@@ -129,6 +131,7 @@ Reach.init();
 Ops.init();
 Poster.init();
 Launch.init();
+Now.init();
 Shifts.render();
 Ops.renderLog();
 

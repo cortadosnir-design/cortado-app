@@ -1,17 +1,38 @@
-// קריאייטיב: זווית לכל יום פעילות, כתיבה עם זיכרון מותג, ולמידה מכל תיקון שלך.
+// קריאייטיב: ארבע משבצות קבועות בשבוע, בנק קליפים, טיוטה אחת שנשענת על הקול שלך, ושער ההוספה.
+// העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
 import { S, db, storage, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, weekId, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
-  doc, setDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp,
+  doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp,
   sRef, uploadBytes, getDownloadURL } from "./core.js";
-import { PILLARS, FORMATS, TIMING, HASHTAGS, AMPLIFIERS, VOICE, BENCHMARKS } from "./playbook.js";
-import { shiftsOf, openDays, phase, wid, hoursByDay } from "./shifts.js";
+import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
+import { openDays, phase, wid, hoursByDay, hoursText } from "./shifts.js";
+
+/* ===== שלושת העמודים ===== */
+export const PILLAR3 = {
+  process: { label: "הקפה בתהליך",   note: "קיטור, מזיגה, ידיים, המכונה. 7–15 שניות, בלי דיבור." },
+  place:   { label: "המקום והאנשים", note: "הנוף, הצוות, לקוח קבוע, מה קרה היום. הסיפור לפני הקפה." },
+  when:    { label: "מתי ואיפה",     note: "שעות הסופ״ש ואיך מגיעים. הפוסט שמביא אנשים בפועל." },
+};
+// הקצב הקבוע. נקבע פעם אחת, אפשר לשנות בהגדרות.
+const DEFAULT_SLOTS = [
+  { key: "s1", pillar: "when",    day: 4, time: "17:30", format: "static" },
+  { key: "s2", pillar: "process", day: 2, time: "10:30", format: "reel" },
+  { key: "s3", pillar: "place",   day: 0, time: "10:00", format: "reel" },
+  { key: "s4", pillar: "place",   day: 5, time: "08:00", format: "static" },
+];
+const NETS = ["facebook", "instagram"];   // תמיד שתי הרשתות. הפצה, לא בחירה.
+const WORDS = [20, 25];                   // יעד אורך לפוסט. קצר מנצח בפיד ישראלי.
 
 let editing = null;          // מזהה הפוסט הנערך
-let aiOrigin = null;         // הטקסט שה-AI הציע, כדי ללמוד מהתיקון
+let editSlot = null;         // המשבצת שהפוסט שייך לה
+let aiOrigin = null;         // הטיוטה שה-AI הציע, כדי ללמוד מהתיקון ולשמור על שער ההוספה
+let lastShoot = "";          // הצעת הצילום מהטיוטה האחרונה
 let pendingImage = null;
+let rhythm = null;           // brand/rhythm
+let clips = [];              // brand/clips.items
 
-const STATUS_LABEL = { idea: "רעיון", ready: "מוכן", scheduled: "מתוזמן", done: "פורסם" };
-const dayPosts = (d) => S.posts.filter(p => p.date === d).sort((a,b) => (a.time||"").localeCompare(b.time||""));
+const STATUS_LABEL = { idea: "טיוטה", ready: "מוכן", scheduled: "מתוזמן", done: "פורסם" };
+const DONE = ["ready", "scheduled", "done"];
 
 /* ===== האזנה ===== */
 export function subscribe(){
@@ -24,6 +45,12 @@ export function subscribe(){
   track(onSnapshot(doc(db, "brand", "timing"),
     (snap) => { S.timing = snap.exists() ? snap.data() : null; },
     () => {}));
+  track(onSnapshot(doc(db, "brand", "rhythm"),
+    (snap) => { rhythm = snap.exists() ? snap.data() : null; renderRhythm(); render(); },
+    () => {}));
+  track(onSnapshot(doc(db, "brand", "clips"),
+    (snap) => { clips = (snap.exists() && Array.isArray(snap.data().items)) ? snap.data().items : []; renderClips(); },
+    () => {}));
   subscribeCreative();
 }
 
@@ -31,14 +58,55 @@ let unsubCreative = null;
 function subscribeCreative(){
   if (unsubCreative) { try { unsubCreative(); } catch {} }
   S.creative = {};
-  unsubCreative = onSnapshot(doc(db, "creative", weekId(S.weekStart)),
-    (snap) => { S.creative = (snap.exists() && snap.data().days) || {}; render(); },
+  unsubCreative = onSnapshot(doc(db, "creative", wid()),
+    (snap) => { S.creative = snap.exists() ? snap.data() : {}; render(); },
     () => {});
   track(unsubCreative);
 }
 
-/* ===== זיכרון המותג ===== */
-const memory = () => S.memory || { tone: "", likes: [], avoid: [], facts: [], examples: [] };
+/* ===== הקצב ===== */
+export const slots = () => (rhythm && Array.isArray(rhythm.slots) && rhythm.slots.length ? rhythm.slots : DEFAULT_SLOTS)
+  .map((s, i) => ({ ...DEFAULT_SLOTS[i] || DEFAULT_SLOTS[0], ...s, key: s.key || "s" + (i + 1) }));
+const slotDate = (s) => ymd(addDays(S.weekStart, s.day));
+const slotLabel = (s) => (PILLAR3[s.pillar] || PILLAR3.place).label;
+const slotPost = (s) => S.posts.filter(p => p.week === wid() && p.slot === s.key)
+  .sort((a, b) => ((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0))[0] || null;
+const isDone = (p) => !!p && DONE.includes(p.status);
+const weekDates = () => Array.from({ length: 7 }, (_, i) => ymd(addDays(S.weekStart, i)));
+
+async function saveRhythm(patch){
+  try { await setDoc(doc(db, "brand", "rhythm"), { ...patch, updatedAt: serverTimestamp() }, { merge: true }); status("rhythmStatus", "ok", "נשמר. מעכשיו זה הקצב."); }
+  catch { status("rhythmStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+}
+
+function renderRhythm(){
+  const box = $("rhythmBox"); if (!box) return;
+  clear(box);
+  slots().forEach((s, i) => {
+    const row = el("div", { class: "rhythmrow" }, el("span", { class: "mono small", text: String(i + 1) }));
+    const pillar = el("select", { "aria-label": "עמוד" });
+    Object.entries(PILLAR3).forEach(([k, v]) => pillar.append(el("option", { value: k, text: v.label, selected: k === s.pillar })));
+    const day = el("select", { "aria-label": "יום" });
+    DAYS.forEach((d, di) => day.append(el("option", { value: di, text: d, selected: di === s.day })));
+    const time = el("input", { type: "time", value: s.time, "aria-label": "שעה" });
+    const fmt = el("select", { "aria-label": "פורמט" });
+    FORMATS.filter(f => f.key !== "story").forEach(f => fmt.append(el("option", { value: f.key, text: f.label, selected: f.key === s.format })));
+    row.append(pillar, day, time, fmt);
+    row.dataset.key = s.key;
+    box.append(row);
+  });
+  const every = $("shootEvery"); if (every) every.value = (rhythm && rhythm.shootEvery) || 14;
+}
+function readRhythm(){
+  return [...$("rhythmBox").querySelectorAll(".rhythmrow")].map((row, i) => {
+    const [pillar, day, fmt] = row.querySelectorAll("select");
+    const time = row.querySelector("input[type=time]");
+    return { key: row.dataset.key || "s" + (i + 1), pillar: pillar.value, day: +day.value, time: time.value || "10:00", format: fmt.value };
+  });
+}
+
+/* ===== זיכרון המותג (הקול) ===== */
+const memory = () => S.memory || { tone: "", likes: [], avoid: [], facts: [], examples: [], samples: [] };
 
 async function saveMemory(patch){
   try { await setDoc(doc(db, "brand", "memory"), { ...patch, updatedAt: serverTimestamp() }, { merge: true }); }
@@ -56,6 +124,17 @@ async function dropRule(kind, text){
   const m = memory();
   await saveMemory({ [kind]: (m[kind] || []).filter(x => x !== text) });
 }
+// פוסט שכתבת בעצמך, בלי AI. זה המקור הכי חזק לקול.
+async function addSample(text){
+  text = (text || "").trim(); if (text.length < 20) { status("memStatus", "warn", "קצר מדי בשביל ללמוד ממנו."); return; }
+  const m = memory();
+  await saveMemory({ samples: [...(m.samples || []), { text: text.slice(0, 900), at: Date.now() }].slice(-12) });
+  status("memStatus", "ok", "נוסף לקול שלכם.");
+}
+async function dropAt(kind, idx){
+  const m = memory();
+  await saveMemory({ [kind]: (m[kind] || []).filter((_, i) => i !== idx) });
+}
 // כל תיקון שלך על טיוטת AI נשמר כדוגמה. זה מה שגורם לכתיבה להישמע כמוכם.
 async function learnFromEdit(before, after){
   if (!before || !after || before.trim() === after.trim()) return;
@@ -66,8 +145,25 @@ async function learnFromEdit(before, after){
 
 function renderMemory(){
   const m = memory();
-  const box = clear($("memBox"));
+  const box = $("memBox"); if (!box) return;
+  clear(box);
   if ($("memTone") && document.activeElement !== $("memTone")) $("memTone").value = m.tone || "";
+
+  // המקורות: הטקסטים שהקול נבנה מהם. גלויים, ניתנים למחיקה.
+  const src = el("div", { class: "memgroup" }, el("h3", { class: "sub", text: "מאיפה הקול נלמד" }));
+  const samples = m.samples || [], examples = m.examples || [];
+  if (!samples.length && !examples.length)
+    src.append(el("p", { class: "small", text: "עדיין ריק. הדבק למטה פוסט שכתבת בעצמך, או תקן טיוטה — כל תיקון נשמר כאן." }));
+  samples.forEach((s, i) => src.append(el("blockquote", { class: "quote" },
+    el("span", { text: s.text }),
+    el("span", { class: "small muted", text: " · פוסט שלך" }),
+    el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => dropAt("samples", i) }))));
+  examples.forEach((e, i) => src.append(el("blockquote", { class: "quote" },
+    el("span", { text: e.after }),
+    el("span", { class: "small muted", text: " · תיקון שלך" + (e.at ? " " + dm(new Date(e.at)) : "") }),
+    el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => dropAt("examples", i) }))));
+  box.append(src);
+
   const group = (kind, title, cls) => {
     const list = m[kind] || [];
     const wrap = el("div", { class: "memgroup" }, el("h3", { class: "sub", text: title }));
@@ -81,8 +177,6 @@ function renderMemory(){
   box.append(group("likes", "תמיד לעשות", "ok"));
   box.append(group("avoid", "אף פעם לא", "bad"));
   box.append(group("facts", "עובדות על העסק", ""));
-  const ex = (m.examples || []).length;
-  box.append(el("p", { class: "small", text: ex ? `${ex} תיקונים שלך נשמרו ומוזנים לכתיבה. ככל שתתקן יותר, כך הטקסט יישמע יותר כמוך.` : "עוד לא תיקנת טיוטות. כל תיקון שתעשה יילמד אוטומטית." }));
 }
 
 /* ===== תזמון חכם ===== */
@@ -92,88 +186,125 @@ export function bestTimes(net){
     return learned.slots.map(s => ({ ...s, learned: true }));
   return TIMING[net] || [];
 }
-// השעה המומלצת ליום מסוים ברשת מסוימת.
-function suggestTime(dateStr, net = "instagram"){
+function suggestTime(dateStr, net = "facebook"){
   const d = fromYmd(dateStr).getDay();
-  const slots = bestTimes(net);
-  const exact = [...slots].filter(s => s.day === d).sort((a,b) => a.tier - b.tier)[0];
+  const list = bestTimes(net);
+  const exact = [...list].filter(s => s.day === d).sort((a,b) => a.tier - b.tier)[0];
   if (exact) return exact;
-  return [...slots].sort((a,b) => a.tier - b.tier)[0] || { time: "10:30", why: "ברירת מחדל" };
+  return [...list].sort((a,b) => a.tier - b.tier)[0] || { time: "10:30", why: "ברירת מחדל" };
 }
 
-/* ===== לוח השבוע ===== */
-function weekDates(){ return Array.from({ length: 7 }, (_, i) => ymd(addDays(S.weekStart, i))); }
+/* ===== סימני AI בעברית ===== */
+// מה שגורם לטקסט להיראות כאילו מכונה כתבה אותו. מסומן, לא נחסם.
+const TELLS = [
+  { re: /[—–]/g, msg: "קו מפריד ארוך. פסיק או נקודה במקומו.", fix: (t) => t.replace(/\s*[—–]\s*/g, ", ") },
+  { re: /לא רק [^.\n]{2,50} אלא/g, msg: "'לא רק… אלא…' — תבנית של מכונה." },
+  { re: /[✅🚀💡👉🔥⭐✨📍📌🎯💪🙌]|[1-9]️?⃣/gu, msg: "אימוג'י של ממשק. אם כבר, אחד של רגש.", fix: (t) => t.replace(/[✅🚀💡👉🔥⭐✨📍📌🎯💪🙌]|[1-9]️?⃣/gu, "") },
+  { re: /!!+/g, msg: "סימני קריאה כפולים.", fix: (t) => t.replace(/!!+/g, ".") },
+  { re: /(?:^|[\s,])[והבלכמש]{0,2}(חוויה|מושלם|מושלמת|פינוק|בלתי נשכח|בלתי נשכחת|מחכים לכם|קסום|קסומה|מדהים|מדהימה|מוזמנים)(?=[\s.,!?]|$)/g, msg: "מילת שיווק ריקה. מה באמת קרה?" },
+  { re: /[^,.\n]{3,}, [^,.\n]{3,} ו[^,.\n\s]{2,}[^,\n]{0,20}[.!\n]/g, msg: "שלשה (X, Y ו-Z). שניים מספיקים, זה נשמע יותר אנושי." },
+  { re: /^(שלום לכולם|היי לכולם|בוקר טוב לכולם)/m, msg: "פתיחה גנרית. המשפט הראשון צריך לעצור גלילה." },
+];
+export function tellsOf(text){
+  const out = [];
+  for (const t of TELLS){ t.re.lastIndex = 0; if (t.re.test(text)) out.push(t); }
+  return out;
+}
+function cleanTells(text){
+  let t = text;
+  for (const x of TELLS) if (x.fix) t = x.fix(t);
+  return t.replace(/[ \t]{2,}/g, " ").replace(/ ,/g, ",").trim();
+}
+const wordCount = (t) => (t || "").trim() ? (t || "").trim().split(/\s+/).length : 0;
+// כמה מילים חדשות הבעלים הוסיף על הטיוטה. פחות מ-4 = לא באמת נגע בזה.
+function addedWords(base, text){
+  const a = new Set((base || "").toLowerCase().split(/\s+/));
+  return (text || "").toLowerCase().split(/\s+/).filter(w => w && !a.has(w)).length;
+}
 
-function renderWeekPlan(){
-  const box = clear($("weekPlan"));
-  const open = openDays();
-  const ph = phase();
+/* ===== המשבצות של השבוע ===== */
+function renderSlots(){
+  const box = clear($("slotList"));
+  const ph = phase(), open = openDays();
+  const list = slots();
+  const posts = list.map(slotPost);
+  const done = posts.filter(isDone).length;
+
+  const head = $("slotState");
+  head.className = "pill " + (done === list.length ? "ok" : done ? "warn" : "");
+  head.textContent = done === list.length ? "השבוע סגור ✓" : `${done}/${list.length} מוכנים`;
 
   if (ph !== "locked"){
     box.append(el("div", { class: "notice", text:
-      !open.length ? "עוד לא נקבעו ימי פעילות. הקריאייטיב נבנה סביב הימים שהעגלה פתוחה." :
-      ph === "open" ? "השיבוץ עדיין פתוח. אפשר להתחיל לעבוד על התוכן, אבל הימים עוד יכולים להשתנות." :
-      "השבוע עוד לא אושר ונפתח לשיבוץ. אפשר כבר לעבוד על הזוויות." }));
+      !open.length ? "עוד לא נקבעו ימי פעילות. משבצת 'מתי ואיפה' תתמלא בשעות ברגע שיהיו." :
+      ph === "open" ? "השיבוץ עדיין פתוח. אפשר לכתוב, אבל השעות עוד יכולות להשתנות." :
+      "השבוע עוד לא נפתח לשיבוץ. אפשר כבר לכתוב, השעות יתעדכנו בפוסט לבד." }));
   }
 
-  if (!open.length){ box.append(el("p", { class: "empty", text: "אין ימי פעילות בשבוע הזה." })); return; }
-
-  const hours = hoursByDay();
-  for (const i of open){
-    const date = ymd(addDays(S.weekStart, i));
+  const skel = (S.creative && S.creative.slots) || {};
+  list.forEach((s, i) => {
+    const p = posts[i];
+    const date = slotDate(s);
     const h = holidayOn(date);
-    const ps = dayPosts(date);
-    const card = el("div", { class: "planitem" });
-    const head = el("div", { class: "planhead" },
-      el("div", {}, el("b", { text: DAYS[i] }), el("span", { class: "small", text: " " + dm(addDays(S.weekStart, i)) }),
+    const card = el("div", { class: "slot " + (isDone(p) ? "done" : p ? "draft" : "empty") });
+    card.append(el("div", { class: "slothead" },
+      el("div", {}, el("b", { text: slotLabel(s) }),
+        el("span", { class: "small", text: ` · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))} · ${s.time}` }),
         h ? el("span", { class: "hol", text: h[1] }) : null),
-      el("span", { class: "small mono", text: hours[i] && hours[i].length ? hours[i].join(", ") : "" }));
-    card.append(head);
-
-    const angleRow = el("div", { class: "angle" });
-    const inp = el("input", { type: "text", value: angleOf(date), placeholder: "הזווית של היום — מה מיוחד בו?",
-      onchange: (e) => setAngle(date, e.target.value) });
-    angleRow.append(inp);
-    if (WORKER_URL && S.isOwner)
-      angleRow.append(el("button", { class: "icon", title: "הצע זווית", text: "✨", onclick: (e) => suggestAngle(date, inp, e.currentTarget) }));
-    card.append(angleRow);
-
-    const list = el("div", { class: "ideas" });
-    ps.forEach(p => list.append(postChip(p)));
-    if (!ps.length) list.append(el("p", { class: "small", text: "אין עדיין פוסט ליום הזה." }));
-    card.append(list);
+      el("span", { class: "pill " + (isDone(p) ? "ok" : p ? "warn" : ""), text: p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" })));
+    if (p){
+      card.append(el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 110) }));
+    } else {
+      const sk = skel[s.key];
+      card.append(el("div", { class: "small", text: sk && sk.angle ? "כיוון: " + sk.angle : "עוד לא נכתב. " + (PILLAR3[s.pillar] || {}).note }));
+    }
     card.append(el("div", { class: "actions" },
-      el("button", { class: "link", text: "+ פוסט ליום הזה", onclick: () => newPost(date) })));
+      el("button", { class: p ? "" : "primary", text: !p ? "כתוב" : isDone(p) ? "פתח" : "המשך", onclick: () => p ? loadPost(p.id) : openSlot(s) }),
+      isDone(p) ? el("button", { class: "link", text: "העתק", onclick: (e) => copyText(fullText(p), e.currentTarget, "העתק") }) : null));
     box.append(card);
+  });
+
+  // פוסטים מחוץ לקצב (אירוע, דוכן אורח, חג)
+  const extra = S.posts.filter(p => weekDates().includes(p.date) && !(p.week === wid() && list.some(s => s.key === p.slot)))
+    .sort((a,b) => (a.date + (a.time||"")).localeCompare(b.date + (b.time||"")));
+  if (extra.length){
+    const wrap = el("div", { class: "extras" }, el("h3", { class: "sub", text: "מעבר לקצב" }));
+    extra.forEach(p => wrap.append(el("div", { class: "idea" },
+      el("div", { class: "grow" },
+        el("div", {}, el("b", { text: DAYS[fromYmd(p.date).getDay()] + " " + dm(fromYmd(p.date)) }), " ",
+          el("span", { class: "mono small", text: p.time || "" }), " ",
+          el("span", { class: "pill " + (isDone(p) ? "ok" : ""), text: STATUS_LABEL[p.status] || "טיוטה" })),
+        el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 90) })),
+      el("button", { text: "פתח", onclick: () => loadPost(p.id) }))));
+    box.append(wrap);
   }
+  if (done === list.length && list.length)
+    box.append(el("div", { class: "notice ok", text: "כל המשבצות מוכנות. הורד את ה-CSV למתזמן, וזהו — השבוע סגור." }));
 }
 
-function postChip(p){
-  const f = FORMATS.find(x => x.key === p.format);
-  return el("div", { class: "idea" },
-    el("div", { class: "grow" },
-      el("div", {}, el("b", { class: "mono", text: p.time || "—" }), " ",
-        el("span", { class: "pill " + (p.status === "done" ? "ok" : p.status === "scheduled" ? "warn" : ""), text: STATUS_LABEL[p.status] || "רעיון" }),
-        f ? el("span", { class: "pill", text: f.label }) : null),
-      el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 90) })),
-    el("button", { text: "פתח", onclick: () => loadPost(p.id) }));
-}
-
-const angleOf = (date) => {
-  const c = S.creative && S.creative[date];
-  return (c && c.angle) || "";
-};
-async function setAngle(date, angle){
-  S.creative = { ...(S.creative || {}), [date]: { ...(S.creative && S.creative[date] || {}), angle } };
-  try { await setDoc(doc(db, "creative", weekId(S.weekStart)), { week: weekId(S.weekStart), days: S.creative, at: serverTimestamp() }, { merge: true }); }
-  catch {}
-}
-
-async function suggestAngle(date, input, btn){
+/* ===== שלד לשבוע: כיוון לכל משבצת, בלי טקסט ===== */
+async function skeleton(btn){
   await withBusy(btn, async () => {
     try {
-      const r = await ai("/ai/angle", { date, day: DAYS[fromYmd(date).getDay()], holiday: (holidayOn(date)||[])[1] || "" });
-      if (r.angle){ input.value = r.angle; setAngle(date, r.angle); }
+      status("planStatus", "", "חושב…");
+      const list = slots();
+      const req = list.filter(s => !slotPost(s)).map(s => ({
+        key: s.key, pillar: slotLabel(s), pillarNote: (PILLAR3[s.pillar] || {}).note || "",
+        day: DAYS[s.day], date: slotDate(s), format: s.format,
+        holiday: (holidayOn(slotDate(s)) || [])[1] || "",
+      }));
+      if (!req.length){ status("planStatus", "ok", "כל המשבצות כבר מלאות."); return; }
+      const r = await ai("/ai/week", { slots: req, clips: clips.filter(c => c.state === "shot").map(c => c.title).slice(0, 10) });
+      const got = Array.isArray(r.slots) ? r.slots : [];
+      const cur = { ...((S.creative && S.creative.slots) || {}) };
+      let n = 0;
+      for (const it of got){
+        if (!it || !it.key || !req.some(s => s.key === it.key)) continue;
+        cur[it.key] = { angle: String(it.angle || "").slice(0, 140), shoot: String(it.shoot || "").slice(0, 200) };
+        n++;
+      }
+      await setDoc(doc(db, "creative", wid()), { week: wid(), slots: cur, at: serverTimestamp() }, { merge: true });
+      status("planStatus", "ok", `${n} כיוונים. הטקסט נכתב רק כשפותחים משבצת — אחד אחד, עם משפט שלך.`);
     } catch (e){ status("planStatus", "bad", e.message); }
   });
 }
@@ -183,52 +314,80 @@ function aiContext(){
   const m = memory();
   return {
     memory: { tone: m.tone || "", likes: m.likes || [], avoid: m.avoid || [], facts: m.facts || [],
-      examples: (m.examples || []).slice(-6) },
+      examples: (m.examples || []).slice(-6), samples: (m.samples || []).slice(-6) },
     voice: VOICE,
     recent: S.posts.filter(p => p.status === "done").sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0, 6)
       .map(p => ({ date: p.date, text: (p.text||"").slice(0,300), pillar: p.pillar, format: p.format, reach: p.performance && p.performance.reach })),
     hours: hoursByDay(), openDays: openDays().map(i => DAYS[i]),
+    words: WORDS,
   };
 }
 const ai = (path, body) => api(path, { ...aiContext(), ...body });
 
 /* ===== עורך הפוסט ===== */
-export function newPost(date, preset = {}){
-  editing = null; aiOrigin = null; pendingImage = null;
-  const d = date || ymd(addDays(new Date(), 1));
-  $("cDate").value = d;
-  const net = $("cNet").value || "instagram";
-  const t = suggestTime(d, net);
-  $("cTime").value = preset.time || t.time;
-  $("timeWhy").textContent = t.why ? (t.learned ? "נלמד מהנתונים שלכם: " : "") + t.why : "";
-  $("cPillar").value = preset.pillar || "";
-  $("cFormat").value = preset.format || "reel";
-  $("cIdea").value = preset.idea || angleOf(d) || "";
-  $("cText").value = "";
+function resetComposer(){
+  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; lastShoot = "";
+  $("cText").value = ""; $("cLine").value = ""; $("cIdea").value = "";
   $("cHash").value = defaultHashtags().join(" ");
   $("cImage").value = ""; $("cPreview").hidden = true; $("cPhoto").value = "";
-  $("compTitle").textContent = "פוסט חדש";
+  $("shootHint").textContent = "";
   $("delPost").hidden = true;
+  $("aiWrite").textContent = "✨ טיוטה";
   status("compStatus", "", "");
+}
+
+// פותח משבצת ריקה: התאריך, השעה, הפורמט והכיוון כבר בפנים. נשאר רק לכתוב.
+function openSlot(s){
+  resetComposer();
+  editSlot = s.key;
+  const date = slotDate(s);
+  $("cDate").value = date; $("cTime").value = s.time;
+  $("cFormat").value = s.format;
+  const sk = (S.creative && S.creative.slots && S.creative.slots[s.key]) || {};
+  $("cIdea").value = sk.angle || (s.pillar === "when" ? hoursText() : "");
+  if (sk.shoot) $("shootHint").textContent = "מה לצלם: " + sk.shoot;
+  $("compTitle").textContent = `${slotLabel(s)} · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))}`;
+  $("timeWhy").textContent = "השעה הקבועה של המשבצת. משנים בהגדרות הקצב, לא כאן.";
   renderComposerMeta();
-  $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("composer").hidden = false;
+  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+export function newPost(date, preset = {}){
+  resetComposer();
+  const d = date || ymd(addDays(new Date(), 1));
+  $("cDate").value = d;
+  const t = suggestTime(d, "facebook");
+  $("cTime").value = preset.time || t.time;
+  $("timeWhy").textContent = t.why ? (t.learned ? "נלמד מהנתונים שלכם: " : "") + t.why : "";
+  $("cFormat").value = preset.format || "reel";
+  $("cIdea").value = preset.idea || "";
+  $("compTitle").textContent = "פוסט מעבר לקצב";
+  renderComposerMeta();
+  $("composer").hidden = false;
+  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 export function loadPost(id){
   const p = S.posts.find(x => x.id === id); if (!p) return;
-  editing = id; aiOrigin = p.aiDraft || null; pendingImage = null;
+  resetComposer();
+  editing = id; editSlot = p.slot || null; aiOrigin = p.aiDraft || null;
   $("cDate").value = p.date || ""; $("cTime").value = p.time || "";
-  $("cNet").value = (p.network && p.network[0]) || "instagram";
-  $("cPillar").value = p.pillar || ""; $("cFormat").value = p.format || "reel";
+  $("cFormat").value = p.format || "reel";
   $("cIdea").value = p.idea || ""; $("cText").value = p.text || "";
+  $("cLine").value = p.line || "";
   $("cHash").value = (p.hashtags || []).join(" ") || defaultHashtags().join(" ");
   $("cImage").value = p.image || "";
   $("cPreview").hidden = !p.image; if (p.image) $("cPreview").src = p.image;
-  $("compTitle").textContent = "עריכת פוסט";
+  if (p.shoot) $("shootHint").textContent = "מה לצלם: " + p.shoot;
+  const s = slots().find(x => x.key === p.slot);
+  $("compTitle").textContent = s ? `${slotLabel(s)} · ${DAYS[fromYmd(p.date).getDay()]} ${dm(fromYmd(p.date))}` : "עריכת פוסט";
+  $("timeWhy").textContent = s ? "השעה הקבועה של המשבצת." : "";
+  if (aiOrigin) $("aiWrite").textContent = "✨ גרסה אחרת";
   $("delPost").hidden = false;
-  status("compStatus", "", "");
   renderComposerMeta();
-  $("composer").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("composer").hidden = false;
+  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function defaultHashtags(){
@@ -239,80 +398,88 @@ function renderComposerMeta(){
   const date = $("cDate").value;
   const h = date ? holidayOn(date) : null;
   const i = date ? fromYmd(date).getDay() : -1;
-  const isOpenDay = i >= 0 && openDays().includes(i);
   const bits = [];
   if (date) bits.push(DAYS[i]);
   if (h) bits.push("🎉 " + h[1] + (h[2] ? " · " + h[2] : ""));
-  bits.push(isOpenDay ? "יום פעילות" : "העגלה סגורה ביום הזה");
+  bits.push("פייסבוק + אינסטגרם");
   $("dateHint").textContent = bits.join(" · ");
   const f = FORMATS.find(x => x.key === $("cFormat").value);
   $("formatHint").textContent = f ? f.note : "";
-  const len = ($("cText").value || "").length;
-  $("lenHint").textContent = len ? `${len} תווים` : "";
+
+  const text = $("cText").value || "";
+  const n = wordCount(text);
+  const len = $("lenHint");
+  len.textContent = n ? `${n} מילים · יעד ${WORDS[0]}–${WORDS[1]}` : "";
+  len.className = "small " + (n > WORDS[1] * 2 ? "bad" : n > WORDS[1] + 10 ? "warn" : "");
+
+  const tells = clear($("tells"));
+  tellsOf(text).forEach(t => tells.append(el("li", { text: t.msg })));
+  $("cleanTells").hidden = !tellsOf(text).some(t => t.fix);
+
+  // שער ההוספה: מראה מראש מה חסר כדי לסמן "מוכן".
+  const gate = $("gateHint");
+  if (aiOrigin && !$("cLine").value.trim() && addedWords(aiOrigin, text) < 4)
+    gate.textContent = "כדי לסמן מוכן: משפט אחד משלך למטה, או תיקון של הטיוטה.";
+  else gate.textContent = "";
 }
 
 /* ===== כתיבה ===== */
 async function write(btn){
-  const idea = $("cIdea").value.trim();
   const date = $("cDate").value;
   if (!date){ status("compStatus", "warn", "בחר תאריך."); return; }
   await withBusy(btn, async () => {
     try {
       status("compStatus", "", "");
+      const s = slots().find(x => x.key === editSlot);
       const r = await ai("/ai/post", {
-        idea, date, day: DAYS[fromYmd(date).getDay()],
+        idea: $("cIdea").value.trim().slice(0, 200), date, day: DAYS[fromYmd(date).getDay()],
         holiday: (holidayOn(date) || [])[1] || "",
-        pillar: $("cPillar").value.trim().slice(0, 60), format: $("cFormat").value, network: $("cNet").value,
-        angle: angleOf(date),
+        pillar: s ? slotLabel(s) : "", pillarNote: s ? (PILLAR3[s.pillar] || {}).note : "",
+        format: $("cFormat").value,
+        avoid: aiOrigin ? aiOrigin.slice(0, 600) : "",   // גרסה אחרת = לא אותו דבר שוב
       });
-      if (r.text){ $("cText").value = r.text; aiOrigin = r.text; }
+      if (r.text){ $("cText").value = cleanTells(r.text); aiOrigin = $("cText").value; }
       if (Array.isArray(r.hashtags) && r.hashtags.length) $("cHash").value = r.hashtags.join(" ");
+      if (r.shoot){ lastShoot = r.shoot; $("shootHint").textContent = "מה לצלם: " + r.shoot; }
+      btn.dataset.next = "✨ גרסה אחרת";
       renderComposerMeta();
-      status("compStatus", "ok", "טיוטה מוכנה. תקן אותה חופשי — כל תיקון נלמד.");
+      status("compStatus", "ok", "טיוטה. עכשיו משפט אחד משלך למטה — זה מה שהופך את זה לשלכם.");
+      $("cLine").focus();
+    } catch (e){ status("compStatus", "bad", e.message); }
+  });
+  if (btn.dataset.next){ btn.textContent = btn.dataset.next; delete btn.dataset.next; }
+}
+
+async function suggestAngle(btn){
+  const date = $("cDate").value; if (!date) return;
+  await withBusy(btn, async () => {
+    try {
+      const s = slots().find(x => x.key === editSlot);
+      const r = await ai("/ai/angle", { date, day: DAYS[fromYmd(date).getDay()], holiday: (holidayOn(date)||[])[1] || "",
+        pillar: s ? slotLabel(s) : "", clips: clips.filter(c => c.state === "shot").map(c => c.title).slice(0, 10) });
+      if (r.angle){ $("cIdea").value = r.angle; }
     } catch (e){ status("compStatus", "bad", e.message); }
   });
 }
 
-async function buildWeek(btn){
-  await withBusy(btn, async () => {
-    try {
-      status("planStatus", "", "בונה…");
-      const days = openDays().map(i => {
-        const date = ymd(addDays(S.weekStart, i));
-        return { date, day: DAYS[i], holiday: (holidayOn(date) || [])[1] || "", angle: angleOf(date), hours: hoursByDay()[i] };
-      });
-      const r = await ai("/ai/week", { days, target: BENCHMARKS.weeklyPosts, reels: BENCHMARKS.weeklyReels });
-      const items = Array.isArray(r.posts) ? r.posts : [];
-      if (!items.length){ status("planStatus", "warn", "לא חזרה תוכנית. נסה שוב."); return; }
-      let n = 0;
-      for (const it of items){
-        if (!it || !it.date || !it.text) continue;
-        if (!weekDates().includes(it.date)) continue;
-        const net = ["facebook","instagram"].includes(it.network) ? it.network : "instagram";
-        const t = it.time && /^\d{2}:\d{2}$/.test(it.time) ? it.time : suggestTime(it.date, net).time;
-        const id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-        await setDoc(doc(db, "posts", id), {
-          date: it.date, time: t, network: [net],
-          format: FORMATS.some(f => f.key === it.format) ? it.format : "reel",
-          pillar: String(it.pillar || "").slice(0, 60),
-          idea: String(it.idea || "").slice(0, 200),
-          text: String(it.text).slice(0, 2200),
-          hashtags: Array.isArray(it.hashtags) ? it.hashtags.slice(0, 15) : defaultHashtags(),
-          aiDraft: String(it.text).slice(0, 2200),
-          status: "idea", at: serverTimestamp(),
-        });
-        n++;
-      }
-      status("planStatus", "ok", `${n} פוסטים נכנסו ללוח כטיוטות. עבור עליהם ותקן.`);
-    } catch (e){ status("planStatus", "bad", e.message); }
-  });
+/* ===== שמירה ===== */
+function mergedText(){
+  const text = $("cText").value.trim();
+  const line = $("cLine").value.trim();
+  if (!line || text.includes(line)) return text;
+  return text ? text + "\n\n" + line : line;
 }
 
-/* ===== שמירה ===== */
 async function savePost(newStatus, btn){
-  const date = $("cDate").value, text = $("cText").value.trim();
+  const date = $("cDate").value;
   if (!date){ status("compStatus", "warn", "בחר תאריך."); return; }
+  const text = mergedText();
   if (newStatus !== "idea" && !text){ status("compStatus", "warn", "אין טקסט."); return; }
+  // שער ההוספה: טיוטת AI לא יוצאת החוצה בלי שנגעת בה.
+  if (newStatus !== "idea" && aiOrigin && !$("cLine").value.trim() && addedWords(aiOrigin, text) < 4){
+    status("compStatus", "warn", "רגע. משפט אחד משלך למטה — פרט, שם, מה קרה היום — ואז מוכן.");
+    $("cLine").focus(); return;
+  }
   await withBusy(btn, async () => {
     try {
       let image = $("cImage").value || "";
@@ -323,19 +490,25 @@ async function savePost(newStatus, btn){
         image = await getDownloadURL(snap.ref);
         pendingImage = null; $("cImage").value = image;
       }
+      const s = slots().find(x => x.key === editSlot);
       const body = {
-        date, time: $("cTime").value || "", network: [$("cNet").value],
-        format: $("cFormat").value, pillar: $("cPillar").value.trim().slice(0, 60),
+        date, time: $("cTime").value || "", network: NETS, week: wid(),
+        format: $("cFormat").value, pillar: s ? slotLabel(s) : "",
         idea: $("cIdea").value.trim().slice(0, 200), text: text.slice(0, 2200),
+        line: $("cLine").value.trim().slice(0, 300),
         hashtags: $("cHash").value.split(/\s+/).filter(t => t.startsWith("#")).slice(0, 15),
         image, status: newStatus, at: serverTimestamp(),
       };
+      if (editSlot) body.slot = editSlot;
       if (aiOrigin) body.aiDraft = aiOrigin;
+      if (lastShoot || $("shootHint").textContent) body.shoot = (lastShoot || $("shootHint").textContent.replace(/^מה לצלם: /, "")).slice(0, 200);
       const id = editing || ("p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6));
       await setDoc(doc(db, "posts", id), body, { merge: true });
-      if (aiOrigin) await learnFromEdit(aiOrigin, text);
-      editing = id; $("delPost").hidden = false; $("compTitle").textContent = "עריכת פוסט";
-      status("compStatus", "ok", newStatus === "done" ? "סומן כפורסם." : "נשמר.");
+      if (aiOrigin && newStatus !== "idea") await learnFromEdit(aiOrigin, text);
+      $("cText").value = text;
+      editing = id; $("delPost").hidden = false;
+      status("compStatus", "ok", newStatus === "done" ? "סומן כפורסם." : newStatus === "ready" ? "מוכן. המשבצת סגורה." : "נשמר כטיוטה.");
+      renderComposerMeta();
     } catch (e){
       status("compStatus", "bad", e.code === "permission-denied" ? "רק המנהל יכול לשמור פוסטים." : "השמירה נכשלה.");
     }
@@ -344,27 +517,78 @@ async function savePost(newStatus, btn){
 
 async function removePost(){
   if (!editing || !confirm("למחוק את הפוסט?")) return;
-  try { await deleteDoc(doc(db, "posts", editing)); newPost($("cDate").value); }
+  try { await deleteDoc(doc(db, "posts", editing)); resetComposer(); $("composer").hidden = true; }
   catch { status("compStatus", "bad", "המחיקה נכשלה."); }
+}
+
+/* ===== בנק הקליפים ===== */
+// חומר גלם שצולם מראש. הפוסט נולד מהקליפ, לא מהלוח.
+async function saveClips(items){
+  try { await setDoc(doc(db, "brand", "clips"), { items: items.slice(-60), updatedAt: serverTimestamp() }, { merge: true }); }
+  catch { status("clipStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+}
+const CLIP_STATE = { idea: "לצלם", shot: "צולם", used: "נוצל" };
+function renderClips(){
+  const box = $("clipList"); if (!box) return;
+  clear(box);
+  const ready = clips.filter(c => c.state === "shot");
+  const cnt = $("clipCount");
+  cnt.textContent = `${ready.length} מוכנים`;
+  cnt.className = "pill " + (ready.length >= 3 ? "ok" : "warn");
+  const warn = $("clipWarn");
+  warn.hidden = ready.length >= 3;
+  const every = (rhythm && +rhythm.shootEvery) || 14;
+  const last = rhythm && rhythm.lastShoot;
+  const next = last ? addDays(fromYmd(last), every) : null;
+  const daysLeft = next ? Math.ceil((next - new Date()) / 864e5) : null;
+  $("shootNext").textContent = !last ? "עוד לא סימנת יום צילום." :
+    daysLeft > 0 ? `צילום הבא בעוד ${daysLeft} ימים (${DAYS[next.getDay()]} ${dm(next)}).` : "הגיע הזמן לצלם שוב.";
+  if (!clips.length){ box.append(el("p", { class: "small", text: "ריק. כתוב למטה מה לצלם ביום הצילום הבא — 20 דקות של צילום מכסות שבועיים." })); return; }
+  [...clips].sort((a,b) => (a.state === "used") - (b.state === "used")).forEach(c => {
+    const row = el("div", { class: "cliprow " + c.state });
+    row.append(el("div", { class: "grow" },
+      el("span", { text: c.title }), " ",
+      el("span", { class: "pill " + (c.state === "shot" ? "ok" : c.state === "idea" ? "warn" : ""), text: CLIP_STATE[c.state] || "" })));
+    if (c.state === "idea") row.append(el("button", { text: "צולם ✓", onclick: () => setClip(c.id, "shot") }));
+    if (c.state === "shot") row.append(el("button", { class: "primary", text: "לפוסט", onclick: () => useClip(c) }));
+    row.append(el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => saveClips(clips.filter(x => x.id !== c.id)) }));
+    box.append(row);
+  });
+}
+function setClip(id, state){ saveClips(clips.map(c => c.id === id ? { ...c, state } : c)); }
+function addClip(title){
+  title = (title || "").trim(); if (!title) return;
+  saveClips([...clips, { id: "c" + Date.now().toString(36), title: title.slice(0, 120), state: "idea", at: Date.now() }]);
+}
+// קליפ נכנס לפוסט: אם יש משבצת ריקה של העמוד המתאים פותחים אותה, אחרת פוסט חופשי.
+function useClip(c){
+  const empty = slots().find(s => s.pillar !== "when" && !slotPost(s));
+  if (empty) openSlot(empty); else newPost();
+  $("cIdea").value = c.title;
+  setClip(c.id, "used");
+  status("compStatus", "ok", "הקליפ בפוסט. עכשיו טיוטה.");
 }
 
 /* ===== ייצוא למתזמן החיצוני ===== */
 const fullText = (p) => [p.text || "", (p.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+const netLabel = (p) => { const n = p.network || NETS; return n.length > 1 ? "פייסבוק + אינסטגרם" : n[0] === "facebook" ? "פייסבוק" : "אינסטגרם"; };
 
 function exportRows(){
   const dates = weekDates();
-  return S.posts.filter(p => dates.includes(p.date) && ["idea","ready"].includes(p.status || "idea") && (p.text || "").trim())
+  return S.posts.filter(p => dates.includes(p.date) && ["ready"].includes(p.status) && (p.text || "").trim())
     .sort((a,b) => (a.date + (a.time||"")).localeCompare(b.date + (b.time||"")));
 }
 
 function exportCsv(){
   const rows = exportRows();
-  if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לשבוע הזה."); return; }
+  if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לשבוע הזה. סמן 'מוכן' במשבצות."); return; }
   const esc = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
   const head = ["date","time","network","text","link","image"];
-  const body = rows.map(p => [p.date, p.time || "10:30", (p.network || ["instagram"])[0], fullText(p), "", p.image || ""].map(esc).join(","));
-  download(`cortado-${weekId(S.weekStart)}.csv`, [head.join(","), ...body].join("\n"), "text/csv;charset=utf-8");
-  status("exportStatus", "ok", `${rows.length} פוסטים יוצאו. העלה את הקובץ במתזמן שלך (Bulk / Import).`);
+  const body = [];
+  rows.forEach(p => (p.network || NETS).forEach(net =>
+    body.push([p.date, p.time || "10:30", net, fullText(p), "", p.image || ""].map(esc).join(","))));
+  download(`cortado-${wid()}.csv`, [head.join(","), ...body].join("\n"), "text/csv;charset=utf-8");
+  status("exportStatus", "ok", `${rows.length} פוסטים, שורה לכל רשת. העלה במתזמן (Bulk / Import) וסמן כאן 'תוזמן'.`);
 }
 
 function copyAll(btn){
@@ -372,7 +596,7 @@ function copyAll(btn){
   if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים."); return; }
   const txt = rows.map(p => {
     const d = fromYmd(p.date);
-    return `── ${DAYS[d.getDay()]} ${dm(d)} · ${p.time || ""} · ${(p.network||["instagram"])[0] === "facebook" ? "פייסבוק" : "אינסטגרם"} · ${(FORMATS.find(f=>f.key===p.format)||{}).label || ""}\n${fullText(p)}${p.image ? "\nתמונה: " + p.image : ""}`;
+    return `── ${DAYS[d.getDay()]} ${dm(d)} · ${p.time || ""} · ${netLabel(p)} · ${(FORMATS.find(f=>f.key===p.format)||{}).label || ""}\n${fullText(p)}${p.image ? "\nתמונה: " + p.image : ""}`;
   }).join("\n\n");
   copyText(txt, btn, "העתק הכל");
   status("exportStatus", "ok", "הכל הועתק. הדבק במתזמן.");
@@ -381,13 +605,13 @@ function copyAll(btn){
 function renderExport(){
   const box = clear($("exportList"));
   const rows = exportRows();
-  if (!rows.length){ box.append(el("p", { class: "small", text: "אין פוסטים מוכנים לתזמון בשבוע הזה." })); return; }
+  if (!rows.length){ box.append(el("p", { class: "small", text: "כשמשבצת מסומנת 'מוכן' היא מופיעה כאן." })); return; }
   rows.forEach(p => {
     const d = fromYmd(p.date);
     box.append(el("div", { class: "idea" },
       el("div", { class: "grow" },
         el("div", {}, el("b", { text: DAYS[d.getDay()] + " " + dm(d) }), " ", el("span", { class: "mono", text: p.time || "" }),
-          " ", el("span", { class: "pill", text: (p.network||["instagram"])[0] === "facebook" ? "פייסבוק" : "אינסטגרם" })),
+          " ", el("span", { class: "pill", text: netLabel(p) })),
         el("div", { class: "small clip", text: (p.text || "").slice(0, 100) })),
       el("button", { text: "העתק", onclick: (e) => copyText(fullText(p), e.currentTarget, "העתק") }),
       el("button", { class: "primary", text: "תוזמן ✓", onclick: () => markScheduled(p.id) })));
@@ -399,42 +623,40 @@ async function markScheduled(id){
 }
 
 /* ===== ציור ===== */
+// כמה משבצות מוכנות השבוע. משמש את שורת "עכשיו".
+export function weekProgress(){
+  const list = slots();
+  return { done: list.filter(s => isDone(slotPost(s))).length, total: list.length };
+}
 export function render(){
+  emit("state");
   if ($("p-creative").hidden) return;
-  renderWeekPlan();
+  renderSlots();
   renderExport();
   renderComposerMeta();
 }
 
 /* ===== חיווט ===== */
 export function init(){
-  PILLARS.forEach(p => $("pillarList").append(el("option", { value: p.label, text: p.note || "" })));
   FORMATS.forEach(f => $("cFormat").append(el("option", { value: f.key, text: f.label })));
 
-  $("cDate").addEventListener("change", () => {
-    const net = $("cNet").value;
-    const t = suggestTime($("cDate").value, net);
-    if (!editing) { $("cTime").value = t.time; }
-    $("timeWhy").textContent = t.why ? (t.learned ? "נלמד מהנתונים שלכם: " : "") + t.why : "";
-    renderComposerMeta();
-  });
-  $("cNet").addEventListener("change", () => {
-    const t = suggestTime($("cDate").value, $("cNet").value);
-    $("timeWhy").textContent = t.why ? (t.learned ? "נלמד מהנתונים שלכם: " : "") + t.why : "";
-    if (!editing) $("cTime").value = t.time;
-  });
+  $("cDate").addEventListener("change", renderComposerMeta);
   $("cFormat").addEventListener("change", renderComposerMeta);
   $("cText").addEventListener("input", renderComposerMeta);
+  $("cLine").addEventListener("input", renderComposerMeta);
+  $("cleanTells").addEventListener("click", () => { $("cText").value = cleanTells($("cText").value); renderComposerMeta(); });
 
   $("aiWrite").addEventListener("click", (e) => write(e.currentTarget));
-  $("aiPlan").addEventListener("click", (e) => buildWeek(e.currentTarget));
+  $("aiAngle").addEventListener("click", (e) => suggestAngle(e.currentTarget));
+  $("aiPlan").addEventListener("click", (e) => skeleton(e.currentTarget));
   $("saveIdea").addEventListener("click", (e) => savePost("idea", e.currentTarget));
   $("saveReady").addEventListener("click", (e) => savePost("ready", e.currentTarget));
   $("markDone").addEventListener("click", (e) => savePost("done", e.currentTarget));
-  $("newPost").addEventListener("click", () => newPost($("cDate").value));
+  $("newPost").addEventListener("click", () => newPost());
   $("delPost").addEventListener("click", removePost);
+  $("closeComposer").addEventListener("click", () => { $("composer").hidden = true; $("slotList").scrollIntoView({ behavior: "smooth", block: "start" }); });
   $("copyPost").addEventListener("click", (e) => {
-    const p = { text: $("cText").value, hashtags: $("cHash").value.split(/\s+/).filter(Boolean) };
+    const p = { text: mergedText(), hashtags: $("cHash").value.split(/\s+/).filter(Boolean) };
     copyText(fullText(p), e.currentTarget, "העתק טקסט");
   });
   $("cPhoto").addEventListener("change", (e) => {
@@ -451,13 +673,27 @@ export function init(){
   $("exportCsv").addEventListener("click", exportCsv);
   $("copyWeek").addEventListener("click", (e) => copyAll(e.currentTarget));
 
-  // זיכרון
+  // בנק הקליפים
+  $("addClip").addEventListener("click", () => { addClip($("clipNew").value); $("clipNew").value = ""; });
+  $("clipNew").addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); addClip(e.target.value); e.target.value = ""; } });
+  $("shotToday").addEventListener("click", () => saveRhythm({ lastShoot: ymd(new Date()) }));
+
+  // הקצב
+  renderRhythm();
+  $("rhythmSave").addEventListener("click", () => saveRhythm({ slots: readRhythm(), shootEvery: Math.max(7, Math.min(60, +$("shootEvery").value || 14)) }));
+  $("rhythmReset").addEventListener("click", () => saveRhythm({ slots: DEFAULT_SLOTS, shootEvery: 14 }));
+
+  // הקול
   $("memTone").addEventListener("change", (e) => saveMemory({ tone: e.target.value.trim().slice(0, 500) }));
+  $("addSample").addEventListener("click", () => { addSample($("memSample").value); $("memSample").value = ""; });
   $("addLike").addEventListener("click", () => { addRule("likes", $("memLike").value.trim()); $("memLike").value = ""; });
   $("addAvoid").addEventListener("click", () => { addRule("avoid", $("memAvoid").value.trim()); $("memAvoid").value = ""; });
   $("addFact").addEventListener("click", () => { addRule("facts", $("memFact").value.trim()); $("memFact").value = ""; });
 
   on("weekchanged", subscribeCreative);
-  on("locked", () => { status("planStatus", "ok", "השבוע ננעל. אפשר לבנות את הקריאייטיב."); });
-  newPost();
+  on("locked", () => { status("planStatus", "ok", "השבוע ננעל. השעות במשבצת 'מתי ואיפה' סופיות."); });
+  resetComposer();
+  $("compTitle").textContent = "פוסט";
+  $("cDate").value = ymd(addDays(new Date(), 1));
+  renderComposerMeta();
 }

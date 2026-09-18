@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2C5A87">
+<meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
@@ -15,8 +15,8 @@
 <div id="app">
   <header class="top">
     <div>
-      <div class="eyebrow">עגלת קפה קורטדו · קיבוץ שניר</div>
-      <h1>קורטדו אופרציה</h1>
+      <div class="eyebrow">קיבוץ שניר</div>
+      <h1><span class="mark" aria-hidden="true">☕</span>קורטדו</h1>
     </div>
     <div class="who" id="who" hidden>
       <img id="avatar" alt="" width="32" height="32">
@@ -42,15 +42,16 @@
     </section>
 
     <nav class="tabs" id="tabs" role="tablist" hidden>
-      <button role="tab" id="tab-shifts"   aria-controls="p-shifts"   aria-selected="true">משמרות</button>
-      <button role="tab" id="tab-creative" aria-controls="p-creative" aria-selected="false" data-owner>קריאייטיב</button>
-      <button role="tab" id="tab-reach"    aria-controls="p-reach"    aria-selected="false" data-owner>הפצה וצמיחה</button>
-      <button role="tab" id="tab-log"      aria-controls="p-log"      aria-selected="false">יומן משמרת</button>
-      <button role="tab" id="tab-team"     aria-controls="p-team"     aria-selected="false" data-owner>צוות</button>
+      <button role="tab" id="tab-shifts"   aria-controls="p-shifts"   aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>משמרות</span></button>
+      <button role="tab" id="tab-creative" aria-controls="p-creative" aria-selected="false" data-owner><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M5 17l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span>קריאייטיב</span></button>
+      <button role="tab" id="tab-reach"    aria-controls="p-reach"    aria-selected="false" data-owner><svg viewBox="0 0 24 24"><path d="M3 11v2a2 2 0 002 2h2l6 4V5L7 9H5a2 2 0 00-2 2z"/><path d="M17 9a4 4 0 010 6M19.5 6.5a8 8 0 010 11"/></svg><span>הפצה</span></button>
+      <button role="tab" id="tab-log"      aria-controls="p-log"      aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></svg><span>יומן</span></button>
+      <button role="tab" id="tab-team"     aria-controls="p-team"     aria-selected="false" data-owner><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.5a5 5 0 015.5 4.5"/></svg><span>צוות</span></button>
     </nav>
 
     <!-- ═══════════ משמרות ═══════════ -->
     <section id="p-shifts" class="tabpanel" role="tabpanel" hidden>
+      <div class="now" id="now" hidden></div>
       <div class="weeknav">
         <button id="prevWeek" aria-label="שבוע קודם">→</button>
         <div class="range" id="range">…</div>
@@ -62,7 +63,7 @@
 
       <section class="card" id="availCard" hidden>
         <h2>מתי אתה יכול השבוע?</h2>
-        <p class="small">סמן לכל יום. זה לא שיבוץ — זו רק הזמינות שלך. המנהל בונה מזה את המשמרות.</p>
+        <p class="small">רק זמינות, לא שיבוץ. המנהלת בונה מזה את המשמרות.</p>
         <div id="availForm" class="availbox"></div>
         <div class="status" id="availStatus" role="status"></div>
       </section>
@@ -73,8 +74,7 @@
       </section>
 
       <section class="card" id="approveCard" hidden data-owner>
-        <h2>מוכן לאישור?</h2>
-        <p class="small">זו התמונה לפני שהשבוע נפתח לשיבוץ: מה הגדרת מול מי זמין.</p>
+        <h2>מי זמין מול מה שצריך</h2>
         <div id="approval"></div>
         <div class="actions"><button class="primary big" id="approveBtn">אשר ופתח לשיבוץ</button></div>
       </section>
@@ -82,16 +82,15 @@
 
       <section class="card launchcard" id="launchCard" hidden data-owner>
         <div class="calhead">
-          <h2>🚀 שגר שעות</h2>
-          <button class="primary big" id="launchBtn">עדכן בכל מקום</button>
+          <h2>שעות הפתיחה, בכל מקום</h2>
+          <button class="primary big" id="launchBtn">שגר</button>
         </div>
-        <p class="small">לוקח את שעות הפתיחה שנוצרו מהמשמרות ומפזר אותן. מה שאפשר אוטומטית — נעשה לבד.</p>
+        <p class="small">דף הנחיתה ופייסבוק מתעדכנים לבד. גוגל ואינסטגרם: העתק-הדבק מוכן.</p>
         <div id="launchList" class="launchlist"></div>
         <div class="actions"><button id="launchCopy">העתק את השעות</button></div>
         <div class="status" id="launchStatus" role="status"></div>
         <details data-api hidden id="fbConnect">
-          <summary>חיבור עמוד פייסבוק — הגדרה חד-פעמית</summary>
-          <p class="small">אחרי זה פייסבוק יתעדכן לבד בכל שיגור. צריך לעשות את זה פעם אחת בלבד.</p>
+          <summary>חיבור עמוד פייסבוק (פעם אחת)</summary>
           <ol class="steps small">
             <li>פתח את <a href="https://developers.facebook.com/tools/explorer/?method=GET&amp;path=me%2Faccounts&amp;version=v21.0" target="_blank" rel="noopener">Graph API Explorer</a></li>
             <li>למעלה מימין: <b>Meta App</b> → בחר <b>Cortado</b></li>
@@ -109,17 +108,17 @@
       </section>
 
       <section class="card" id="mgrCard" hidden data-owner>
-        <h2>בניית השבוע</h2>
+        <h2>איזה ימים פתוחים השבוע?</h2>
         <p class="small" id="planSummary"></p>
         <div id="planner" class="plangrid"></div>
         <div class="actions">
-          <button id="applyAll">החל את המשמרת הראשונה על כל הימים</button>
-          <button id="copyPrevWeek">העתק משבוע שעבר</button>
+          <button id="copyPrevWeek">כמו שבוע שעבר</button>
+          <button id="applyAll">אותן שעות בכל הימים</button>
         </div>
         <div class="actions" id="phaseBar"></div>
         <div class="status" id="mgrStatus" role="status"></div>
         <details>
-          <summary>שעות פתיחה מחושבות</summary>
+          <summary>שעות הפתיחה שיוצאות מזה</summary>
           <dl class="hours" id="hours"></dl>
           <div class="actions">
             <button id="copyHours">העתק טקסט</button>
@@ -134,41 +133,51 @@
     <section id="p-creative" class="tabpanel" role="tabpanel" hidden>
       <div class="card">
         <div class="calhead">
-          <h2>הקריאייטיב של השבוע</h2>
-          <button class="primary" id="aiPlan" data-api hidden>✨ בנה לי את השבוע</button>
+          <h2>הקריאייטיב של השבוע <span class="pill" id="slotState"></span></h2>
+          <button id="aiPlan" data-api hidden>✨ כיוונים</button>
         </div>
-        <p class="small">לכל יום פעילות — זווית אחת. מהזווית נבנים הפוסטים. היעד: 4–5 פוסטים בשבוע, מזה 3 רילס.</p>
+        <p class="small">ארבע משבצות קבועות. משבצת ריקה זו משימה. כשכולן מוכנות, השבוע סגור.</p>
         <div class="status" id="planStatus" role="status"></div>
-        <div id="weekPlan" class="planlist"></div>
+        <div id="slotList" class="slotlist"></div>
+        <details class="rhythm">
+          <summary>הקצב השבועי — נקבע פעם אחת</summary>
+          <p class="small">עמוד, יום ושעה לכל משבצת. קבוע בכוונה: עקביות שווה יותר מהשעה המושלמת.</p>
+          <div id="rhythmBox" class="rhythmbox"></div>
+          <label for="shootEvery">יום צילום כל <input id="shootEvery" type="number" min="7" max="60" value="14" class="tiny"> ימים</label>
+          <div class="actions">
+            <button class="primary" id="rhythmSave">שמור קצב</button>
+            <button class="link" id="rhythmReset">חזור לברירת המחדל</button>
+          </div>
+          <div class="status" id="rhythmStatus" role="status"></div>
+        </details>
       </div>
 
       <div class="two">
-        <div class="card" id="composer">
-          <h2 id="compTitle">פוסט חדש</h2>
+        <div class="card" id="composer" hidden>
+          <div class="calhead"><h2 id="compTitle">פוסט</h2><button class="link" id="closeComposer">סגור</button></div>
           <div class="two-col">
             <label for="cDate">תאריך<input id="cDate" type="date"></label>
             <label for="cTime">שעה<input id="cTime" type="time"></label>
           </div>
           <p class="small" id="timeWhy"></p>
           <p class="small" id="dateHint"></p>
-          <div class="two-col">
-            <label for="cNet">רשת
-              <select id="cNet">
-                <option value="instagram">אינסטגרם</option>
-                <option value="facebook">פייסבוק</option>
-              </select>
-            </label>
-            <label for="cFormat">פורמט<select id="cFormat"></select></label>
-          </div>
+          <label for="cFormat">פורמט<select id="cFormat"></select></label>
           <p class="small" id="formatHint"></p>
-          <label for="cPillar">סוג תוכן
-            <input id="cPillar" type="text" list="pillarList" placeholder="כתוב מה שבא לך, או בחר מהרשימה" autocomplete="off">
-          </label>
-          <datalist id="pillarList"></datalist>
-          <label for="cIdea">על מה הפוסט<input id="cIdea" type="text" placeholder="למשל: דוכן אורח — ג׳חנון משדה נחמיה"></label>
-          <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ כתוב לי</button></div>
-          <label for="cText">טקסט<textarea id="cText" rows="8" placeholder="כתוב כאן…"></textarea></label>
+          <label for="cIdea">הכיוון — משפט אחד</label>
+          <div class="angle">
+            <input id="cIdea" type="text" placeholder="למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר">
+            <button class="icon" id="aiAngle" data-api hidden title="הצע כיוון">✨</button>
+          </div>
+          <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ טיוטה</button></div>
+          <label for="cText">הטקסט<textarea id="cText" rows="6" placeholder="או כתוב בעצמך…"></textarea></label>
           <p class="small" id="lenHint"></p>
+          <ul class="tells" id="tells"></ul>
+          <button class="link" id="cleanTells" hidden>נקה סימני מכונה</button>
+          <label for="cLine" class="gate">השורה שלך
+            <input id="cLine" type="text" placeholder="משפט אחד משלך: פרט, שם, מה קרה היום">
+          </label>
+          <p class="small" id="gateHint"></p>
+          <p class="small" id="shootHint"></p>
           <label for="cHash">האשטגים<input id="cHash" type="text" dir="rtl"></label>
           <label for="cPhoto">תמונה או וידאו
             <input id="cPhoto" type="file" accept="image/*" capture="environment">
@@ -176,22 +185,36 @@
           <img id="cPreview" alt="" hidden>
           <input id="cImage" type="url" dir="ltr" hidden>
           <div class="actions">
-            <button id="saveIdea">שמור כרעיון</button>
-            <button class="primary" id="saveReady">מוכן לתזמון</button>
-            <button id="markDone">סמן שפורסם</button>
+            <button id="saveIdea">שמור טיוטה</button>
+            <button class="primary" id="saveReady">מוכן ✓</button>
+            <button id="markDone">פורסם</button>
           </div>
           <div class="actions">
             <button id="copyPost">העתק טקסט</button>
-            <button class="link" id="newPost">+ פוסט חדש</button>
+            <button class="link" id="newPost">+ פוסט מעבר לקצב</button>
             <button class="link" id="delPost" hidden>מחק</button>
           </div>
           <div class="status" id="compStatus" role="status"></div>
         </div>
 
         <div class="side">
+          <div class="card">
+            <h2>בנק הקליפים <span class="pill" id="clipCount"></span></h2>
+            <p class="small">20 דקות צילום מכסות שבועיים.</p>
+            <div class="notice warn" id="clipWarn" hidden>פחות מ-3 קליפים מוכנים. תכנן צילום בשבוע הקרוב.</div>
+            <p class="small" id="shootNext"></p>
+            <div id="clipList" class="cliplist"></div>
+            <div class="learnrow">
+              <input id="clipNew" type="text" placeholder="מה לצלם: קיטור בבוקר, הנוף מהספסל…">
+              <button id="addClip">הוסף</button>
+            </div>
+            <div class="actions"><button class="link" id="shotToday">צילמנו היום</button></div>
+            <div class="status" id="clipStatus" role="status"></div>
+          </div>
+
           <div class="card" id="posterCard">
             <h2>תמונת הפוסט</h2>
-            <p class="small">הצילום שלך, הטיפוגרפיה שלנו. הכל נשאר בדפדפן — שום דבר לא עולה לשרת.</p>
+            <p class="small">הצילום שלך, הטיפוגרפיה שלנו. נשאר בטלפון.</p>
             <div class="two-col">
               <label for="posterLayout">סגנון<select id="posterLayout"></select></label>
               <label for="posterSize">גודל<select id="posterSize"></select></label>
@@ -214,9 +237,10 @@
             <div class="actions"><button class="primary" id="posterSave">הורד PNG</button></div>
             <div class="status" id="posterStatus" role="status"></div>
           </div>
+
           <div class="card">
             <h2>לתזמון השבוע</h2>
-            <p class="small">הפרסום עצמו נעשה במתזמן החיצוני שלכם. מכאן מוציאים את הכל מוכן.</p>
+            <p class="small">מכאן למתזמן, לשתי הרשתות.</p>
             <div id="exportList" class="ideas"></div>
             <div class="actions">
               <button class="primary" id="exportCsv">הורד CSV למתזמן</button>
@@ -226,9 +250,11 @@
           </div>
 
           <div class="card">
-            <h2>איך המערכת לומדת אתכם</h2>
-            <p class="small">כל תיקון שלך על טיוטה נשמר אוטומטית. כאן אפשר גם ללמד ישירות.</p>
-            <label for="memTone">הטון שלנו<textarea id="memTone" rows="3" placeholder="למשל: חם, קצר, בלי סימני קריאה, תמיד מזכירים את הנוף"></textarea></label>
+            <h2>הקול שלנו</h2>
+            <p class="small">מה שהמערכת למדה עליכם, גלוי. כל תיקון שלך נכנס לכאן.</p>
+            <label for="memTone">הטון<textarea id="memTone" rows="2" placeholder="למשל: חם, קצר, בלי סימני קריאה, תמיד מזכירים את הנוף"></textarea></label>
+            <label for="memSample">פוסט שכתבת בעצמך<textarea id="memSample" rows="3" placeholder="הדבק פוסט ישן שאהבת. זה המקור הכי חזק לקול."></textarea></label>
+            <div class="actions"><button id="addSample">הוסף לקול</button></div>
             <div class="learnrow">
               <input id="memLike" type="text" placeholder="תמיד לעשות…">
               <button id="addLike">הוסף</button>
@@ -260,7 +286,8 @@
           <h2>קבוצות פייסבוק</h2>
           <span class="pill" id="groupProgress"></span>
         </div>
-        <p class="small">מטא סגרה את האפשרות לפרסם לקבוצות דרך API — אין כלי חוקי שעושה את זה אוטומטית. אז זו רשימת עבודה שבועית: העתק, פתח את הקבוצה, הדבק. הכי שווה בקבוצות האלה זה דווקא <b>לענות</b> לשאלות המלצה, לא לפרסם.</p>
+        <p class="small">העתק, פתח את הקבוצה, הדבק. והכי שווה: <b>לענות</b> לשאלות המלצה.</p>
+        <details class="help"><summary>למה זה ידני</summary><p>מטא סגרה פרסום לקבוצות דרך API. אין כלי חוקי שעושה את זה אוטומטית, אז זו רשימת עבודה שבועית.</p></details>
         <div class="form">
           <label for="groupTier">עדיפות
             <select id="groupTier">
@@ -290,7 +317,7 @@
 
       <div class="card">
         <h2>מדידת ביצועים</h2>
-        <p class="small">הזן את המספרים של כל פוסט שפורסם. אחרי 8 מדידות לרשת, המערכת מחליפה את הבנצ׳מרק בשעות שבאמת עובדות לכם.</p>
+        <p class="small">המספרים של כל פוסט שפורסם. אחרי 8 מדידות המערכת לומדת את השעות שלכם.</p>
         <div id="perfSummary"></div>
         <div id="perfList" class="perflist"></div>
         <div class="status" id="perfStatus" role="status"></div>
@@ -315,7 +342,7 @@
         </div>
         <div class="card">
           <h2>חשבונות לתייג</h2>
-          <p class="small">אלה מי שמחלקים את הטראפיק באזור. לתייג בכל פוסט — ככה הם מוצאים תוכן לשתף.</p>
+          <p class="small">לתייג בכל פוסט. ככה הם מוצאים תוכן לשתף.</p>
           <div id="ampBox" class="grouplist"></div>
         </div>
       </div>
@@ -326,7 +353,7 @@
       <div class="two">
         <div class="card">
           <h2>דיווח סוף משמרת</h2>
-          <p class="small">דקה אחת בסוף כל משמרת. מכאן נבנות התובנות.</p>
+          <p class="small">דקה בסוף כל משמרת.</p>
           <div class="two-col">
             <label for="lDate">תאריך<input id="lDate" type="date"></label>
             <label for="lCustomers">כמה לקוחות (בערך)<input id="lCustomers" type="number" min="0" max="999"></label>
@@ -368,22 +395,26 @@
           <p class="small">לחיצה על וואטסאפ פותחת הודעה מוכנה לעובד.</p>
         </div>
         <div class="card">
-          <h2>הצוות</h2>
-          <p class="small">כל עובד מקבל קישור אישי קבוע. הוא לוחץ, מסמן זמינות, שולח. בלי חשבון, בלי סיסמה, בלי התקנה.</p>
-          <div class="teamform">
-            <label for="tName">שם<input id="tName" type="text" placeholder="כמו שמופיע במשמרות"></label>
-            <label for="tPhone">טלפון<input id="tPhone" type="tel" dir="ltr" placeholder="050-0000000"></label>
-            <label for="tEmail">מייל (לא חובה)<input id="tEmail" type="email" dir="ltr"></label>
-            <label for="tRole">תפקיד<input id="tRole" type="text" placeholder="בריסטה"></label>
-            <button class="primary" id="tSave">הוסף עובד</button>
-          </div>
-          <div class="status" id="teamStatus" role="status"></div>
+          <div class="calhead"><h2>הצוות</h2><span class="pill" id="teamCount"></span></div>
           <div id="teamTable"></div>
-
-          <h2 style="margin-top:14px">גישה דרך גוגל (למנהלים)</h2>
-          <p class="small">העובדים לא צריכים את זה — הם נכנסים בקישור האישי. זה רק למי שצריך גישה מלאה לאפליקציה.</p>
-          <div class="actions"><button id="copyAppLink">העתק קישור לאפליקציה</button></div>
-          <div id="accessList"></div>
+          <details id="teamAdd">
+            <summary id="teamAddSummary">+ הוסף עובד</summary>
+            <p class="small">קישור אישי לכל עובד. בלי חשבון, בלי סיסמה.</p>
+            <div class="teamform">
+              <label for="tName">שם<input id="tName" type="text" placeholder="כמו שמופיע במשמרות"></label>
+              <label for="tPhone">טלפון<input id="tPhone" type="tel" dir="ltr" placeholder="050-0000000"></label>
+              <label for="tEmail">מייל (לא חובה)<input id="tEmail" type="email" dir="ltr"></label>
+              <label for="tRole">תפקיד<input id="tRole" type="text" placeholder="בריסטה"></label>
+              <button class="primary" id="tSave">הוסף עובד</button>
+            </div>
+          </details>
+          <div class="status" id="teamStatus" role="status"></div>
+          <details class="help">
+            <summary>גישה מלאה דרך גוגל (למנהלים)</summary>
+            <p>העובדים לא צריכים את זה, הם נכנסים בקישור האישי.</p>
+            <div class="actions"><button id="copyAppLink">העתק קישור לאפליקציה</button></div>
+            <div id="accessList"></div>
+          </details>
         </div>
       </div>
     </section>

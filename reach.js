@@ -165,7 +165,7 @@ function renderPerformance(){
     row.append(el("div", { class: "grow" },
       el("div", {}, el("b", { text: d ? DAYS[d.getDay()] + " " + dm(d) : "" }), " ",
         el("span", { class: "mono small", text: p.time || "" }), " ",
-        el("span", { class: "pill", text: (p.network||["instagram"])[0] === "facebook" ? "פייסבוק" : "אינסטגרם" })),
+        el("span", { class: "pill", text: (p.network||[]).length > 1 ? "FB + IG" : (p.network||["instagram"])[0] === "facebook" ? "פייסבוק" : "אינסטגרם" })),
       el("div", { class: "small clip", text: (p.text || "").slice(0, 70) })));
     const mk = (k, ph) => el("input", { type: "number", min: "0", class: "tiny", placeholder: ph, value: perf[k] != null ? perf[k] : "", "aria-label": ph });
     const reach_ = mk("reach", "חשיפה"), likes = mk("likes", "לייקים"), saves = mk("saves", "שמירות");
@@ -204,7 +204,7 @@ function renderPerformance(){
 async function relearnTiming(){
   const out = {};
   for (const net of ["instagram","facebook"]){
-    const rows = S.posts.filter(p => (p.network || [])[0] === net && p.performance && p.performance.reach > 0 && p.date && p.time);
+    const rows = S.posts.filter(p => (p.network || []).includes(net) && p.performance && p.performance.reach > 0 && p.date && p.time);
     if (rows.length < 8) continue;
     const buckets = {};
     rows.forEach(p => {

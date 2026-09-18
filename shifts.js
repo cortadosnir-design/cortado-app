@@ -380,11 +380,10 @@ export function render(){
   const filled = S.signups.length;
   const sum = clear($("summary"));
   if (shifts.length){
-    sum.append(el("span", { class: "chip " + (filled >= slots ? "ok" : filled ? "warn" : "bad"), text: `${filled}/${slots} מקומות מאוישים` }));
+    if (ph === "open" || ph === "locked")
+      sum.append(el("span", { class: "chip " + (filled >= slots ? "ok" : filled ? "warn" : "bad"), text: `${filled}/${slots} מקומות מאוישים` }));
     sum.append(el("span", { class: "chip", text: `${openDays().length} ימי פעילות` }));
   }
-  if (ph === "availability" || ph === "review")
-    sum.append(el("span", { class: "chip", text: `${S.availability.length} שלחו זמינות` }));
 
   // מה מוצג למי
   $("availCard").hidden = S.isOwner || !(ph === "availability" || ph === "review");
@@ -409,6 +408,8 @@ export function render(){
     renderHoursList();
   }
   renderPhaseButtons();
+  $("p-shifts").dataset.phase = (!shifts.length && ph !== "locked") ? "setup" : ph;
+  emit("state");
 }
 
 function renderHoursList(){

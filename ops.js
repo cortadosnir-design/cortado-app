@@ -1,5 +1,5 @@
 // תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
-import { S, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
+import { S, emit, on, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
   status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, whoOf, track, makeToken, zLink,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
 
@@ -13,7 +13,7 @@ export function subscribe(){
       S.roster = snap.docs.map(d => ({ token: d.id, ...d.data() }));
       S.rosterNames = {};
       S.roster.forEach(r => S.rosterNames[r.token] = r.name || "חבר צוות");
-      renderRoster(); drawReminders();
+      renderRoster(); drawReminders(); emit("state");
     }, () => {}));
   track(onSnapshot(query(collection(db, "log"), orderBy("date", "desc"), limit(60)),
     (snap) => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.date||"").localeCompare(a.date||"")); renderLog(); }, () => {}));
@@ -34,22 +34,28 @@ const inviteText = (r) => `היי ${r.name} 👋\nזה הקישור האישי �
 
 function renderRoster(){
   const t = clear($("teamTable"));
+  const active = S.roster.filter(r => r.active !== false);
+  $("teamCount").textContent = active.length ? `${active.length} בצוות` : "";
   if (!S.roster.length){
-    t.append(el("p", { class: "small", text: "עוד אין עובדים. הוסף את הראשון למעלה — הוא יקבל קישור אישי." }));
+    t.append(el("p", { class: "small", text: "עוד אין עובדים. הוסף את הראשון, הוא יקבל קישור אישי לוואטסאפ." }));
+    $("teamAdd").open = true;
     return;
   }
+  const sentSet = new Set(S.availability.map(a => a.token).filter(Boolean));
+  const collecting = !S.week || !S.week.phase || S.week.phase === "availability" || S.week.phase === "review";
   const list = [...S.roster].sort((a,b) =>
     (b.active === false ? -1 : 0) - (a.active === false ? -1 : 0) || (a.name||"").localeCompare(b.name||"", "he"));
 
   list.forEach(r => {
     const link = zLink(r.token);
     const wa = waLink(r.phone, inviteText(r));
-    const row = el("div", { class: "rosterrow" + (r.active === false ? " off" : "") });
+    const row = el("div", { class: "rosterrow" + (r.active === false ? " off" : ""), "data-token": r.token });
     row.append(el("div", { class: "grow" },
       el("div", {}, el("b", { text: r.name || "ללא שם" }),
-        r.role ? el("span", { class: "small", text: " · " + r.role }) : null,
-        r.active === false ? el("span", { class: "pill bad", text: "מושבת" }) : null),
-      el("div", { class: "small mono clip", dir: "ltr", text: link })));
+        r.role ? el("span", { class: "small", text: " · " + r.role }) : null, " ",
+        r.active === false ? el("span", { class: "pill bad", text: "מושבת" }) :
+        collecting ? el("span", { class: "pill " + (sentSet.has(r.token) ? "ok" : "warn"), text: sentSet.has(r.token) ? "שלח זמינות ✓" : "עוד לא שלח" }) : null),
+      r.phone ? el("div", { class: "small mono", dir: "ltr", text: r.phone }) : null));
     const acts = el("div", { class: "actions" });
     if (wa) acts.append(el("a", { class: "btn wa", href: wa, target: "_blank", rel: "noopener", text: "שלח בוואטסאפ" }));
     else acts.append(el("button", { text: "שתף", onclick: () => shareInvite(r) }));
@@ -58,7 +64,7 @@ function renderRoster(){
       editingMember = r.token;
       $("tName").value = r.name || ""; $("tPhone").value = r.phone || "";
       $("tEmail").value = r.email || ""; $("tRole").value = r.role || "";
-      $("tSave").textContent = "שמור"; $("tName").focus();
+      $("tSave").textContent = "שמור"; $("teamAdd").open = true; $("teamAddSummary").textContent = "עריכת " + (r.name || "עובד"); $("tName").focus();
     } }));
     acts.append(el("button", { class: "link", text: r.active === false ? "הפעל" : "השבת",
       onclick: () => updateDoc(doc(db, "roster", r.token), { active: r.active === false })
@@ -230,6 +236,7 @@ export function renderLog(){
 
 /* ===== חיווט ===== */
 export function init(){
+  on("state", () => { if (!$("p-team").hidden) renderRoster(); });
   WEATHER.forEach(w => $("lWeather").append(el("option", { value: w, text: w || "—" })));
   $("lDate").value = ymd(new Date());
 
@@ -243,8 +250,9 @@ export function init(){
       if (isNew) body.active = true;
       body.at = serverTimestamp();
       await setDoc(doc(db, "roster", token), body, { merge: true });
-      editingMember = null; $("tSave").textContent = "הוסף עובד";
+      editingMember = null; $("tSave").textContent = "הוסף עובד"; $("teamAddSummary").textContent = "+ הוסף עובד";
       ["tName","tPhone","tEmail","tRole"].forEach(i => $(i).value = "");
+      if (isNew) $("teamAdd").open = false;
       status("teamStatus", "ok", isNew ? `${name} נוסף. שלח לו את הקישור האישי.` : "נשמר.");
     } catch { status("teamStatus", "bad", "השמירה נכשלה."); }
   }));
