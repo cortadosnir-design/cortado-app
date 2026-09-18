@@ -22,9 +22,14 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/roster/$(t));
     }
 
+    // שים לב: מסמך שבוע שנוצר לפני שהוגדר שלב לא מכיל את השדה phase.
+    // גישה לשדה חסר מפילה את כל הערכת החוק, ולכן בודקים קיום לפני קריאה.
     function weekPhase(wid) {
       return exists(/databases/$(database)/documents/weeks/$(wid))
-        ? get(/databases/$(database)/documents/weeks/$(wid)).data.phase : 'availability';
+        ? ('phase' in get(/databases/$(database)/documents/weeks/$(wid)).data
+            ? get(/databases/$(database)/documents/weeks/$(wid)).data.phase
+            : 'availability')
+        : 'availability';
     }
 
     // ── רשימת העובדים והקישורים האישיים ──

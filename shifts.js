@@ -10,6 +10,7 @@ const PHASES = {
   locked:       { label: "שבוע סגור",     cls: ""     },
 };
 const DEFAULT_SHIFT = { start: "06:30", end: "11:00", need: 1 };
+const repaired = new Set();
 
 export const wid = () => weekId(S.weekStart);
 export const phase = () => (S.week && S.week.phase) || "availability";
@@ -25,7 +26,15 @@ export function subscribe(){
   S.week = null; S.availability = []; S.signups = [];
   render();
   track(onSnapshot(doc(db, "weeks", id),
-    (snap) => { S.week = snap.exists() ? snap.data() : null; render(); emit("week"); },
+    (snap) => {
+      S.week = snap.exists() ? snap.data() : null;
+      // שבוע שנוצר בגרסה ישנה ואין בו phase — משלימים בשקט, פעם אחת.
+      if (S.isOwner && snap.exists() && !snap.data().phase && !repaired.has(id)){
+        repaired.add(id);
+        setDoc(doc(db, "weeks", id), { phase: "availability" }, { merge: true }).catch(() => {});
+      }
+      render(); emit("week");
+    },
     () => $("conn").textContent = "אין חיבור לנתונים"));
   track(onSnapshot(query(collection(db, "availability"), where("week", "==", id)),
     (snap) => { S.availability = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
@@ -37,7 +46,8 @@ export function subscribe(){
 
 async function saveWeek(patch, statusId = "mgrStatus"){
   try {
-    await setDoc(doc(db, "weeks", wid()), { ...patch, updatedAt: serverTimestamp() }, { merge: true });
+    // phase נכתב תמיד: בלעדיו חוקי האבטחה לא יכולים להעריך את מצב השבוע.
+    await setDoc(doc(db, "weeks", wid()), { phase: phase(), ...patch, updatedAt: serverTimestamp() }, { merge: true });
     if (statusId) status(statusId, "ok", "נשמר.");
   } catch (e){
     if (statusId) status(statusId, "bad", e.code === "permission-denied" ? "רק המנהל יכול לשנות את השבוע." : "השמירה נכשלה.");

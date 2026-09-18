@@ -104,16 +104,28 @@ function render(){
   else renderFinal(main);
 }
 
+const shiftsOn = (day) => shiftsOf().filter(s => s.day === day);
+const shiftLine = (day) => {
+  const ss = shiftsOn(day);
+  if (!ss.length) return "";
+  return ss.map(s => `${s.start}\u2013${s.end}` + ((s.need || 1) > 1 ? ` (${s.need})` : "")).join(" · ");
+};
+
 function renderAvailability(main){
   main.append(el("p", { class: "zlead", text: "סמן מתי אתה יכול. זה לא שיבוץ — רק זמינות." }));
   if (mine) main.append(el("div", { class: "notice ok2", text: "כבר שלחת. אפשר לשנות ולשלוח שוב." }));
+  const anyShift = shiftsOf().length;
+  if (anyShift) main.append(el("p", { class: "zlead small", text: "מתחת לכל יום כתובות שעות המשמרת שתוכננו, ובסוגריים כמה אנשים דרושים." }));
 
   for (let i = 0; i < 7; i++){
     const d = addDays(weekStart, i), h = holidayOn(ymd(d));
+    const line = shiftLine(i);
     const row = el("div", { class: "zrow" + (draft[i] ? " set" : "") });
     row.append(el("div", { class: "zday" },
       el("b", { text: DAYS[i] }),
       el("span", { class: "small", text: dm(d) }),
+      line ? el("span", { class: "zhours mono", text: line })
+           : (anyShift ? el("span", { class: "small closed", text: "סגור" }) : null),
       h ? el("span", { class: "hol", text: h[1] }) : null));
     const seg = el("div", { class: "seg big", role: "group", "aria-label": "זמינות ב" + DAYS[i] });
     [["yes","כן","ok"],["maybe","אולי","warn"],["no","לא","bad"]].forEach(([v,label,cls]) => {
