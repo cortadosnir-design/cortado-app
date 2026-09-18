@@ -131,3 +131,76 @@ textarea{background:var(--surface);border:1px solid var(--line);border-radius:10
 /* מסך הצטרפות */
 #waiting{align-items:flex-start}
 #cPreview{margin-top:4px}
+
+/* ===== זמינות ===== */
+.availbox{display:flex;flex-direction:column;gap:6px}
+.availrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}
+.availday{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;min-width:120px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--sunken)}
+.segbtn{border:none;border-radius:0;background:transparent;padding:6px 16px;font-weight:600;color:var(--muted);min-width:60px}
+.segbtn+.segbtn{border-inline-start:1px solid var(--line)}
+.segbtn[aria-pressed="true"].ok{background:var(--ok);color:#fff}
+.segbtn[aria-pressed="true"].warn{background:var(--warn);color:#fff}
+.segbtn[aria-pressed="true"].bad{background:var(--bad);color:#fff}
+label.block{display:flex;flex-direction:column;gap:4px;flex:1 1 100%}
+
+/* ===== בניית השבוע ===== */
+.plangrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.planday{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--sunken);opacity:.7}
+.planday.on{background:var(--surface);opacity:1;border-color:var(--accent)}
+.planhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);font-size:16px}
+.toggle input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+.planshift{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.planshift input[type=time]{padding:6px 4px;font-size:15px;min-width:0;flex:1 1 118px}
+.planshift select{padding:6px 4px;flex:1 1 96px;min-width:0}
+button.icon{border:none;background:none;color:var(--muted);padding:2px 6px;font-size:15px;line-height:1}
+button.icon:hover{color:var(--bad)}
+
+/* ===== לוח קריאייטיב ===== */
+.planlist{display:flex;flex-direction:column;gap:10px}
+.planitem{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.angle{display:flex;gap:6px;align-items:center}
+.angle input{flex:1}
+.grow{flex:1;min-width:0}
+.clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side{display:flex;flex-direction:column;gap:16px}
+.learnrow{display:flex;gap:6px}
+.learnrow input{flex:1;min-width:0}
+.memgroup{margin-top:6px}
+.notes{display:flex;flex-direction:column;gap:2px}
+
+/* ===== הפצה ===== */
+.grouplist{display:flex;flex-direction:column;gap:2px}
+.grouprow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.grouprow:last-child{border-bottom:none}
+.grouprow.done{opacity:.5}
+.grouprow a{color:var(--accent);font-weight:600}
+.grouprow button{flex:none;white-space:nowrap}
+.moves{display:flex;flex-direction:column;gap:10px}
+.move{display:flex;gap:12px;align-items:flex-start}
+.movenum{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-size:16px}
+.timecard{margin-bottom:12px}
+.timecard h3{display:flex;align-items:center;gap:8px}
+.timerow{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--line)}
+.timerow b{flex:none;min-width:92px}
+.perflist{display:flex;flex-direction:column;gap:2px}
+.perfrow{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+input.tiny{width:78px;padding:6px 8px;flex:none}
+.mile{margin-top:10px}
+.milehead{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.milehead .pill{margin-inline-start:auto}
+.track{height:7px;background:var(--sunken);border-radius:999px;overflow:hidden;margin-top:4px}
+.track i{display:block;height:100%;background:var(--accent);border-radius:999px}
+table.t tr.me{background:var(--accent-soft)}
+table.t tr.me a{color:var(--accent)}
+#cPreview{max-width:170px;border-radius:10px;margin-top:4px}
+.chip button.icon{margin-inline-start:2px;padding:0 2px}
+
+@media (max-width:560px){
+  .availrow{flex-direction:column;align-items:stretch;gap:6px}
+  .seg{width:100%}
+  .segbtn{flex:1}
+  .perfrow input.tiny{flex:1 1 70px;width:auto}
+  .grouprow{flex-wrap:wrap}
+}

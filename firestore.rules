@@ -15,18 +15,18 @@ service cloud.firestore {
     }
     function allowed() { return isOwner() || member(); }
 
-    function weekOpen(wid) {
+    function weekPhase(wid) {
       return exists(/databases/$(database)/documents/weeks/$(wid))
-        && get(/databases/$(database)/documents/weeks/$(wid)).data.open == true;
+        ? get(/databases/$(database)/documents/weeks/$(wid)).data.phase : 'availability';
     }
 
-    // רשימת המאושרים. המנהל מנהל אותה; כל אחד יכול לבדוק רק את עצמו.
+    // רשימת המאושרים. המנהל מנהל אותה; כל אחד בודק רק את עצמו.
     match /members/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
       allow write: if isOwner();
     }
 
-    // בקשות הצטרפות: משתמש חדש מבקש להצטרף, המנהל מאשר.
+    // בקשות הצטרפות.
     match /joinRequests/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
       allow create, update: if signedIn() && request.auth.uid == uid
@@ -35,27 +35,43 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
-    // משמרות: הצוות רואה, רק המנהל משנה.
+    // השבוע: הצוות רואה, רק המנהל בונה.
     match /weeks/{wid} {
       allow read: if allowed();
       allow write: if isOwner();
     }
 
-    // שיבוץ: כל אחד רושם ומוחק רק את עצמו, ורק בשבוע פתוח. המנהל מסיר כל אחד.
+    // זמינות: כל עובד כותב רק את עצמו, ורק כל עוד השבוע לא ננעל.
+    match /availability/{id} {
+      allow read: if allowed();
+      allow create, update: if allowed()
+        && request.resource.data.uid == request.auth.uid
+        && id == request.resource.data.week + '_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['week','uid','days','note','at'])
+        && request.resource.data.days is map
+        && request.resource.data.days.size() <= 7
+        && (!('note' in request.resource.data) || request.resource.data.note.size() < 300)
+        && weekPhase(request.resource.data.week) != 'locked';
+      allow delete: if isOwner() || (allowed() && resource.data.uid == request.auth.uid);
+    }
+
+    // שיבוץ: רק בשבוע שהמנהל אישר ופתח. כל אחד רושם ומוחק את עצמו.
     match /signups/{id} {
       allow read: if allowed();
       allow create: if allowed()
         && request.resource.data.uid == request.auth.uid
         && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid
         && request.resource.data.keys().hasOnly(['week','shift','uid','at'])
-        && weekOpen(request.resource.data.week);
+        && weekPhase(request.resource.data.week) == 'open';
       allow delete: if allowed() && (resource.data.uid == request.auth.uid || isOwner());
       allow update: if false;
     }
 
-    // לוח התוכן ורשימת הצוות: המנהל בלבד.
-    match /posts/{id} { allow read, write: if isOwner(); }
-    match /team/{id}  { allow read, write: if isOwner(); }
+    // קריאייטיב, לוח התוכן, זיכרון המותג ורשימת הצוות: המנהל בלבד.
+    match /creative/{wid} { allow read, write: if isOwner(); }
+    match /posts/{id}    { allow read, write: if isOwner(); }
+    match /brand/{doc}   { allow read, write: if isOwner(); }
+    match /team/{id}     { allow read, write: if isOwner(); }
 
     // יומן משמרת: כל עובד מדווח על עצמו, וכולם רואים את הסיכום.
     match /log/{id} {
@@ -74,7 +90,7 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // כרטיס משתמש: כל אחד כותב וקורא רק את שלו; המנהל רואה את כולם.
+    // כרטיס משתמש.
     match /users/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
       allow write: if signedIn() && request.auth.uid == uid
