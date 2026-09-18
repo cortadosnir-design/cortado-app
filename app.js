@@ -23,7 +23,7 @@ function selectTab(name){
   }
   try { localStorage.setItem("cortado-tab", name); } catch {}
   if (name === "team") Ops.loadReminders();
-  if (name === "creative") Creative.render();
+  if (name === "creative"){ Creative.render(); Poster.wake(); }
   if (name === "reach") Reach.render();
 }
 
@@ -32,8 +32,8 @@ TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", 
 /* ===== ניווט בין שבועות ===== */
 on("weekchange", (delta) => {
   S.weekStart = addDays(S.weekStart, delta);
-  dropSubs();
-  startSubs();
+  // רק המשמרות תלויות בשבוע. שאר המאזינים נשארים כפי שהם.
+  Shifts.resubscribe();
   emit("weekchanged");
 });
 

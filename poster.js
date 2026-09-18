@@ -14,6 +14,7 @@ const THEME_LABEL = { cream: "שמנת", night: "לילה", olive: "זית", cla
 const LAYOUTS = { photo: "תמונה עם טקסט", plain: "טקסט בלבד", hours: "לוח שעות" };
 
 let photo = null;   // HTMLImageElement
+let ready = false;
 let canvas = null;
 
 const state = { layout: "photo", theme: "cream", size: "portrait", head: "", sub: "", badge: "" };
@@ -169,6 +170,7 @@ function footer(ctx, W, H, pad, subColor, accent){
 }
 
 /* ===== תצוגה ===== */
+export function wake(){ if (!ready){ ready = true; refresh(); } }
 async function refresh(){
   try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
   const c = draw();
@@ -235,6 +237,5 @@ export function init(){
   $("posterFromPost").addEventListener("click", fromPost);
   $("posterSave").addEventListener("click", save);
 
-  on("week", () => { if (state.layout === "hours") refresh(); });
-  refresh();
+  on("week", () => { if (ready && state.layout === "hours") refresh(); });
 }

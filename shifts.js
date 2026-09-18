@@ -11,6 +11,7 @@ const PHASES = {
 };
 const DEFAULT_SHIFT = { start: "06:30", end: "11:00", need: 1 };
 const repaired = new Set();
+let loaded = false;   // האם ה-snapshot הראשון של השבוע הגיע
 
 export const wid = () => weekId(S.weekStart);
 export const phase = () => (S.week && S.week.phase) || "availability";
@@ -21,13 +22,21 @@ const inShift = (id) => S.signups.filter(u => u.shift === id);
 const myAvail = () => S.availability.find(a => a.uid === (S.me && S.me.uid));
 
 /* ===== האזנה ===== */
+let weekSubs = [];
+export function resubscribe(){
+  weekSubs.forEach(u => { try { u(); } catch {} });
+  weekSubs = [];
+  subscribe();
+}
 export function subscribe(){
   const id = wid();
+  loaded = false;
   S.week = null; S.availability = []; S.signups = [];
   render();
-  track(onSnapshot(doc(db, "weeks", id),
+  weekSubs.push(track(onSnapshot(doc(db, "weeks", id),
     (snap) => {
       S.week = snap.exists() ? snap.data() : null;
+      loaded = true;
       // שבוע שנוצר בגרסה ישנה ואין בו phase — משלימים בשקט, פעם אחת.
       if (S.isOwner && snap.exists() && !snap.data().phase && !repaired.has(id)){
         repaired.add(id);
@@ -35,16 +44,17 @@ export function subscribe(){
       }
       render(); emit("week");
     },
-    () => $("conn").textContent = "אין חיבור לנתונים"));
-  track(onSnapshot(query(collection(db, "availability"), where("week", "==", id)),
+    () => $("conn").textContent = "אין חיבור לנתונים")));
+  weekSubs.push(track(onSnapshot(query(collection(db, "availability"), where("week", "==", id)),
     (snap) => { S.availability = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
-    () => {}));
-  track(onSnapshot(query(collection(db, "signups"), where("week", "==", id)),
+    () => {})));
+  weekSubs.push(track(onSnapshot(query(collection(db, "signups"), where("week", "==", id)),
     (snap) => { S.signups = snap.docs.map(d => ({ id: d.id, ...d.data() })); $("conn").textContent = ""; render(); },
-    () => $("conn").textContent = "אין חיבור לנתונים"));
+    () => $("conn").textContent = "אין חיבור לנתונים")));
 }
 
 async function saveWeek(patch, statusId = "mgrStatus"){
+  if (!loaded){ if (statusId) status(statusId, "warn", "רגע, השבוע עוד נטען."); return; }
   try {
     // phase נכתב תמיד: בלעדיו חוקי האבטחה לא יכולים להעריך את מצב השבוע.
     await setDoc(doc(db, "weeks", wid()), { phase: phase(), ...patch, updatedAt: serverTimestamp() }, { merge: true });
@@ -126,14 +136,20 @@ function renderPlanner(){
     card.append(head);
 
     if (isOpen){
-      dayShifts.forEach(s => {
+      dayShifts.forEach((s, idx) => {
         const row = el("div", { class: "planshift" });
-        const st = el("input", { type: "time", value: s.start, "aria-label": "משעה", onchange: (e) => editShift(s.id, { start: e.target.value }) });
-        const en = el("input", { type: "time", value: s.end, "aria-label": "עד", onchange: (e) => editShift(s.id, { end: e.target.value }) });
-        const nd = el("select", { "aria-label": "כמה אנשים", onchange: (e) => editShift(s.id, { need: +e.target.value }) });
-        [1,2,3].forEach(n => nd.append(el("option", { value: n, text: n + (n === 1 ? " איש" : " אנשים"), selected: s.need === n || undefined })));
-        row.append(st, el("span", { class: "small", text: "–" }), en, nd,
-          el("button", { class: "icon", title: "מחק משמרת", text: "✕", onclick: () => removeShift(s.id) }));
+        const field = (label, value, patchKey) => el("label", { class: "tf" },
+          el("span", { text: label }),
+          el("input", { type: "time", value, required: true,
+            onchange: (e) => editShift(s.id, { [patchKey]: e.target.value }) }));
+        row.append(field("מתחילה", s.start, "start"));
+        row.append(field("נגמרת", s.end, "end"));
+        const nd = el("select", { onchange: (e) => editShift(s.id, { need: +e.target.value }) });
+        [1,2,3].forEach(n => nd.append(el("option", { value: n, text: n + (n === 1 ? " איש" : " אנשים"), selected: (s.need||1) === n || undefined })));
+        row.append(el("label", { class: "tf" }, el("span", { text: "כמה" }), nd));
+        row.append(el("button", { class: "icon del", title: "מחק משמרת", "aria-label": "מחק משמרת", text: "✕",
+          onclick: () => removeShift(s.id, s) }));
+        if (dayShifts.length > 1) row.prepend(el("span", { class: "shiftnum", text: String(idx + 1) }));
         card.append(row);
       });
       card.append(el("button", { class: "link", text: "+ עוד משמרת ביום הזה", onclick: () => addShift(i) }));
@@ -156,8 +172,9 @@ function toggleDay(day, on){
     saveWeek({ shifts: [...rest, { id: newId(), day, start: tpl.start, end: tpl.end, need: tpl.need || 1 }] });
   } else {
     const gone = shiftsOf().filter(s => s.day === day).map(s => s.id);
-    purgeSignups(gone);
-    saveWeek({ shifts: rest });
+    const who = S.signups.filter(u => gone.includes(u.shift)).length;
+    if (who && !confirm(`לסגור את יום ${DAYS[day]}? ${who} שיבוצים יימחקו.`)){ render(); return; }
+    purgeSignups(gone).then(() => saveWeek({ shifts: rest }));
   }
 }
 function addShift(day){
@@ -173,9 +190,16 @@ function editShift(id, patch){
   if (toMin(s.end) <= toMin(s.start)){ status("mgrStatus", "warn", "שעת הסיום צריכה להיות אחרי ההתחלה."); render(); return; }
   saveWeek({ shifts: next });
 }
-function removeShift(id){ purgeSignups([id]); saveWeek({ shifts: shiftsOf().filter(s => s.id !== id) }); }
+async function removeShift(id, s){
+  const who = inShift(id).length;
+  const label = s ? `${DAYS[s.day]} ${s.start}–${s.end}` : "המשמרת";
+  if (!confirm(who ? `למחוק את ${label}? ${who} אנשים רשומים אליה והשיבוץ שלהם יימחק.` : `למחוק את ${label}?`)) return;
+  await purgeSignups([id]);
+  saveWeek({ shifts: shiftsOf().filter(x => x.id !== id) });
+}
 async function purgeSignups(ids){
-  for (const u of S.signups.filter(u => ids.includes(u.shift))) { try { await deleteDoc(doc(db, "signups", u.id)); } catch {} }
+  await Promise.all(S.signups.filter(u => ids.includes(u.shift))
+    .map(u => deleteDoc(doc(db, "signups", u.id)).catch(() => {})));
 }
 
 /* ===== שלב 3: מסך האישור ===== */

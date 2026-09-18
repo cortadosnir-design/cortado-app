@@ -105,7 +105,7 @@ export async function api(path, body){
 /* ===== מצב משותף ===== */
 export const S = {
   me: null, isOwner: false, isMember: false,
-  weekStart: (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 4) s.setDate(s.getDate()+7); return s; })(),
+  weekStart: (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })(),
   week: null, availability: [], signups: [],
   posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [],
   memory: null, timing: null, reach: null, creative: {},

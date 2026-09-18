@@ -1,7 +1,7 @@
 // קריאייטיב: זווית לכל יום פעילות, כתיבה עם זיכרון מותג, ולמידה מכל תיקון שלך.
 import { S, db, storage, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, weekId, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
-  doc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp,
+  doc, setDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp,
   sRef, uploadBytes, getDownloadURL } from "./core.js";
 import { PILLARS, FORMATS, TIMING, HASHTAGS, AMPLIFIERS, VOICE, BENCHMARKS } from "./playbook.js";
 import { shiftsOf, openDays, phase, wid, hoursByDay } from "./shifts.js";
@@ -15,7 +15,7 @@ const dayPosts = (d) => S.posts.filter(p => p.date === d).sort((a,b) => (a.time|
 
 /* ===== האזנה ===== */
 export function subscribe(){
-  track(onSnapshot(collection(db, "posts"),
+  track(onSnapshot(query(collection(db, "posts"), orderBy("date", "desc"), limit(150)),
     (snap) => { S.posts = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
     () => {}));
   track(onSnapshot(doc(db, "brand", "memory"),
@@ -25,7 +25,6 @@ export function subscribe(){
     (snap) => { S.timing = snap.exists() ? snap.data() : null; },
     () => {}));
   subscribeCreative();
-  on("weekchanged", subscribeCreative);
 }
 
 let unsubCreative = null;
@@ -97,9 +96,9 @@ export function bestTimes(net){
 function suggestTime(dateStr, net = "instagram"){
   const d = fromYmd(dateStr).getDay();
   const slots = bestTimes(net);
-  const exact = slots.filter(s => s.day === d).sort((a,b) => a.tier - b.tier)[0];
+  const exact = [...slots].filter(s => s.day === d).sort((a,b) => a.tier - b.tier)[0];
   if (exact) return exact;
-  return slots.sort((a,b) => a.tier - b.tier)[0] || { time: "10:30", why: "ברירת מחדל" };
+  return [...slots].sort((a,b) => a.tier - b.tier)[0] || { time: "10:30", why: "ברירת מחדל" };
 }
 
 /* ===== לוח השבוע ===== */
@@ -354,7 +353,7 @@ const fullText = (p) => [p.text || "", (p.hashtags || []).join(" ")].filter(Bool
 
 function exportRows(){
   const dates = weekDates();
-  return S.posts.filter(p => dates.includes(p.date) && p.status !== "done" && (p.text || "").trim())
+  return S.posts.filter(p => dates.includes(p.date) && ["idea","ready"].includes(p.status || "idea") && (p.text || "").trim())
     .sort((a,b) => (a.date + (a.time||"")).localeCompare(b.date + (b.time||"")));
 }
 
@@ -401,7 +400,7 @@ async function markScheduled(id){
 
 /* ===== ציור ===== */
 export function render(){
-  if ($("p-creative").hidden && $("p-reach").hidden) return;
+  if ($("p-creative").hidden) return;
   renderWeekPlan();
   renderExport();
   renderComposerMeta();
@@ -458,6 +457,7 @@ export function init(){
   $("addAvoid").addEventListener("click", () => { addRule("avoid", $("memAvoid").value.trim()); $("memAvoid").value = ""; });
   $("addFact").addEventListener("click", () => { addRule("facts", $("memFact").value.trim()); $("memFact").value = ""; });
 
+  on("weekchanged", subscribeCreative);
   on("locked", () => { status("planStatus", "ok", "השבוע ננעל. אפשר לבנות את הקריאייטיב."); });
   newPost();
 }

@@ -1,7 +1,7 @@
 // דף העובד. בלי התחברות, בלי חשבון, בלי אפליקציה.
 // הזהות היא הקוד שב-URL. הדף משנה את עצמו לפי השלב שהשבוע נמצא בו.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp }
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -39,8 +39,8 @@ const say = (kind, msg) => { const n = $("zstatus"); n.className = "status " + (
 const token = (location.hash || "").replace(/^#/, "").trim() || new URLSearchParams(location.search).get("t") || "";
 
 let me = null;                    // { name }
-let weekStart = (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 4) s.setDate(s.getDate()+7); return s; })();
-let week = null, mine = null, signups = [], roster = {};
+let weekStart = (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })();
+let week = null, mine = null, taken = new Set();
 let draft = {}, note = "", dirty = false;
 const wid = () => "w" + ymd(weekStart);
 const phase = () => (week && week.phase) || "availability";
@@ -58,7 +58,7 @@ async function boot(){
   await load();
 }
 function fatal(msg){
-  $("hello").textContent = "רגע";
+  $("hello").textContent = "משהו לא בסדר";
   $("zsub").textContent = "";
   clear($("zmain")).append(el("div", { class: "card center" }, el("p", { text: msg })));
   $("zbar").hidden = true;
@@ -70,24 +70,24 @@ async function load(){
   $("zbar").hidden = true;
   const id = wid();
   try {
-    const [wSnap, aSnap, sSnap] = await Promise.all([
+    const [wSnap, aSnap] = await Promise.all([
       getDoc(doc(db, "weeks", id)),
       getDoc(doc(db, "availability", `${id}_${token}`)),
-      getDocs(query(collection(db, "signups"), where("week", "==", id))),
     ]);
     week = wSnap.exists() ? wSnap.data() : null;
     mine = aSnap.exists() ? aSnap.data() : null;
-    signups = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // השיבוצים של אחרים סגורים בפני עובדים; קוראים רק את שלנו, לפי מזהה ידוע.
+    taken = new Set();
+    const ss = shiftsOf();
+    const got = await Promise.all(ss.map(sh =>
+      getDoc(doc(db, "signups", `${id}_${sh.id}_${token}`)).then(d => d.exists() ? sh.id : null).catch(() => null)));
+    got.forEach(x => { if (x) taken.add(x); });
   } catch (e){
-    clear($("zmain")).append(el("div", { class: "card center" }, el("p", { text: "לא הצלחתי לטעון. בדוק חיבור ונסה שוב." })));
+    clear($("zmain")).append(el("div", { class: "card center" },
+      el("p", { text: "לא הצלחתי לטעון. בדוק חיבור." }),
+      el("button", { class: "primary", text: "נסה שוב", onclick: () => load() })));
     return;
   }
-  // שמות של מי שכבר משובץ
-  const tokens = [...new Set(signups.map(s => s.token).filter(Boolean))];
-  await Promise.all(tokens.filter(t => !roster[t]).map(async t => {
-    try { const r = await getDoc(doc(db, "roster", t)); roster[t] = r.exists() ? (r.data().name || "חבר צוות") : "חבר צוות"; }
-    catch { roster[t] = "חבר צוות"; }
-  }));
   draft = { ...(mine && mine.days || {}) };
   note = (mine && mine.note) || "";
   render();
@@ -95,7 +95,11 @@ async function load(){
 
 /* ===== ציור ===== */
 function render(){
-  $("zsub").textContent = `שבוע ${dm(weekStart)}–${dm(addDays(weekStart, 6))}`;
+  const t0 = new Date();
+  const thisW = ymd(sundayOf(t0)) === ymd(weekStart);
+  const nextW = ymd(addDays(sundayOf(t0), 7)) === ymd(weekStart);
+  $("zsub").textContent = (thisW ? "השבוע · " : nextW ? "השבוע הבא · " : "") +
+    `${dm(weekStart)}–${dm(addDays(weekStart, 6))}`;
   const main = clear($("zmain"));
   const ph = phase();
 
@@ -127,12 +131,19 @@ function renderAvailability(main){
       line ? el("span", { class: "zhours mono", text: line })
            : (anyShift ? el("span", { class: "small closed", text: "סגור" }) : null),
       h ? el("span", { class: "hol", text: h[1] }) : null));
+    const day = i;
     const seg = el("div", { class: "seg big", role: "group", "aria-label": "זמינות ב" + DAYS[i] });
     [["yes","כן","ok"],["maybe","אולי","warn"],["no","לא","bad"]].forEach(([v,label,cls]) => {
-      seg.append(el("button", { type: "button", class: "segbtn " + cls, text: label,
-        "aria-pressed": String(draft[i] === v),
-        onclick: () => { draft[i] = draft[i] === v ? undefined : v; dirty = true; say("", ""); render(); } }));
+      const b = el("button", { type: "button", class: "segbtn " + cls, text: label,
+        "aria-pressed": String(draft[day] === v),
+        onclick: () => { draft[day] = v; dirty = true; paint(); } });
+      b.dataset.v = v; seg.append(b);
     });
+    function paint(){
+      [...seg.children].forEach(b => b.setAttribute("aria-pressed", String(draft[day] === b.dataset.v)));
+      row.classList.toggle("set", !!draft[day]);
+      left();
+    }
     row.append(seg);
     main.append(row);
   }
@@ -142,8 +153,16 @@ function renderAvailability(main){
   main.append(el("label", { class: "zlabel" }, el("span", { class: "small", text: "הערה" }), noteInput));
 
   $("zbar").hidden = false;
+  $("zsend").hidden = false;
   $("zsend").textContent = mine ? "עדכן" : "שלח";
   $("zsend").onclick = send;
+  left();
+}
+
+function left(){
+  let n = 0; for (let i = 0; i < 7; i++) if (!draft[i]) n++;
+  if (n === 0) say("ok", "כל הימים סומנו.");
+  else say("", `נשארו ${n} ימים לסמן`);
 }
 
 function renderPick(main){
@@ -162,35 +181,30 @@ function renderPick(main){
       av === "no" ? el("span", { class: "pill bad", text: "סימנת שאינך יכול" }) : null));
 
     for (const s of day){
-      const people = signups.filter(u => u.shift === s.id);
-      const need = s.need || 1, full = people.length >= need;
-      const isMine = people.some(u => u.token === token);
-      const card = el("div", { class: "zshift " + (isMine ? "mine" : full ? "full" : "") });
+      const need = s.need || 1;
+      const isMine = taken.has(s.id);
+      const card = el("div", { class: "zshift " + (isMine ? "mine" : "") });
       card.append(el("div", { class: "row" },
         el("b", { class: "mono", text: `${s.start}–${s.end}` }),
-        el("span", { class: "count", text: `${people.length}/${need}` })));
-      const who = people.map(u => u.token === token ? "אתה" : (roster[u.token] || u.name || "חבר צוות")).join(" · ");
-      card.append(el("div", { class: "small", text: who || "אין עדיין אף אחד" }));
+        el("span", { class: "count", text: need === 1 ? "צריך אחד" : `צריך ${need}` })));
       if (isMine) card.append(el("button", { class: "join mine", text: "אתה משובץ — בטל", onclick: (e) => leave(s, e.currentTarget) }));
-      else if (full) card.append(el("button", { class: "join", text: "מלא", disabled: true }));
       else card.append(el("button", { class: "join", text: "אני לוקח", onclick: (e) => take(s, e.currentTarget) }));
       main.append(card);
     }
   }
-  $("zbar").hidden = true;
+  $("zbar").hidden = false;
+  $("zsend").hidden = true;
 }
 
 function renderFinal(main){
   const shifts = shiftsOf();
-  const mineShifts = shifts.filter(s => signups.some(u => u.shift === s.id && u.token === token));
+  const mineShifts = shifts.filter(s => taken.has(s.id));
   main.append(el("p", { class: "zlead", text: "השבוע נסגר. זה השיבוץ שלך." }));
   if (!mineShifts.length){ main.append(el("div", { class: "card center" }, el("p", { text: "אין לך משמרות השבוע." }))); $("zbar").hidden = true; return; }
   for (const s of mineShifts){
     const d = addDays(weekStart, s.day);
-    const others = signups.filter(u => u.shift === s.id && u.token !== token).map(u => roster[u.token] || "חבר צוות");
     main.append(el("div", { class: "zshift mine" },
-      el("div", { class: "row" }, el("b", { text: DAYS[s.day] + " " + dm(d) }), el("span", { class: "mono", text: `${s.start}–${s.end}` })),
-      others.length ? el("div", { class: "small", text: "איתך: " + others.join(", ") }) : null));
+      el("div", { class: "row" }, el("b", { text: DAYS[s.day] + " " + dm(d) }), el("span", { class: "mono", text: `${s.start}–${s.end}` }))));
   }
   $("zbar").hidden = true;
 }
@@ -222,13 +236,18 @@ async function take(s, btn){
     await setDoc(doc(db, "signups", `${wid()}_${s.id}_${token}`), {
       week: wid(), shift: s.id, token, name: me.name || "", at: serverTimestamp(),
     });
-    await load();
-  } catch { btn.disabled = false; btn.textContent = "אני לוקח"; alert("לא הצלחתי לרשום. אולי מישהו הקדים אותך — רענן."); }
+    taken.add(s.id); render();
+    say("ok", `נרשמת ל${DAYS[s.day]} ${s.start}–${s.end}`);
+  } catch {
+    btn.disabled = false; btn.textContent = "אני לוקח";
+    say("bad", "לא הצלחתי לרשום. ייתכן שהשיבוץ נסגר — נסה לרענן.");
+  }
 }
 async function leave(s, btn){
   btn.disabled = true; btn.textContent = "רגע…";
-  try { await deleteDoc(doc(db, "signups", `${wid()}_${s.id}_${token}`)); await load(); }
-  catch { btn.disabled = false; alert("הביטול נכשל."); }
+  try { await deleteDoc(doc(db, "signups", `${wid()}_${s.id}_${token}`)); taken.delete(s.id); render();
+    say("", "המשמרת בוטלה."); }
+  catch { btn.disabled = false; btn.textContent = "אתה משובץ — בטל"; say("bad", "הביטול נכשל. נסה שוב."); }
 }
 
 /* ===== ניווט ===== */

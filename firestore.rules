@@ -17,9 +17,19 @@ service cloud.firestore {
 
     // קוד אישי תקף = מישהו שהמנהל הנפיק לו קישור. הקוד באורך 20 תווים אקראיים,
     // ואי אפשר לגלות אותו בלי לקבל אותו. זה מה שמחליף סיסמה.
+    // קוד תקף = קיים ברשימה *וגם* לא הושבת. השבתה חייבת להיאכף כאן,
+    // לא רק בקוד הדפדפן, אחרת עובד שעזב ממשיך לכתוב.
     function validToken(t) {
-      return t is string && t.size() >= 10 && t.size() <= 64
-        && exists(/databases/$(database)/documents/roster/$(t));
+      return t is string && t.size() >= 20 && t.size() <= 64
+        && exists(/databases/$(database)/documents/roster/$(t))
+        && get(/databases/$(database)/documents/roster/$(t)).data.get('active', true) == true;
+    }
+    function weekOk(w) {
+      return w is string && w.matches('^w[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && exists(/databases/$(database)/documents/weeks/$(w));
+    }
+    function daysOk(d) {
+      return d is map && d.size() <= 7 && d.values().hasOnly(['yes','maybe','no']);
     }
 
     // שים לב: מסמך שבוע שנוצר לפני שהוגדר שלב לא מכיל את השדה phase.
@@ -49,12 +59,12 @@ service cloud.firestore {
 
     // ── זמינות ──
     match /availability/{id} {
-      allow get: if true;
+      allow get: if true;              // צריך לדעת את הקוד המדויק
       allow list: if allowed();
       allow create, update: if
         request.resource.data.keys().hasOnly(['week','token','uid','name','days','note','at'])
-        && request.resource.data.days is map
-        && request.resource.data.days.size() <= 7
+        && weekOk(request.resource.data.week)
+        && daysOk(request.resource.data.days)
         && (!('note' in request.resource.data) || request.resource.data.note.size() < 300)
         && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
         && weekPhase(request.resource.data.week) != 'locked'
@@ -70,11 +80,16 @@ service cloud.firestore {
 
     // ── שיבוץ למשמרות ──
     // נפתח רק אחרי שהמנהל אישר את השבוע (phase == 'open').
+    // הקוד האישי נשמר כאן, ולכן הרשימה סגורה. עובד קורא רק את המסמך שלו,
+    // לפי מזהה שהוא מרכיב מהקוד שלו — מי שאין לו את הקוד לא יכול להגיע אליו.
     match /signups/{id} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if allowed();
       allow create: if
         request.resource.data.keys().hasOnly(['week','shift','token','uid','name','at'])
         && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
+        && request.resource.data.shift is string && request.resource.data.shift.size() <= 40
+        && weekOk(request.resource.data.week)
         && weekPhase(request.resource.data.week) == 'open'
         && (
           isOwner()
@@ -84,8 +99,10 @@ service cloud.firestore {
               && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid)
         );
       allow delete: if isOwner()
-        || (resource.data.token != null && weekPhase(resource.data.week) == 'open')
-        || (allowed() && resource.data.uid == request.auth.uid);
+        || (validToken(resource.data.get('token', ''))
+            && id == resource.data.week + '_' + resource.data.shift + '_' + resource.data.token
+            && weekPhase(resource.data.week) == 'open')
+        || (allowed() && resource.data.get('uid', '') == request.auth.uid);
       allow update: if false;
     }
 

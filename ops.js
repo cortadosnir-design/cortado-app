@@ -1,7 +1,7 @@
 // תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
 import { S, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
   status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, whoOf, track, makeToken, zLink,
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
 
 const MIN_ENTRIES = 5;
 const WEATHER = ["","נעים","חם","שרב","גשום","קר","רוח"];
@@ -15,7 +15,7 @@ export function subscribe(){
       S.roster.forEach(r => S.rosterNames[r.token] = r.name || "חבר צוות");
       renderRoster(); drawReminders();
     }, () => {}));
-  track(onSnapshot(collection(db, "log"),
+  track(onSnapshot(query(collection(db, "log"), orderBy("date", "desc"), limit(60)),
     (snap) => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.date||"").localeCompare(a.date||"")); renderLog(); }, () => {}));
   if (S.isOwner){
     track(onSnapshot(collection(db, "members"),
