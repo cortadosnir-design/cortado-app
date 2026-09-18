@@ -89,6 +89,23 @@
         <div id="launchList" class="launchlist"></div>
         <div class="actions"><button id="launchCopy">העתק את השעות</button></div>
         <div class="status" id="launchStatus" role="status"></div>
+        <details data-api hidden id="fbConnect">
+          <summary>חיבור עמוד פייסבוק — הגדרה חד-פעמית</summary>
+          <p class="small">אחרי זה פייסבוק יתעדכן לבד בכל שיגור. צריך לעשות את זה פעם אחת בלבד.</p>
+          <ol class="steps small">
+            <li>פתח את <a href="https://developers.facebook.com/tools/explorer/?method=GET&amp;path=me%2Faccounts&amp;version=v21.0" target="_blank" rel="noopener">Graph API Explorer</a></li>
+            <li>למעלה מימין: <b>Meta App</b> → בחר <b>Cortado</b></li>
+            <li>לחץ <b>Add a Permission</b> והוסף: <code dir="ltr">pages_show_list</code>, <code dir="ltr">pages_manage_metadata</code>, <code dir="ltr">pages_manage_posts</code>, <code dir="ltr">business_management</code></li>
+            <li>לחץ <b>Generate Access Token</b> ואשר</li>
+            <li>העתק את הטוקן והדבק כאן למטה</li>
+          </ol>
+          <label for="fbUserToken">טוקן זמני<textarea id="fbUserToken" rows="3" dir="ltr" placeholder="EAAB..."></textarea></label>
+          <div class="actions">
+            <button class="primary" id="fbSetup">חבר עמוד</button>
+            <button id="fbStatus">בדוק חיבור</button>
+          </div>
+          <pre class="small fbout" id="fbSetupOut" dir="ltr"></pre>
+        </details>
       </section>
 
       <section class="card" id="mgrCard" hidden data-owner>

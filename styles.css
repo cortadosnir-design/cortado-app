@@ -264,3 +264,8 @@ table.t tr.me a{color:var(--accent)}
 .launchrow .actions{flex:none;gap:6px}
 .launchrow .actions button,.launchrow .actions a{font-size:13px;padding:5px 10px}
 @media (max-width:560px){ .launchrow{flex-wrap:wrap} .launchrow .actions{width:100%;padding-inline-start:32px} }
+.steps{padding-inline-start:18px;display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.steps code{background:var(--sunken);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:12px}
+.fbout{white-space:pre-wrap;user-select:all;background:var(--sunken);border-radius:8px;padding:10px;
+  margin-top:8px;max-height:260px;overflow:auto;font-family:var(--mono);font-size:12px}
+.fbout:empty{display:none}

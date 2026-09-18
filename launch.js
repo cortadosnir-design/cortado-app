@@ -118,7 +118,41 @@ async function launch(btn){
   });
 }
 
+/* ===== חיבור עמוד פייסבוק, פעם אחת ===== */
+async function fbSetup(btn){
+  const token = $("fbUserToken").value.trim();
+  if (!token){ $("fbSetupOut").textContent = "הדבק קודם את הטוקן."; return; }
+  await withBusy(btn, async () => {
+    try {
+      const r = await api("/setup/pages", { userToken: token });
+      const pages = Array.isArray(r.pages) ? r.pages : [];
+      if (!pages.length){ $("fbSetupOut").textContent = "לא נמצאו עמודים בחשבון הזה."; return; }
+      const out = pages.map(p =>
+        `# ${p.name}\nFB_PAGE_ID=${p.FB_PAGE_ID}\nFB_PAGE_TOKEN=${p.FB_PAGE_TOKEN}` +
+        (p.IG_USER_ID ? `\nIG_USER_ID=${p.IG_USER_ID}   (${p.ig || ""})` : "\n# אין חשבון אינסטגרם מקושר לעמוד הזה")
+      ).join("\n\n");
+      $("fbSetupOut").textContent = out;
+      $("fbUserToken").value = "";
+      status("launchStatus", "ok", "העמוד נמצא. העתק את הבלוק שלמטה ושלח לקלוד — הוא ישמור אותו בשרת.");
+    } catch (e){ $("fbSetupOut").textContent = "שגיאה: " + e.message; }
+  });
+}
+async function fbStatus(btn){
+  await withBusy(btn, async () => {
+    try {
+      const r = await api("/status", {});
+      $("fbSetupOut").textContent =
+        `Gemini: ${r.gemini ? "מחובר" : "לא מוגדר"}\n` +
+        `פייסבוק: ${r.facebook ? "מחובר" + (r.pageName ? " — " + r.pageName : "") : "לא מחובר"}\n` +
+        `אינסטגרם: ${r.instagram ? "מחובר" : "לא מחובר"}` +
+        (r.facebookError ? `\nשגיאה: ${r.facebookError}` : "");
+    } catch (e){ $("fbSetupOut").textContent = "שגיאה: " + e.message; }
+  });
+}
+
 export function init(){
+  const fb = $("fbSetup"); if (fb) fb.addEventListener("click", (e) => fbSetup(e.currentTarget));
+  const fs = $("fbStatus"); if (fs) fs.addEventListener("click", (e) => fbStatus(e.currentTarget));
   const btn = $("launchBtn");
   if (btn) btn.addEventListener("click", (e) => launch(e.currentTarget));
   const cp = $("launchCopy");
