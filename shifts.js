@@ -300,6 +300,22 @@ export function hoursByDay(){
   }
   return out;
 }
+// זוגות שעות גולמיים, בפורמט שפייסבוק וגוגל מבקשים
+export function hoursPairs(){
+  const out = [];
+  for (let i = 0; i < 7; i++){
+    const ss = shiftsOf().filter(s => s.day === i).sort((a,b) => toMin(a.start) - toMin(b.start));
+    const merged = [];
+    for (const s of ss){
+      const last = merged[merged.length - 1];
+      if (last && toMin(s.start) <= toMin(last[1])) last[1] = toMin(s.end) > toMin(last[1]) ? s.end : last[1];
+      else merged.push([s.start, s.end]);
+    }
+    out.push(merged.slice(0, 2));
+  }
+  return out;
+}
+
 export const hoursText = () => {
   const h = hoursByDay();
   return `☕ שעות העגלה · ${dm(S.weekStart)}–${dm(addDays(S.weekStart, 6))}\n\n` +
@@ -340,6 +356,7 @@ export function render(){
   $("availCard").hidden = S.isOwner || !(ph === "availability" || ph === "review");
   $("boardCard").hidden = !shifts.length && !S.isOwner;
   $("mgrCard").hidden = !S.isOwner;
+  $("launchCard").hidden = !S.isOwner || !shifts.length;
   $("approveCard").hidden = !(S.isOwner && (ph === "availability" || ph === "review"));
 
   const note = clear($("notice"));

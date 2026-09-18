@@ -1,0 +1,132 @@
+// "שגר" — עדכון שעות הפתיחה בכל מקום בלחיצה אחת.
+// מה שאפשר אוטומטית נעשה אוטומטית; מה שלא — מוגש מוכן להדבקה, בלי לעגל פינות.
+import { S, db, DAYS, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
+  doc, setDoc, serverTimestamp } from "./core.js";
+import { hoursByDay, hoursPairs, hoursText, phase } from "./shifts.js";
+
+const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
+const GBP_URL = "https://business.google.com/";
+
+// מצב כל ערוץ: pending / ok / manual / skip / fail
+const channels = {
+  page:      { label: "דף הנחיתה",  auto: true },
+  facebook:  { label: "פייסבוק",     auto: true },
+  google:    { label: "גוגל",        auto: false },
+  instagram: { label: "אינסטגרם",    auto: false },
+};
+let results = {};
+
+const bioText = () => {
+  const h = hoursByDay();
+  const open = h.map((x,i) => x.length ? `${DAYS[i].slice(0,3)}׳ ${x.join(", ")}` : null).filter(Boolean);
+  return `☕ קפה קורטדו · קיבוץ שניר\n${open.join(" | ")}`;
+};
+
+function row(key, state, note, actions){
+  const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…", skip: "—" }[state] || "…";
+  const r = el("div", { class: "launchrow " + state });
+  r.append(el("span", { class: "launchicon", text: icon }));
+  r.append(el("div", { class: "grow" },
+    el("b", { text: channels[key].label }),
+    note ? el("div", { class: "small", text: note }) : null));
+  if (actions) r.append(actions);
+  return r;
+}
+
+function render(){
+  const box = clear($("launchList"));
+  for (const key of ["page","facebook","google","instagram"]){
+    const r = results[key] || { state: "pending", note: "" };
+    let actions = null;
+    if (key === "google" && r.state === "manual"){
+      actions = el("div", { class: "actions" },
+        el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }),
+        el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }));
+    }
+    if (key === "instagram" && r.state === "manual"){
+      actions = el("div", { class: "actions" },
+        el("button", { text: "העתק לביו", onclick: (e) => copyText(bioText(), e.currentTarget, "העתק לביו") }),
+        el("button", { text: "בנה תמונת שעות", onclick: () => toHoursPoster() }));
+    }
+    box.append(row(key, r.state, r.note, actions));
+  }
+}
+
+function toHoursPoster(){
+  const tab = $("tab-creative");
+  if (tab) tab.click();
+  const lay = $("posterLayout");
+  if (lay){ lay.value = "hours"; lay.dispatchEvent(new Event("change")); }
+  const head = $("posterHead");
+  if (head){ head.value = "שעות השבוע"; head.dispatchEvent(new Event("input")); }
+  const card = $("posterCard");
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* ===== השיגור ===== */
+async function launch(btn){
+  results = {};
+  render();
+  await withBusy(btn, async () => {
+    const h = hoursByDay(), pairs = hoursPairs();
+    const anyOpen = h.some(x => x.length);
+    if (!anyOpen){
+      status("launchStatus", "warn", "אין אף יום פתוח בשבוע הזה. הגדר משמרות קודם.");
+      return;
+    }
+    if (phase() !== "locked" && !confirm("השבוע עוד לא ננעל — השעות עלולות להשתנות. לשגר בכל זאת?")) return;
+
+    // 1. דף הנחיתה — מיידי
+    try {
+      await setDoc(doc(db, "public", "hours"), {
+        week: "w" + ymd(S.weekStart), from: ymd(S.weekStart), to: ymd(addDays(S.weekStart, 6)),
+        days: h, text: hoursText(), at: serverTimestamp(),
+      });
+      results.page = { state: "ok", note: "עודכן. הדף הציבורי כבר מציג את השעות החדשות." };
+    } catch {
+      results.page = { state: "fail", note: "העדכון נכשל. נסה שוב." };
+    }
+    render();
+
+    // 2. פייסבוק — דרך ה-API, אם העמוד מחובר
+    if (!WORKER_URL){
+      results.facebook = { state: "fail", note: "השרת לא מוגדר." };
+    } else {
+      try {
+        const hours = {};
+        pairs.forEach((list, i) => { if (list.length) hours[FB_DAY[i]] = list; });
+        const r = await api("/hours/facebook", { hours });
+        results.facebook = { state: "ok", note: "שעות העמוד עודכנו בפייסבוק." };
+      } catch (e){
+        const msg = String(e.message || "");
+        results.facebook = { state: "fail",
+          note: /not_configured|חסר/.test(msg) ? "עמוד הפייסבוק עוד לא מחובר — חסר App Secret בשרת." : msg };
+      }
+    }
+    render();
+
+    // 3. גוגל — ה-API דורש אישור מראש מגוגל
+    results.google = { state: "manual", note: "ה-API של Google Business Profile דורש אישור מגוגל. עד שיאושר — הדבקה ידנית, 20 שניות." };
+    render();
+
+    // 4. אינסטגרם — אין שדה שעות בכלל
+    results.instagram = { state: "manual", note: "לאינסטגרם אין שדה שעות. מה שעובד: שורת שעות בביו, ותמונת שעות בסטורי." };
+    render();
+
+    const okCount = Object.values(results).filter(r => r.state === "ok").length;
+    status("launchStatus", okCount ? "ok" : "warn", `${okCount} מתוך 4 עודכנו אוטומטית. השאר מוכן להדבקה למטה.`);
+  });
+}
+
+export function init(){
+  const btn = $("launchBtn");
+  if (btn) btn.addEventListener("click", (e) => launch(e.currentTarget));
+  const cp = $("launchCopy");
+  if (cp) cp.addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק את השעות"));
+  render();
+  on("locked", () => {
+    status("launchStatus", "ok", "השבוע ננעל. אפשר לשגר את השעות.");
+    const card = $("launchCard");
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}

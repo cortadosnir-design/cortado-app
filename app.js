@@ -8,6 +8,7 @@ import * as Creative from "./creative.js";
 import * as Reach from "./reach.js";
 import * as Ops from "./ops.js";
 import * as Poster from "./poster.js";
+import * as Launch from "./launch.js";
 
 const TABS = ["shifts","creative","reach","log","team"];
 const OWNER_TABS = ["creative","reach","team"];
@@ -127,6 +128,7 @@ Creative.init();
 Reach.init();
 Ops.init();
 Poster.init();
+Launch.init();
 Shifts.render();
 Ops.renderLog();
 
