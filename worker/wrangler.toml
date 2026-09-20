@@ -1,0 +1,9 @@
+# Cloudflare Worker "cortado-api" - deployed by .github/workflows/worker.yml
+name = "cortado-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Vars and secrets stay as set in the Cloudflare dashboard
+# (FIREBASE_PROJECT_ID, GEMINI_MODEL, ALLOWED_ORIGINS, GEMINI_API_KEY, FB_*, IG_USER_ID).
+# Deploys from here replace only the code.
+keep_vars = true
