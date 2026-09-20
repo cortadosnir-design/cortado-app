@@ -7,7 +7,7 @@ service firebase.storage {
     // ול-OWNER_EMAILS ב-worker/src/index.js.
     function isOwner() {
       return request.auth != null && request.auth.token.email_verified == true
-        && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
+        && request.auth.token.email.lower() in ['cortado.snir@gmail.com', 'limormelman@gmail.com'];
     }
     function isImage() {
       return request.resource.size < 8 * 1024 * 1024
