@@ -5,7 +5,7 @@
 const GRAPH = "https://graph.facebook.com/v21.0";
 // מי רשאי. אפשר להוסיף מנהלים בלי פריסה מחדש: משתנה OWNER_EMAILS בלוח של Cloudflare,
 // מופרד בפסיקים. הרשימה כאן היא ברירת המחדל אם המשתנה לא הוגדר.
-const DEFAULT_OWNERS = ["cortado.snir@gmail.com"];
+const DEFAULT_OWNERS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
 const ownersOf = (env) => ((env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean).length
   ? (env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
   : DEFAULT_OWNERS);
