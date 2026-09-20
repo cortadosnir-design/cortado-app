@@ -17,7 +17,7 @@ jobs:
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
-      - name: Deploy hosting + Firestore rules
+      - name: Deploy hosting + Firestore rules + Storage rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: firebase deploy --only hosting,firestore:rules --project cortado-ops --non-interactive
+        run: firebase deploy --only hosting,firestore:rules,storage --project cortado-ops --non-interactive
