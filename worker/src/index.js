@@ -3,7 +3,12 @@
 // ומעדכן שעות פתיחה בעמוד הפייסבוק. כל הסודות נשמרים כאן, לא באפליקציה.
 
 const GRAPH = "https://graph.facebook.com/v21.0";
-const OWNER_EMAILS = ["cortado.snir@gmail.com"];
+// מי רשאי. אפשר להוסיף מנהלים בלי פריסה מחדש: משתנה OWNER_EMAILS בלוח של Cloudflare,
+// מופרד בפסיקים. הרשימה כאן היא ברירת המחדל אם המשתנה לא הוגדר.
+const DEFAULT_OWNERS = ["cortado.snir@gmail.com"];
+const ownersOf = (env) => ((env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean).length
+  ? (env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+  : DEFAULT_OWNERS);
 
 export default {
   async fetch(request, env) {
@@ -13,12 +18,13 @@ export default {
     try {
       if (url.pathname === "/health") return json({ ok: true }, cors);
       const user = await requireUser(request, env);
-      const owner = OWNER_EMAILS.includes((user.email || "").toLowerCase());
+      const owner = ownersOf(env).includes((user.email || "").toLowerCase());
       const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
 
       switch (url.pathname) {
         case "/ai/post":     requireOwner(owner); return json(await aiPost(env, body), cors);
         case "/ai/week":     requireOwner(owner); return json(await aiWeek(env, body), cors);
+        case "/ai/brief":    requireOwner(owner); return json(await aiBrief(env, body), cors);
         case "/ai/angle":    requireOwner(owner); return json(await aiAngle(env, body), cors);
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
@@ -130,13 +136,38 @@ const hoursLine = (b) => Array.isArray(b.hours)
   ? b.hours.map((h,i) => `${["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"][i]}: ${h && h.length ? h.join(", ") : "סגור"}`).join("\n")
   : "";
 
-async function gemini(env, prompt, { json: wantJson = false } = {}){
+// תמונות מ-Firebase Storage הופכות לחלקי inlineData. זה מה שמאפשר למודל
+// באמת להסתכל על מה שצולם השבוע, במקום לנחש מתוך שמות קבצים.
+const MAX_IMAGES = 6;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+async function imageParts(urls){
+  const list = (Array.isArray(urls) ? urls : []).filter(u => typeof u === "string" && u.startsWith("https://")).slice(0, MAX_IMAGES);
+  const parts = [];
+  await Promise.all(list.map(async (u) => {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) return;
+      const type = (r.headers.get("content-type") || "").split(";")[0];
+      if (!type.startsWith("image/")) return;
+      const buf = await r.arrayBuffer();
+      if (buf.byteLength > MAX_IMAGE_BYTES) return;
+      let bin = "";
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      parts.push({ inlineData: { mimeType: type, data: btoa(bin) } });
+    } catch {}
+  }));
+  return parts;
+}
+
+async function gemini(env, prompt, { json: wantJson = false, images = [] } = {}){
   if (!env.GEMINI_API_KEY) throw fail("not_configured", "חסר מפתח Gemini בשרת.", 500);
   const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  const pics = images.length ? await imageParts(images) : [];
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: [{ role: "user", parts: [{ text: prompt }, ...pics] }],
       generationConfig: { temperature: 0.9, ...(wantJson ? { responseMimeType: "application/json" } : {}) }
     })
   });
@@ -208,14 +239,59 @@ async function aiAngle(env, b){
   return { angle: String(r.angle || "").slice(0, 120) };
 }
 
+/* ---------- השיחה השבועית ---------- */
+// החומר שהמנהלת נתנה: מה שכתבה, מה שצילמה, ומה שענתה עד כה.
+// זה מה שהיה חסר לגמרי עד היום, ובלעדיו כל כיוון יוצא גנרי.
+function briefBlock(b){
+  const out = [];
+  const t = String(b.brief || "").trim();
+  if (t) out.push(`מה שהמנהלת סיפרה על השבוע (זה החומר הכי חשוב, בנה הכל עליו):\n${t.slice(0, 1200)}`);
+  const qa = (Array.isArray(b.answers) ? b.answers : []).filter(x => x && x.q && x.a).slice(0, 8);
+  if (qa.length) out.push("מה שכבר שאלת ומה שהיא ענתה:\n" + qa.map(x => `שאלה: ${String(x.q).slice(0,160)}\nתשובה: ${String(x.a).slice(0,200)}`).join("\n"));
+  const n = (Array.isArray(b.photos) ? b.photos : []).length;
+  if (n) out.push(`מצורפות ${Math.min(n, MAX_IMAGES)} תמונות שצולמו השבוע בעגלה. הסתכל עליהן. הן חומר הגלם.`);
+  return out.join("\n\n");
+}
+
+// שאלה אחת בכל פעם. הכלל היחיד שחשוב: לשאול רק מה שאי אפשר לדעת בלעדיה.
+async function aiBrief(env, b){
+  const asked = (Array.isArray(b.answers) ? b.answers : []).length;
+  const max = Math.min(5, Math.max(2, +b.max || 4));
+  const prompt = [
+    BRAND, memoryBlock(b), briefBlock(b),
+    `זו שיחה קצרה עם מנהלת העגלה כדי להוציא ממנה חומר לפוסטים של השבוע. כבר נשאלו ${asked} שאלות מתוך ${max} לכל היותר.`,
+    "שאל שאלה אחת בלבד, הבאה בתור.",
+    "כללים קשיחים לשאלה:",
+    "- חייבת להיענות בפחות מחמש שניות. אם היא דורשת מחשבה — היא שאלה גרועה.",
+    "- אל תשאל מה שכבר ידוע לך: שעות הפתיחה, תאריכים, חגים, מה פורסם בעבר. אלה כבר אצלך.",
+    "- אל תשאל שאלות כלליות כמו 'מה תרצי לפרסם'. שאל על פרט קונקרטי שקרה: מי, מה, מתי, איך היה.",
+    "- אם יש תמונות, שאל על משהו שאתה רואה בהן ולא יכול לדעת לבד (מי זה, מה זה, מתי זה היה).",
+    "- עברית פשוטה, עד 12 מילים.",
+    "הצע 3–4 תשובות קצרות ללחיצה (עד 4 מילים כל אחת), שמכסות את התשובות הסבירות. תמיד אפשר יהיה לכתוב תשובה חופשית.",
+    asked >= max - 1 ? "זו השאלה האחרונה. אחריה החזר done=true." : "",
+    `אם כבר יש מספיק חומר לארבעה פוסטים שונים, החזר done=true בלי שאלה.`,
+    'החזר JSON בלבד: {"done":false,"question":"השאלה","options":["...","...","..."],"why":"למה שאלת, עד 8 מילים"}',
+  ].filter(Boolean).join("\n\n");
+  const r = await gemini(env, prompt, { json: true, images: b.photos });
+  return {
+    done: !!r.done,
+    question: String(r.question || "").slice(0, 160),
+    options: Array.isArray(r.options) ? r.options.filter(x => typeof x === "string").map(s => s.slice(0, 40)).slice(0, 4) : [],
+    why: String(r.why || "").slice(0, 80),
+  };
+}
+
 // שלד לשבוע: כיוון ומה לצלם לכל משבצת ריקה. בלי טקסט. הטקסט נכתב משבצת-משבצת, עם הבעלים.
 async function aiWeek(env, b){
   const slots = Array.isArray(b.slots) ? b.slots.slice(0, 8) : [];
   if (!slots.length) throw fail("bad_request", "אין משבצות ריקות.");
   const prompt = [
-    BRAND, memoryBlock(b),
+    BRAND, memoryBlock(b), briefBlock(b),
     "לכל משבצת למטה הצע כיוון אחד (עד 12 מילים) ומה לצלם (משפט אחד). בלי טקסט לפוסט.",
     "כיוון = פרט קונקרטי שמסביר למה הפוסט הזה, השבוע הזה. לא סיסמה.",
+    (b.brief || (Array.isArray(b.answers) && b.answers.length))
+      ? "הכיוונים חייבים לצאת ממה שהמנהלת סיפרה ומהתמונות. אל תמציא אירועים שלא נמסרו לך."
+      : "",
     slots.map(s => `- ${s.key}: ${s.pillar || ""}${s.pillarNote ? " (" + s.pillarNote + ")" : ""} · ${s.day || ""} ${s.date || ""}${s.holiday ? " · מועד: " + s.holiday : ""} · פורמט: ${s.format || ""}`).join("\n"),
     hoursLine(b) ? `שעות הפתיחה השבוע:\n${hoursLine(b)}` : "",
     Array.isArray(b.clips) && b.clips.length ? `קליפים שכבר צולמו: ${b.clips.slice(0,10).map(String).join(" | ")}. עדיף לבנות כיוונים סביבם.` : "",
@@ -223,7 +299,7 @@ async function aiWeek(env, b){
     "ארבעה כיוונים שונים זה מזה. לא אותו רעיון בניסוח אחר.",
     'החזר JSON בלבד: {"slots":[{"key":"s1","angle":"עד 12 מילים","shoot":"מה לצלם"}]}',
   ].filter(Boolean).join("\n\n");
-  const r = await gemini(env, prompt, { json: true });
+  const r = await gemini(env, prompt, { json: true, images: b.photos });
   const out = Array.isArray(r) ? r : (Array.isArray(r.slots) ? r.slots : []);
   return { slots: out.filter(x => x && x.key).map(x => ({ key: String(x.key), angle: String(x.angle || "").slice(0, 140), shoot: String(x.shoot || "").slice(0, 200) })).slice(0, 8) };
 }
