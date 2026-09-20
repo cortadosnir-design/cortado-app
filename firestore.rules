@@ -9,7 +9,7 @@ service cloud.firestore {
     // להוספת מנהלת: עוד מחרוזת ברשימה, בכל ארבעת המקומות.
     function isOwner() {
       return signedIn() && request.auth.token.email_verified == true
-        && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
+        && request.auth.token.email.lower() in ['cortado.snir@gmail.com', 'limormelman@gmail.com'];
     }
 
     // חבר צוות שנכנס עם גוגל (מסלול המנהלים). העובדים הרגילים לא צריכים את זה.
