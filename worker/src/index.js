@@ -136,15 +136,23 @@ const hoursLine = (b) => Array.isArray(b.hours)
   ? b.hours.map((h,i) => `${["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"][i]}: ${h && h.length ? h.join(", ") : "סגור"}`).join("\n")
   : "";
 
-// תמונות מ-Firebase Storage הופכות לחלקי inlineData. זה מה שמאפשר למודל
+// תמונות (data URL מהדפדפן, או קישור חיצוני) הופכות לחלקי inlineData. זה מה שמאפשר למודל
 // באמת להסתכל על מה שצולם השבוע, במקום לנחש מתוך שמות קבצים.
 const MAX_IMAGES = 6;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 async function imageParts(urls){
-  const list = (Array.isArray(urls) ? urls : []).filter(u => typeof u === "string" && u.startsWith("https://")).slice(0, MAX_IMAGES);
+  const list = (Array.isArray(urls) ? urls : []).filter(u => typeof u === "string"
+    && (u.startsWith("https://") || u.startsWith("data:image/"))).slice(0, MAX_IMAGES);
   const parts = [];
   await Promise.all(list.map(async (u) => {
     try {
+      // תמונה שנשלחה ישירות מהדפדפן (בלי אחסון) מגיעה כ-data URL ומוכנה כבר.
+      if (u.startsWith("data:image/")){
+        const m = u.match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/i);
+        if (!m || m[2].length * 0.75 > MAX_IMAGE_BYTES) return;
+        parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+        return;
+      }
       const r = await fetch(u);
       if (!r.ok) return;
       const type = (r.headers.get("content-type") || "").split(";")[0];
