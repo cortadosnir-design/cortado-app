@@ -17,7 +17,7 @@ export const firebaseConfig = {
 //   3. storage.rules · isOwner     — העלאת תמונות
 //   4. worker/src/index.js         — או משתנה OWNER_EMAILS בלוח של Cloudflare
 // להוספת מנהלת: הוסף את המייל שלה כמחרוזת נוספת בכל ארבעתם.
-export const OWNER_EMAILS = ["cortado.snir@gmail.com"];
+export const OWNER_EMAILS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
 
 // כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
 export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
