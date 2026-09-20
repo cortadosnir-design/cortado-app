@@ -5,7 +5,7 @@
 const GRAPH = "https://graph.facebook.com/v21.0";
 // מי רשאי. אפשר להוסיף מנהלים בלי פריסה מחדש: משתנה OWNER_EMAILS בלוח של Cloudflare,
 // מופרד בפסיקים. הרשימה כאן היא ברירת המחדל אם המשתנה לא הוגדר.
-const DEFAULT_OWNERS = ["cortado.snir@gmail.com"];
+const DEFAULT_OWNERS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
 const ownersOf = (env) => ((env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean).length
   ? (env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
   : DEFAULT_OWNERS);
@@ -190,6 +190,9 @@ function modelOf(env){
   return RETIRED_MODELS[asked] || asked;
 }
 const MODEL_GONE = /no longer available|not found|is not supported|NOT_FOUND|deprecated|does not have access/i;
+// עומס זמני אצל גוגל. לא שבור — פשוט צריך לנסות שוב.
+const MODEL_BUSY = /high demand|overloaded|UNAVAILABLE|try again later|temporarily/i;
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 async function callGemini(env, model, parts, wantJson){
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
@@ -207,17 +210,31 @@ async function gemini(env, prompt, { json: wantJson = false, images = [] } = {})
   const pics = images.length ? await imageParts(images) : [];
   const parts = [{ text: prompt }, ...pics];
 
-  // המודל המבוקש קודם, ואחריו השרשרת — כל אחד מנוסה פעם אחת, רק אם
-  // השגיאה היא "המודל לא זמין". שגיאה אמיתית (מכסה, מפתח) עוצרת מיד.
-  const tries = [modelOf(env), ...MODEL_CHAIN.filter(m => m !== modelOf(env))];
-  let r, data, model;
+  // שלוש סיבות שונות לכישלון, שלוש תגובות שונות:
+  //   "המודל לא קיים"  → לעבור למודל הבא בשרשרת
+  //   "המודל עמוס"     → להמתין רגע ולנסות שוב, ורק אז לעבור הלאה
+  //   כל השאר (מכסה, מפתח, בקשה שגויה) → לעצור מיד, אין טעם לנסות שוב
+  const asked = modelOf(env);
+  const tries = [asked, ...MODEL_CHAIN.filter(m => m !== asked)];
+  let r, data, model, stop = false;
   for (const m of tries){
     model = m;
-    ({ r, data } = await callGemini(env, m, parts, wantJson));
-    if (r.ok) break;
-    if (!MODEL_GONE.test(String(data.error?.message || ""))) break;
+    for (let attempt = 0; attempt < 2; attempt++){
+      ({ r, data } = await callGemini(env, m, parts, wantJson));
+      if (r.ok) break;
+      const msg = String(data.error?.message || "");
+      if (MODEL_BUSY.test(msg) && attempt === 0){ await sleep(900); continue; }  // עומס: פעם אחת שוב
+      if (!MODEL_GONE.test(msg) && !MODEL_BUSY.test(msg)) stop = true;           // שגיאה אמיתית
+      break;
+    }
+    if (r.ok || stop) break;
   }
-  if (!r.ok) throw fail("ai_error", data.error?.message || "Gemini לא ענה.", 502);
+  if (!r.ok){
+    // הודעה שאפשר להבין ממנה מה לעשות, במקום טקסט טכני באנגלית.
+    const msg = String(data.error?.message || "");
+    if (MODEL_BUSY.test(msg)) throw fail("ai_busy", "השרת של גוגל עמוס כרגע. נסי שוב בעוד דקה — מה שכתבת נשמר.", 503);
+    throw fail("ai_error", msg || "Gemini לא ענה.", 502);
+  }
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
   if (!text) throw fail("ai_empty", "לא התקבל טקסט.", 502);
   if (!wantJson) return text.trim();
