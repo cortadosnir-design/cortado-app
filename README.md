@@ -40,3 +40,5 @@
 
 תזכורות אוטומטיות, פרסום לרשתות ולוח התוכן נשארו בינתיים בכלי שרץ ב-Claude.
 אפשר להוסיף אותם כאן בהמשך עם Cloud Functions ו-Cloud Scheduler.
+
+Auto-deploy: see .github/workflows/deploy.yml
