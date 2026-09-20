@@ -1,9 +1,9 @@
 // קריאייטיב: ארבע משבצות קבועות בשבוע, בנק קליפים, טיוטה אחת שנשענת על הקול שלך, ושער ההוספה.
 // העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
-import { S, db, storage, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, holidayOn,
+import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
-  doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp,
-  sRef, uploadBytes, getDownloadURL } from "./core.js";
+  doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
+  } from "./core.js";
 import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
 import { openDays, phase, wid, hoursByDay, hoursText } from "./shifts.js";
 
@@ -400,15 +400,35 @@ function showDone(msg){
   $("briefDoneText").textContent = msg;
 }
 
+// אין Firebase Storage (תוכנית Spark). התמונות לא נשמרות בשום מקום:
+// הן מוקטנות כאן בדפדפן, נשלחות ל-AI כ-data URL, ונעלמות עם רענון הדף.
+const PHOTO_MAX_PX = 1280;
+const PHOTO_QUALITY = 0.72;
+
+function shrinkToDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, PHOTO_MAX_PX / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", PHOTO_QUALITY));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image")); };
+    img.src = url;
+  });
+}
+
 async function uploadBriefPhotos(){
   if (!briefPending.length) return;
-  status("briefStatus", "", `מעלה ${briefPending.length} תמונות…`);
+  status("briefStatus", "", `מכין ${briefPending.length} תמונות…`);
   for (const f of briefPending.slice(0, 6 - brief.photos.length)){
-    try {
-      const path = `brief/${wid()}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
-      const snap = await uploadBytes(sRef(storage, path), f, { contentType: f.type || "image/jpeg" });
-      brief.photos.push(await getDownloadURL(snap.ref));
-    } catch { status("briefStatus", "bad", "תמונה אחת לא עלתה."); }
+    try { brief.photos.push(await shrinkToDataUrl(f)); }
+    catch { status("briefStatus", "bad", "תמונה אחת לא נקראה."); }
   }
   briefPending = [];
   $("briefPhotos").value = "";
@@ -661,11 +681,10 @@ async function savePost(newStatus, btn){
     try {
       let image = $("cImage").value || "";
       if (pendingImage){
-        status("compStatus", "", "מעלה תמונה…");
-        const path = `posts/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
-        const snap = await uploadBytes(sRef(storage, path), pendingImage, { contentType: pendingImage.type || "image/jpeg" });
-        image = await getDownloadURL(snap.ref);
-        pendingImage = null; $("cImage").value = image;
+        // בלי Firebase Storage אין לאן להעלות. התמונה נשארת בתצוגה המקדימה בלבד,
+        // ומצורפת ידנית בזמן הפרסום. שדה "כתובת תמונה" ממשיך לעבוד לקישור חיצוני.
+        pendingImage = null;
+        status("compStatus", "warn", "התמונה לא נשמרת — צרפי אותה ידנית בפרסום.");
       }
       const s = slots().find(x => x.key === editSlot);
       const body = {
