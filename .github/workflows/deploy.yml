@@ -1,4 +1,4 @@
-# Auto-deploy: every push to main deploys the site and security rules to Firebase.
+# Auto-deploy: every push to main deploys the site and Firestore rules to Firebase.
 name: Deploy to Firebase
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
-      - name: Deploy hosting + Firestore + Storage rules
+      - name: Deploy hosting + Firestore rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: firebase deploy --only hosting,firestore:rules,storage --project cortado-ops --non-interactive
+        run: firebase deploy --only hosting,firestore:rules --project cortado-ops --non-interactive
