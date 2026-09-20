@@ -5,7 +5,7 @@
 const GRAPH = "https://graph.facebook.com/v21.0";
 // מי רשאי. אפשר להוסיף מנהלים בלי פריסה מחדש: משתנה OWNER_EMAILS בלוח של Cloudflare,
 // מופרד בפסיקים. הרשימה כאן היא ברירת המחדל אם המשתנה לא הוגדר.
-const DEFAULT_OWNERS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
+const DEFAULT_OWNERS = ["cortado.snir@gmail.com"];
 const ownersOf = (env) => ((env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean).length
   ? (env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
   : DEFAULT_OWNERS);
@@ -168,18 +168,55 @@ async function imageParts(urls){
   return parts;
 }
 
-async function gemini(env, prompt, { json: wantJson = false, images = [] } = {}){
-  if (!env.GEMINI_API_KEY) throw fail("not_configured", "חסר מפתח Gemini בשרת.", 500);
-  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
-  const pics = images.length ? await imageParts(images) : [];
+// גוגל מוציאה דגמים משימוש מדי כמה חודשים, ואז כל הכפתורים החכמים מפסיקים לעבוד
+// בבת אחת. שלוש שכבות הגנה כדי שזה לא יקרה שוב:
+//   1. ברירת מחדל עדכנית
+//   2. מיפוי של שמות שהוצאו משימוש — כך שגם משתנה ישן בלוח של Cloudflare נרפא לבד
+//   3. ניסיון חוזר אוטומטי אם השרת בכל זאת עונה "המודל לא זמין"
+// שרשרת נפילה: מנסים לפי הסדר עד שאחד עונה. הראשון הוא העדכני.
+const MODEL_CHAIN = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"];
+const CURRENT_MODEL = MODEL_CHAIN[0];
+// שמות שכבר לא נפתחים למפתחות חדשים, או שהוצאו משימוש לגמרי.
+const RETIRED_MODELS = {
+  "gemini-2.5-flash": CURRENT_MODEL,
+  "gemini-2.5-flash-latest": CURRENT_MODEL,
+  "gemini-2.0-flash": CURRENT_MODEL,
+  "gemini-1.5-flash": CURRENT_MODEL,
+  "gemini-1.5-pro": CURRENT_MODEL,
+};
+function modelOf(env){
+  const asked = String(env.GEMINI_MODEL || "").trim().replace(/^models\//, "");
+  if (!asked) return CURRENT_MODEL;
+  return RETIRED_MODELS[asked] || asked;
+}
+const MODEL_GONE = /no longer available|not found|is not supported|NOT_FOUND|deprecated|does not have access/i;
+
+async function callGemini(env, model, parts, wantJson){
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }, ...pics] }],
+      contents: [{ role: "user", parts }],
       generationConfig: { temperature: 0.9, ...(wantJson ? { responseMimeType: "application/json" } : {}) }
     })
   });
-  const data = await r.json();
+  return { r, data: await r.json().catch(() => ({})) };
+}
+
+async function gemini(env, prompt, { json: wantJson = false, images = [] } = {}){
+  if (!env.GEMINI_API_KEY) throw fail("not_configured", "חסר מפתח Gemini בשרת.", 500);
+  const pics = images.length ? await imageParts(images) : [];
+  const parts = [{ text: prompt }, ...pics];
+
+  // המודל המבוקש קודם, ואחריו השרשרת — כל אחד מנוסה פעם אחת, רק אם
+  // השגיאה היא "המודל לא זמין". שגיאה אמיתית (מכסה, מפתח) עוצרת מיד.
+  const tries = [modelOf(env), ...MODEL_CHAIN.filter(m => m !== modelOf(env))];
+  let r, data, model;
+  for (const m of tries){
+    model = m;
+    ({ r, data } = await callGemini(env, m, parts, wantJson));
+    if (r.ok) break;
+    if (!MODEL_GONE.test(String(data.error?.message || ""))) break;
+  }
   if (!r.ok) throw fail("ai_error", data.error?.message || "Gemini לא ענה.", 502);
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
   if (!text) throw fail("ai_empty", "לא התקבל טקסט.", 502);
