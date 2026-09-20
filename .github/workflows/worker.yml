@@ -1,0 +1,18 @@
+# Auto-deploy the Cloudflare Worker: runs when files under worker/src change (or manually).
+name: Deploy Worker
+on:
+  push:
+    branches: [main]
+    paths: ['worker/src/**', 'worker/wrangler.toml', '.github/workflows/worker.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: worker
+          command: deploy
