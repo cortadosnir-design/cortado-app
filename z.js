@@ -42,6 +42,7 @@ let me = null;                    // { name }
 let weekStart = (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })();
 let week = null, mine = null, taken = new Set();
 let draft = {}, note = "", dirty = false;
+let pending = [];                 // משמרות שנגמרו וטרם דווחו: [{ date, shift, wid }]
 const wid = () => "w" + ymd(weekStart);
 const phase = () => (week && week.phase) || "availability";
 const shiftsOf = () => (week && Array.isArray(week.shifts) ? [...week.shifts] : []).sort((a,b) => a.day - b.day || toMin(a.start) - toMin(b.start));
@@ -56,6 +57,116 @@ async function boot(){
   } catch { fatal("אין חיבור כרגע. נסה שוב בעוד רגע."); return; }
   $("hello").textContent = `היי ${me.name || ""}`;
   await load();
+  findPending().then(() => render()).catch(() => {});
+}
+
+/* ===== דיווח סוף משמרת =====
+   מה שקרה במשמרת יודע רק מי שעמד שם. עד היום רק המנהל יכול היה לדווח,
+   ולכן רוב הימים נשארו ריקים. כאן זה נפתח לכל מי שיש לו קישור אישי.
+   נבדקות שתי משמרות אחרונות בלבד — היום ואתמול. ישן מזה כבר לא זכור. */
+const HOURS_BACK = 2;
+
+async function findPending(){
+  const out = [];
+  const now = new Date();
+  for (let back = 0; back < HOURS_BACK; back++){
+    const d = addDays(now, -back);
+    const dStr = ymd(d);
+    const ws = sundayOf(d);
+    const id = "w" + ymd(ws);
+    let wk = null;
+    try { const s = await getDoc(doc(db, "weeks", id)); wk = s.exists() ? s.data() : null; } catch { continue; }
+    if (!wk || !Array.isArray(wk.shifts)) continue;
+    const mineToday = wk.shifts.filter(sh => sh.day === d.getDay());
+    for (const sh of mineToday){
+      // נגמרה? היום — רק אם השעה עברה. אתמול — תמיד.
+      const ended = back > 0 || toMin(sh.end) <= now.getHours() * 60 + now.getMinutes();
+      if (!ended) continue;
+      try {
+        const sign = await getDoc(doc(db, "signups", `${id}_${sh.id}_${token}`));
+        if (!sign.exists()) continue;                       // לא המשמרת שלו
+        const log = await getDoc(doc(db, "log", `${dStr}_${sh.id}_${token}`));
+        if (log.exists()) continue;                         // כבר דיווח
+        out.push({ date: dStr, shift: sh.id, wid: id, start: sh.start, end: sh.end, day: d.getDay(), dateObj: d });
+      } catch {}
+    }
+  }
+  pending = out;
+}
+
+const WEATHER = ["שמש", "חם מאוד", "גשם", "רוח", "קר"];
+
+function renderReport(main){
+  if (!pending.length) return;
+  const it = pending[0];
+  const form = { customers: null, peak: "", weather: "", missing: "", notes: "" };
+
+  const card = el("div", { class: "card zreport" });
+  card.append(el("h2", { text: "איך היה במשמרת?" }));
+  card.append(el("p", { class: "zlead small",
+    text: `${DAYS[it.day]} ${dm(it.dateObj)} · ${it.start}–${it.end}. חצי דקה, ואתה משוחרר.` }));
+
+  // כמה לקוחות — כפתורי טווח, לא הקלדה. אף אחד לא סופר בדיוק.
+  card.append(el("span", { class: "small", text: "כמה לקוחות, בערך?" }));
+  const counts = el("div", { class: "seg big", role: "group", "aria-label": "כמות לקוחות" });
+  [["עד 10", 8], ["10–25", 18], ["25–50", 35], ["50+", 60]].forEach(([label, val]) => {
+    const b = el("button", { type: "button", class: "segbtn ok", text: label,
+      onclick: () => { form.customers = val; [...counts.children].forEach(x => x.setAttribute("aria-pressed", String(x === b))); } });
+    b.setAttribute("aria-pressed", "false");
+    counts.append(b);
+  });
+  card.append(counts);
+
+  // מזג אוויר — משפיע ישירות על כמה אנשים באים, וזה מה שהופך את הנתון לשימושי.
+  card.append(el("span", { class: "small", text: "מזג אוויר" }));
+  const wx = el("div", { class: "chips", role: "group", "aria-label": "מזג אוויר" });
+  WEATHER.forEach(w => {
+    const b = el("button", { type: "button", class: "segbtn ok", text: w,
+      onclick: () => { form.weather = form.weather === w ? "" : w;
+        [...wx.children].forEach(x => x.setAttribute("aria-pressed", String(x.textContent === form.weather))); } });
+    b.setAttribute("aria-pressed", "false");
+    wx.append(b);
+  });
+  card.append(wx);
+
+  card.append(el("label", { class: "zlabel" }, el("span", { class: "small", text: "מתי היה הכי עמוס?" }),
+    el("input", { type: "time", oninput: (e) => form.peak = e.target.value })));
+
+  // השדה הכי שווה כסף: מה אנשים ביקשו ולא היה. אף מערכת אחרת לא אוספת את זה.
+  card.append(el("label", { class: "zlabel" }, el("span", { class: "small", text: "מה ביקשו ולא היה לנו?" }),
+    el("input", { type: "text", placeholder: "חלב שקדים, קרואסון, קר…",
+      oninput: (e) => form.missing = e.target.value })));
+
+  card.append(el("label", { class: "zlabel" }, el("span", { class: "small", text: "עוד משהו?" }),
+    el("input", { type: "text", placeholder: "לא חובה", oninput: (e) => form.notes = e.target.value })));
+
+  const send = el("button", { class: "primary big", text: "שלח דיווח",
+    onclick: (e) => sendReport(it, form, e.currentTarget) });
+  card.append(el("div", { class: "actions" }, send,
+    el("button", { class: "link", text: "לא עכשיו", onclick: () => { pending = pending.slice(1); render(); } })));
+  main.append(card);
+}
+
+async function sendReport(it, form, btn){
+  if (form.customers == null){ say("warn", "רק תסמן כמה לקוחות, וזהו."); return; }
+  btn.disabled = true; btn.textContent = "שולח…";
+  try {
+    await setDoc(doc(db, "log", `${it.date}_${it.shift}_${token}`), {
+      date: it.date, shift: it.shift, token, by: me.name || "",
+      customers: form.customers,
+      peak: (form.peak || "").slice(0, 10),
+      weather: (form.weather || "").slice(0, 40),
+      missing: (form.missing || "").slice(0, 200),
+      notes: (form.notes || "").slice(0, 600),
+      at: serverTimestamp(),
+    });
+    pending = pending.slice(1);
+    say("ok", "התקבל. תודה 🙏");
+    render();
+  } catch (e){
+    btn.disabled = false; btn.textContent = "שלח דיווח";
+    say("bad", "הדיווח לא נשלח. בדוק חיבור ונסה שוב.");
+  }
 }
 function fatal(msg){
   $("hello").textContent = "משהו לא בסדר";
@@ -102,6 +213,9 @@ function render(){
     `${dm(weekStart)}–${dm(addDays(weekStart, 6))}`;
   const main = clear($("zmain"));
   const ph = phase();
+
+  // הדיווח קודם לכל השאר: הוא נמחק מהזיכרון תוך שעות.
+  renderReport(main);
 
   if (ph === "availability" || ph === "review") renderAvailability(main);
   else if (ph === "open") renderPick(main);

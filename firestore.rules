@@ -4,6 +4,9 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
 
+    // רשימת המנהלים. חייבת להיות זהה ל-OWNER_EMAILS ב-config.js,
+    // ל-isOwner ב-storage.rules ול-OWNER_EMAILS ב-worker/src/index.js.
+    // להוספת מנהלת: עוד מחרוזת ברשימה, בכל ארבעת המקומות.
     function isOwner() {
       return signedIn() && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in ['cortado.snir@gmail.com'];
@@ -113,13 +116,30 @@ service cloud.firestore {
     match /team/{id}     { allow read, write: if isOwner(); }
 
     // ── יומן משמרת ──
+    // שני מסלולי כתיבה: מנהל/חבר צוות שנכנס עם גוגל (מזהה <date>_<uid>),
+    // ועובד עם קישור אישי (מזהה <date>_<shift>_<token>). מי שעמד במשמרת הוא
+    // היחיד שיודע מה קרה בה — ולכן הוא חייב להיות מי שמדווח.
     match /log/{id} {
-      allow read: if allowed();
-      allow create, update: if allowed()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && (request.resource.data.customers == null || request.resource.data.customers is int)
-        && request.resource.data.keys().hasOnly(['date','customers','peak','weather','promo','notes','uid','by','at']);
+      allow get: if true;              // המזהה מכיל uid או קוד אישי. בלעדיהם אין דרך להגיע אליו.
+      allow list: if allowed();
+      allow create, update: if
+        request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (!('customers' in request.resource.data) || request.resource.data.customers == null
+            || request.resource.data.customers is int)
+        && (!('notes' in request.resource.data) || request.resource.data.notes.size() <= 600)
+        && (!('missing' in request.resource.data) || request.resource.data.missing.size() <= 200)
+        && request.resource.data.keys().hasOnly(
+             ['date','shift','customers','peak','weather','promo','notes','missing','uid','token','by','at'])
+        && (
+          // מסלול גוגל
+          (allowed() && request.resource.data.get('uid', '') == request.auth.uid
+           && id == request.resource.data.date + '_' + request.auth.uid)
+          // מסלול קוד אישי — רק על משמרת שהעובד באמת משובץ אליה
+          || (validToken(request.resource.data.get('token', ''))
+              && request.resource.data.shift is string
+              && request.resource.data.shift.size() <= 40
+              && id == request.resource.data.date + '_' + request.resource.data.shift + '_' + request.resource.data.token)
+        );
       allow delete: if isOwner();
     }
 

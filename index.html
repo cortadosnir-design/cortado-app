@@ -131,6 +131,43 @@
 
     <!-- ═══════════ קריאייטיב ═══════════ -->
     <section id="p-creative" class="tabpanel" role="tabpanel" hidden>
+      <!-- השבוע מתחיל מהחומר, לא מהלוח. מה שקרה בעגלה נכנס כאן, ומכאן נבנות המשבצות. -->
+      <div class="card brief" id="briefCard" data-api hidden>
+        <div class="calhead"><h2>ספרי לי על השבוע</h2><span class="pill" id="briefState" hidden></span></div>
+        <p class="small">מה קרה בעגלה, מי בא, מה צילמת. משפט אחד מספיק. אשאל עוד כמה שאלות קצרות ומזה ייבנו ארבע המשבצות.</p>
+
+        <div id="briefIntake">
+          <label for="briefText" class="sr-label">מה היה השבוע</label>
+          <textarea id="briefText" rows="3" placeholder="השבוע התחיל לרדת גשם… הגיעה קבוצת אופניים בשבת… דני שוב הזמין כפול…"></textarea>
+          <label for="briefPhotos">תמונות מהשבוע (עד 6 — הכי מועיל)
+            <input id="briefPhotos" type="file" accept="image/*" multiple>
+          </label>
+          <div id="briefThumbs" class="thumbs"></div>
+          <div class="actions"><button class="primary" id="briefStart">בוא נדבר</button></div>
+        </div>
+
+        <div id="briefQuestion" hidden>
+          <p class="qtext" id="briefQText"></p>
+          <p class="small" id="briefWhy"></p>
+          <div class="chips" id="briefOptions"></div>
+          <div class="learnrow">
+            <input id="briefFree" type="text" placeholder="או בניסוח שלך…">
+            <button id="briefSend">שלח</button>
+          </div>
+          <div class="actions">
+            <button class="link" id="briefSkip">דלג</button>
+            <button class="link" id="briefStop">מספיק — בנה את השבוע</button>
+          </div>
+        </div>
+
+        <div id="briefDone" hidden>
+          <div class="notice ok" id="briefDoneText"></div>
+          <div class="actions"><button class="link" id="briefRestart">להתחיל שיחה חדשה</button></div>
+        </div>
+
+        <div class="status" id="briefStatus" role="status"></div>
+      </div>
+
       <div class="card">
         <div class="calhead">
           <h2>הקריאייטיב של השבוע <span class="pill" id="slotState"></span></h2>
@@ -139,7 +176,7 @@
         <p class="small">ארבע משבצות קבועות. משבצת ריקה זו משימה. כשכולן מוכנות, השבוע סגור.</p>
         <div class="status" id="planStatus" role="status"></div>
         <div id="slotList" class="slotlist"></div>
-        <details class="rhythm">
+        <details class="rhythm" id="rhythmDetails">
           <summary>הקצב השבועי — נקבע פעם אחת</summary>
           <p class="small">עמוד, יום ושעה לכל משבצת. קבוע בכוונה: עקביות שווה יותר מהשעה המושלמת.</p>
           <div id="rhythmBox" class="rhythmbox"></div>
@@ -155,14 +192,19 @@
       <div class="two">
         <div class="card" id="composer" hidden>
           <div class="calhead"><h2 id="compTitle">פוסט</h2><button class="link" id="closeComposer">סגור</button></div>
-          <div class="two-col">
-            <label for="cDate">תאריך<input id="cDate" type="date"></label>
-            <label for="cTime">שעה<input id="cTime" type="time"></label>
+          <!-- משבצת של הקצב: התאריך, השעה והפורמט קבועים. שורת מידע, לא טופס. -->
+          <p class="metaline" id="slotMeta" hidden></p>
+          <!-- פוסט מעבר לקצב: כאן כן בוחרים. -->
+          <div id="cFixed">
+            <div class="two-col">
+              <label for="cDate">תאריך<input id="cDate" type="date"></label>
+              <label for="cTime">שעה<input id="cTime" type="time"></label>
+            </div>
+            <p class="small" id="timeWhy"></p>
+            <p class="small" id="dateHint"></p>
+            <label for="cFormat">פורמט<select id="cFormat"></select></label>
+            <p class="small" id="formatHint"></p>
           </div>
-          <p class="small" id="timeWhy"></p>
-          <p class="small" id="dateHint"></p>
-          <label for="cFormat">פורמט<select id="cFormat"></select></label>
-          <p class="small" id="formatHint"></p>
           <label for="cIdea">הכיוון — משפט אחד</label>
           <div class="angle">
             <input id="cIdea" type="text" placeholder="למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר">
@@ -363,6 +405,7 @@
             <label for="lWeather">מזג אוויר<select id="lWeather"></select></label>
           </div>
           <label for="lPromo">מבצע או אירוע<input id="lPromo" type="text" placeholder="אם היה"></label>
+          <label for="lMissing">מה ביקשו ולא היה לנו<input id="lMissing" type="text" placeholder="חלב שקדים, קרואסון, קר…"></label>
           <label for="lNotes">הערות<input id="lNotes" type="text"></label>
           <div class="actions"><button class="primary" id="lSave">שמור דיווח</button></div>
           <div class="status" id="logStatus" role="status"></div>
@@ -388,6 +431,14 @@
 
     <!-- ═══════════ צוות ═══════════ -->
     <section id="p-team" class="tabpanel" role="tabpanel" hidden>
+      <!-- מי עשה כמה. הנתונים היו שם מהיום הראשון, אף אחד לא קרא אותם לפי אדם. -->
+      <div class="card">
+        <div class="calhead"><h2>מי עשה כמה</h2><button id="peopleLoad">טען</button></div>
+        <p class="small">שמונה השבועות האחרונים: משמרות, שעות, ואחוז הדיווח בסוף משמרת.</p>
+        <div class="status" id="peopleStatus" role="status"></div>
+        <div id="peopleTable"></div>
+      </div>
+
       <div class="two">
         <div class="card">
           <h2>תזכורות למחר</h2>

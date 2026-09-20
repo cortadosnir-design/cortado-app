@@ -267,8 +267,9 @@ export function init(){
         const l = d.data();
         $("lCustomers").value = l.customers ?? ""; $("lPeak").value = l.peak || "";
         $("lWeather").value = l.weather || ""; $("lPromo").value = l.promo || ""; $("lNotes").value = l.notes || "";
+        $("lMissing").value = l.missing || "";
         status("logStatus", "warn", "כבר דיווחת על היום הזה. שמירה תעדכן את הדיווח.");
-      } else { ["lCustomers","lPeak","lPromo","lNotes"].forEach(i => $(i).value = ""); status("logStatus", "", ""); }
+      } else { ["lCustomers","lPeak","lPromo","lNotes","lMissing"].forEach(i => $(i).value = ""); status("logStatus", "", ""); }
     } catch {}
   });
 
@@ -277,12 +278,13 @@ export function init(){
     if (!date){ status("logStatus", "warn", "בחר תאריך."); return; }
     const cust = $("lCustomers").value === "" ? null : Math.max(0, +$("lCustomers").value);
     const data = { date, customers: cust, peak: $("lPeak").value || "", weather: $("lWeather").value || "",
-      promo: $("lPromo").value.trim(), notes: $("lNotes").value.trim(),
+      promo: $("lPromo").value.trim(), notes: $("lNotes").value.trim().slice(0, 600),
+      missing: $("lMissing").value.trim().slice(0, 200),
       uid: S.me ? S.me.uid : "", by: S.me ? (S.me.displayName || S.me.email || "") : "", at: serverTimestamp() };
     try {
       await setDoc(doc(db, "log", `${date}_${S.me.uid}`), data);
       status("logStatus", "ok", "הדיווח נשמר. תודה!");
-      ["lCustomers","lPeak","lPromo","lNotes"].forEach(i => $(i).value = "");
+      ["lCustomers","lPeak","lPromo","lNotes","lMissing"].forEach(i => $(i).value = "");
     } catch { status("logStatus", "bad", "השמירה נכשלה. נסה שוב."); }
   }));
 

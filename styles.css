@@ -202,6 +202,13 @@ button.icon:hover{color:var(--bad)}
 .slot.empty{border-style:dashed;border-color:var(--warn);background:var(--ground)}
 .slot.done{border-color:var(--ok)}
 .slot.done .clip{color:var(--muted)}
+/* משבצת שזמנה חלף: נוכחת, לא תובענית. */
+.slot.gone{opacity:.55;border-style:dotted}
+.slot.gone .slothead b{font-weight:500}
+/* שורת המידע של משבצת קבועה: מה שאי אפשר לשנות כאן לא נראה כמו שדה. */
+.metaline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);
+  background:var(--ground);border-radius:10px;padding:8px 12px;margin:0}
+.metaline .link{margin-inline-start:auto;font-size:13px}
 .slothead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .slot .actions{margin-top:0}
 .extras{display:flex;flex-direction:column;gap:6px;margin-top:6px}
@@ -395,3 +402,30 @@ table.t tr.me a{color:var(--accent)}
 .foot{font-size:13px}
 @media (max-width:430px){.zfoot>span{display:none}.zfoot{justify-content:space-between}}
 @media (max-width:560px){.grouprow{flex-wrap:wrap}.grouprow .grow{flex:1 1 200px}.grouprow>button{flex:1 1 100%}}
+
+/* ===== דיווח סוף משמרת (דף העובד) ===== */
+/* כרטיס שמופיע רק כשיש משמרת שנגמרה וטרם דווחה. חצי דקה בטלפון, באצבע אחת. */
+.zreport{border:2px solid var(--accent);background:var(--surface);display:flex;flex-direction:column;gap:10px}
+.zreport h2{margin:0}
+.zreport .zlabel{display:flex;flex-direction:column;gap:4px}
+.zreport .actions{display:flex;align-items:center;gap:12px;margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .segbtn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;min-width:0}
+.chips .segbtn+.segbtn{border-inline-start:1px solid var(--line)}
+.ptable{width:100%;border-collapse:collapse;font-size:15px}
+.ptable th{text-align:start;font-size:13px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.ptable td{padding:8px;border-bottom:1px solid var(--line)}
+.ptable tr:last-child td{border-bottom:none}
+
+/* ===== השיחה השבועית ===== */
+/* נקודת הכניסה החדשה לקריאייטיב: חומר נכנס כאן, לוח נבנה ממנו. */
+.card.brief{border-color:var(--accent)}
+.card.brief textarea{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+  font:inherit;color:inherit;width:100%;resize:vertical}
+.sr-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.qtext{font-family:var(--display);font-size:20px;line-height:1.25;margin:0}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumb{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .icon{position:absolute;inset-block-start:2px;inset-inline-end:2px;min-height:0;padding:0 5px;
+  border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:12px;line-height:1.6}

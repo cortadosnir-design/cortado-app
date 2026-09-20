@@ -1,6 +1,6 @@
 // קריאייטיב: ארבע משבצות קבועות בשבוע, בנק קליפים, טיוטה אחת שנשענת על הקול שלך, ושער ההוספה.
 // העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
-import { S, db, storage, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, weekId, holidayOn,
+import { S, db, storage, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
   doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp,
   sRef, uploadBytes, getDownloadURL } from "./core.js";
@@ -58,8 +58,9 @@ let unsubCreative = null;
 function subscribeCreative(){
   if (unsubCreative) { try { unsubCreative(); } catch {} }
   S.creative = {};
+  brief = { text: "", photos: [], answers: [] };
   unsubCreative = onSnapshot(doc(db, "creative", wid()),
-    (snap) => { S.creative = snap.exists() ? snap.data() : {}; render(); },
+    (snap) => { S.creative = snap.exists() ? snap.data() : {}; loadBrief(); render(); },
     () => {});
   track(unsubCreative);
 }
@@ -73,6 +74,17 @@ const slotPost = (s) => S.posts.filter(p => p.week === wid() && p.slot === s.key
   .sort((a, b) => ((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0))[0] || null;
 const isDone = (p) => !!p && DONE.includes(p.status);
 const weekDates = () => Array.from({ length: 7 }, (_, i) => ymd(addDays(S.weekStart, i)));
+
+// משבצת שזמנה חלף. לא מוצגת כמשימה פתוחה ולא נספרת בציון —
+// אי אפשר לפרסם אתמול, ומד שמונה כישלונות שאי אפשר לתקן רק מייאש.
+function isPast(s){
+  const now = new Date();
+  const d = slotDate(s);
+  const today = ymd(now);
+  if (d < today) return true;
+  if (d > today) return false;
+  return toMin(s.time || "23:59") < now.getHours() * 60 + now.getMinutes();
+}
 
 async function saveRhythm(patch){
   try { await setDoc(doc(db, "brand", "rhythm"), { ...patch, updatedAt: serverTimestamp() }, { merge: true }); status("rhythmStatus", "ok", "נשמר. מעכשיו זה הקצב."); }
@@ -227,12 +239,18 @@ function renderSlots(){
   const box = clear($("slotList"));
   const ph = phase(), open = openDays();
   const list = slots();
-  const posts = list.map(slotPost);
-  const done = posts.filter(isDone).length;
+  // כל משבצת עם הפוסט שלה ועם השאלה אם זמנה כבר חלף.
+  const items = list.map(s => ({ s, p: slotPost(s), past: isPast(s) }));
+  // משבצת שעברה ונשארה ריקה יורדת מהחשבון. משבצת שעברה ויש בה פוסט נשארת בפנים.
+  const active = items.filter(it => !(it.past && !it.p));
+  const missed = items.length - active.length;
+  const done = active.filter(it => isDone(it.p)).length;
+  const allDone = active.length > 0 && done === active.length;
 
   const head = $("slotState");
-  head.className = "pill " + (done === list.length ? "ok" : done ? "warn" : "");
-  head.textContent = done === list.length ? "השבוע סגור ✓" : `${done}/${list.length} מוכנים`;
+  head.className = "pill " + (allDone ? "ok" : done ? "warn" : "");
+  head.textContent = allDone ? "השבוע סגור ✓"
+    : `${done}/${active.length} מוכנים` + (missed ? ` · ${missed} עברו` : "");
 
   if (ph !== "locked"){
     box.append(el("div", { class: "notice", text:
@@ -242,24 +260,29 @@ function renderSlots(){
   }
 
   const skel = (S.creative && S.creative.slots) || {};
-  list.forEach((s, i) => {
-    const p = posts[i];
+  items.forEach(({ s, p, past }) => {
+    const gone = past && !p;                       // עבר וריק
     const date = slotDate(s);
     const h = holidayOn(date);
-    const card = el("div", { class: "slot " + (isDone(p) ? "done" : p ? "draft" : "empty") });
+    const card = el("div", { class: "slot " + (gone ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty") });
     card.append(el("div", { class: "slothead" },
       el("div", {}, el("b", { text: slotLabel(s) }),
         el("span", { class: "small", text: ` · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))} · ${s.time}` }),
         h ? el("span", { class: "hol", text: h[1] }) : null),
-      el("span", { class: "pill " + (isDone(p) ? "ok" : p ? "warn" : ""), text: p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" })));
+      el("span", { class: "pill " + (gone ? "" : isDone(p) ? "ok" : p ? "warn" : ""),
+        text: gone ? "עבר" : p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" })));
     if (p){
       card.append(el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 110) }));
+    } else if (gone){
+      card.append(el("div", { class: "small muted", text: "הזמן של המשבצת הזו חלף. היא תחזור בשבוע הבא." }));
     } else {
       const sk = skel[s.key];
       card.append(el("div", { class: "small", text: sk && sk.angle ? "כיוון: " + sk.angle : "עוד לא נכתב. " + (PILLAR3[s.pillar] || {}).note }));
     }
     card.append(el("div", { class: "actions" },
-      el("button", { class: p ? "" : "primary", text: !p ? "כתוב" : isDone(p) ? "פתח" : "המשך", onclick: () => p ? loadPost(p.id) : openSlot(s) }),
+      el("button", { class: (p || gone) ? "link" : "primary",
+        text: !p ? (gone ? "כתוב בכל זאת" : "כתוב") : isDone(p) ? "פתח" : "המשך",
+        onclick: () => p ? loadPost(p.id) : openSlot(s) }),
       isDone(p) ? el("button", { class: "link", text: "העתק", onclick: (e) => copyText(fullText(p), e.currentTarget, "העתק") }) : null));
     box.append(card);
   });
@@ -278,7 +301,7 @@ function renderSlots(){
       el("button", { text: "פתח", onclick: () => loadPost(p.id) }))));
     box.append(wrap);
   }
-  if (done === list.length && list.length)
+  if (allDone)
     box.append(el("div", { class: "notice ok", text: "כל המשבצות מוכנות. הורד את ה-CSV למתזמן, וזהו — השבוע סגור." }));
 }
 
@@ -288,13 +311,18 @@ async function skeleton(btn){
     try {
       status("planStatus", "", "חושב…");
       const list = slots();
-      const req = list.filter(s => !slotPost(s)).map(s => ({
+      const req = list.filter(s => !slotPost(s) && !isPast(s)).map(s => ({
         key: s.key, pillar: slotLabel(s), pillarNote: (PILLAR3[s.pillar] || {}).note || "",
         day: DAYS[s.day], date: slotDate(s), format: s.format,
         holiday: (holidayOn(slotDate(s)) || [])[1] || "",
       }));
-      if (!req.length){ status("planStatus", "ok", "כל המשבצות כבר מלאות."); return; }
-      const r = await ai("/ai/week", { slots: req, clips: clips.filter(c => c.state === "shot").map(c => c.title).slice(0, 10) });
+      if (!req.length){ status("planStatus", "ok", "אין משבצת פתוחה שממתינה לכיוון."); return; }
+      const r = await ai("/ai/week", {
+        slots: req,
+        clips: clips.filter(c => c.state === "shot").map(c => c.title).slice(0, 10),
+        // החומר מהשיחה. זה ההבדל בין כיוון שמתאים לקורטדו לכיוון שמתאים לכל בית קפה.
+        brief: brief.text, photos: brief.photos, answers: brief.answers,
+      });
       const got = Array.isArray(r.slots) ? r.slots : [];
       const cur = { ...((S.creative && S.creative.slots) || {}) };
       let n = 0;
@@ -307,6 +335,128 @@ async function skeleton(btn){
       status("planStatus", "ok", `${n} כיוונים. הטקסט נכתב רק כשפותחים משבצת — אחד אחד, עם משפט שלך.`);
     } catch (e){ status("planStatus", "bad", e.message); }
   });
+}
+
+/* ===== השיחה השבועית =====
+   הסדר הפוך מקודם: קודם החומר, אחר כך הלוח. היא מספרת מה קרה ומעלה תמונות,
+   אני שואל שתיים-שלוש שאלות קצרות, ורק אז נבנות המשבצות. הכיוון הגנרי
+   שיצא עד היום נבע מכך שלמודל לא היה שום מידע על השבוע הזה. */
+const MAX_Q = 4;
+let brief = { text: "", photos: [], answers: [] };
+let askedQ = null;          // השאלה שעל המסך כרגע
+let briefPending = [];      // קבצים שנבחרו וטרם הועלו
+
+function loadBrief(){
+  const c = (S.creative && S.creative.brief) || null;
+  if (!c) return;
+  brief = { text: c.text || "", photos: Array.isArray(c.photos) ? c.photos : [], answers: Array.isArray(c.answers) ? c.answers : [] };
+  const box = $("briefText");
+  if (box && document.activeElement !== box && !box.value) box.value = brief.text;
+  renderBrief();
+}
+
+async function saveBrief(){
+  try { await setDoc(doc(db, "creative", wid()), { week: wid(), brief, at: serverTimestamp() }, { merge: true }); }
+  catch {}
+}
+
+function renderBrief(){
+  const card = $("briefCard"); if (!card) return;
+  const has = brief.answers.length || brief.photos.length || brief.text;
+  const pill = $("briefState");
+  if (pill){
+    pill.hidden = !has;
+    pill.textContent = brief.answers.length ? `${brief.answers.length} תשובות` : brief.photos.length ? `${brief.photos.length} תמונות` : "יש חומר";
+    pill.className = "pill " + (brief.answers.length ? "ok" : "warn");
+  }
+  const thumbs = $("briefThumbs");
+  if (thumbs){
+    clear(thumbs);
+    brief.photos.forEach((u, i) => thumbs.append(el("div", { class: "thumb" },
+      el("img", { src: u, alt: "" }),
+      el("button", { class: "icon", title: "הסר", text: "✕",
+        onclick: () => { brief.photos = brief.photos.filter((_, j) => j !== i); saveBrief(); renderBrief(); } }))));
+  }
+}
+
+function showQuestion(q){
+  askedQ = q;
+  $("briefIntake").hidden = true;
+  $("briefDone").hidden = true;
+  $("briefQuestion").hidden = false;
+  $("briefQText").textContent = q.question;
+  $("briefWhy").textContent = q.why || "";
+  const box = clear($("briefOptions"));
+  (q.options || []).forEach(o => box.append(el("button", { class: "segbtn ok", type: "button", text: o,
+    onclick: () => answer(o) })));
+  $("briefFree").value = "";
+}
+
+function showDone(msg){
+  askedQ = null;
+  $("briefQuestion").hidden = true;
+  $("briefIntake").hidden = true;
+  $("briefDone").hidden = false;
+  $("briefDoneText").textContent = msg;
+}
+
+async function uploadBriefPhotos(){
+  if (!briefPending.length) return;
+  status("briefStatus", "", `מעלה ${briefPending.length} תמונות…`);
+  for (const f of briefPending.slice(0, 6 - brief.photos.length)){
+    try {
+      const path = `brief/${wid()}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+      const snap = await uploadBytes(sRef(storage, path), f, { contentType: f.type || "image/jpeg" });
+      brief.photos.push(await getDownloadURL(snap.ref));
+    } catch { status("briefStatus", "bad", "תמונה אחת לא עלתה."); }
+  }
+  briefPending = [];
+  $("briefPhotos").value = "";
+}
+
+async function nextQuestion(){
+  const r = await api("/ai/brief", { ...aiContext(), brief: brief.text, photos: brief.photos, answers: brief.answers, max: MAX_Q });
+  if (r.done || !r.question || brief.answers.length >= MAX_Q){ await buildWeek(); return; }
+  showQuestion(r);
+  status("briefStatus", "", "");
+}
+
+async function startBrief(btn){
+  await withBusy(btn, async () => {
+    try {
+      brief.text = ($("briefText").value || "").trim().slice(0, 1200);
+      await uploadBriefPhotos();
+      if (!brief.text && !brief.photos.length){
+        status("briefStatus", "warn", "משפט אחד או תמונה אחת — צריך משהו להתחיל ממנו."); return;
+      }
+      brief.answers = [];
+      await saveBrief();
+      renderBrief();
+      status("briefStatus", "", "חושב על שאלה…");
+      await nextQuestion();
+    } catch (e){ status("briefStatus", "bad", e.message); }
+  });
+}
+
+async function answer(text){
+  text = (text || "").trim();
+  if (!text || !askedQ) return;
+  brief.answers.push({ q: askedQ.question, a: text.slice(0, 200) });
+  await saveBrief();
+  renderBrief();
+  status("briefStatus", "", "רגע…");
+  try { await nextQuestion(); }
+  catch (e){ status("briefStatus", "bad", e.message); }
+}
+
+// סוף השיחה: אותו מסלול ישן של בניית הכיוונים, רק שעכשיו יש לו חומר.
+async function buildWeek(){
+  status("briefStatus", "", "בונה את השבוע…");
+  try {
+    await skeleton(null);
+    showDone("השבוע נבנה מהחומר שנתת. הכיוונים יושבים במשבצות למטה — נשאר לכתוב.");
+    status("briefStatus", "ok", "");
+  } catch (e){ status("briefStatus", "bad", e.message); }
 }
 
 /* ===== קריאה ל-AI עם הזיכרון ===== */
@@ -347,7 +497,7 @@ function openSlot(s){
   $("cIdea").value = sk.angle || (s.pillar === "when" ? hoursText() : "");
   if (sk.shoot) $("shootHint").textContent = "מה לצלם: " + sk.shoot;
   $("compTitle").textContent = `${slotLabel(s)} · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))}`;
-  $("timeWhy").textContent = "השעה הקבועה של המשבצת. משנים בהגדרות הקצב, לא כאן.";
+  $("timeWhy").textContent = "";
   renderComposerMeta();
   $("composer").hidden = false;
   $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -394,6 +544,32 @@ function defaultHashtags(){
   return [...HASHTAGS.core, ...HASHTAGS.geo.slice(0,2), ...HASHTAGS.intent.slice(0,3)];
 }
 
+// משבצת של הקצב = אין מה לבחור. שורת מידע במקום שלושה שדות שאסור לגעת בהם.
+function renderFixed(){
+  const onSlot = !!editSlot;
+  const fixed = $("cFixed"), meta = $("slotMeta");
+  if (fixed) fixed.hidden = onSlot;
+  if (!meta) return;
+  meta.hidden = !onSlot;
+  if (!onSlot) return;
+  clear(meta);
+  const date = $("cDate").value;
+  const f = FORMATS.find(x => x.key === $("cFormat").value);
+  const h = date ? holidayOn(date) : null;
+  const bits = [
+    date ? `${DAYS[fromYmd(date).getDay()]} ${dm(fromYmd(date))}` : "",
+    $("cTime").value || "",
+    f ? f.label : "",
+    "פייסבוק + אינסטגרם",
+  ].filter(Boolean);
+  meta.append(el("span", { text: bits.join(" · ") }));
+  if (h) meta.append(el("span", { class: "hol", text: h[1] }));
+  meta.append(el("button", { class: "link", text: "שינוי הקצב", onclick: () => {
+    const d = $("rhythmDetails");
+    if (d){ d.open = true; d.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  } }));
+}
+
 function renderComposerMeta(){
   const date = $("cDate").value;
   const h = date ? holidayOn(date) : null;
@@ -405,6 +581,7 @@ function renderComposerMeta(){
   $("dateHint").textContent = bits.join(" · ");
   const f = FORMATS.find(x => x.key === $("cFormat").value);
   $("formatHint").textContent = f ? f.note : "";
+  renderFixed();
 
   const text = $("cText").value || "";
   const n = wordCount(text);
@@ -562,7 +739,7 @@ function addClip(title){
 }
 // קליפ נכנס לפוסט: אם יש משבצת ריקה של העמוד המתאים פותחים אותה, אחרת פוסט חופשי.
 function useClip(c){
-  const empty = slots().find(s => s.pillar !== "when" && !slotPost(s));
+  const empty = slots().find(s => s.pillar !== "when" && !slotPost(s) && !isPast(s));
   if (empty) openSlot(empty); else newPost();
   $("cIdea").value = c.title;
   setClip(c.id, "used");
@@ -625,8 +802,9 @@ async function markScheduled(id){
 /* ===== ציור ===== */
 // כמה משבצות מוכנות השבוע. משמש את שורת "עכשיו".
 export function weekProgress(){
-  const list = slots();
-  return { done: list.filter(s => isDone(slotPost(s))).length, total: list.length };
+  // רק משבצות שעוד אפשר למלא. משבצת שעברה וריקה אינה חוב.
+  const live = slots().filter(s => slotPost(s) || !isPast(s));
+  return { done: live.filter(s => isDone(slotPost(s))).length, total: live.length };
 }
 export function render(){
   emit("state");
@@ -668,6 +846,27 @@ export function init(){
     r.onload = () => { $("cPreview").src = r.result; $("cPreview").hidden = false; };
     r.readAsDataURL(f);
     status("compStatus", "ok", "התמונה תעלה בשמירה.");
+  });
+
+  // השיחה השבועית
+  $("briefStart").addEventListener("click", (e) => startBrief(e.currentTarget));
+  $("briefPhotos").addEventListener("change", (e) => {
+    const files = [...(e.target.files || [])].filter(f => f.size <= 8 * 1024 * 1024);
+    briefPending = files.slice(0, 6);
+    if (briefPending.length < (e.target.files || []).length)
+      status("briefStatus", "warn", "לקחתי עד 6 תמונות, וכל אחת עד 8MB.");
+    else status("briefStatus", "", `${briefPending.length} תמונות מוכנות להעלאה.`);
+  });
+  $("briefSend").addEventListener("click", () => answer($("briefFree").value));
+  $("briefFree").addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); answer(e.target.value); } });
+  $("briefSkip").addEventListener("click", () => { if (askedQ) answer("לא רלוונטי"); });
+  $("briefStop").addEventListener("click", () => buildWeek());
+  $("briefRestart").addEventListener("click", () => {
+    brief = { text: "", photos: [], answers: [] };
+    briefPending = []; askedQ = null;
+    $("briefText").value = "";
+    $("briefDone").hidden = true; $("briefQuestion").hidden = true; $("briefIntake").hidden = false;
+    saveBrief(); renderBrief(); status("briefStatus", "", "");
   });
 
   $("exportCsv").addEventListener("click", exportCsv);

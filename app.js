@@ -7,6 +7,7 @@ import * as Shifts from "./shifts.js";
 import * as Creative from "./creative.js";
 import * as Reach from "./reach.js";
 import * as Ops from "./ops.js";
+import * as People from "./people.js";
 import * as Poster from "./poster.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
@@ -23,7 +24,7 @@ function selectTab(name){
     if (panel) panel.hidden = t !== name;
   }
   try { localStorage.setItem("cortado-tab", name); } catch {}
-  if (name === "team") Ops.loadReminders();
+  if (name === "team"){ Ops.loadReminders(); People.render(); }
   if (name === "creative"){ Creative.render(); Poster.wake(); }
   if (name === "reach") Reach.render();
 }
@@ -129,6 +130,7 @@ Shifts.init();
 Creative.init();
 Reach.init();
 Ops.init();
+People.init();
 Poster.init();
 Launch.init();
 Now.init();
