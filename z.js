@@ -152,7 +152,9 @@ async function sendReport(it, form, btn){
   btn.disabled = true; btn.textContent = "שולח…";
   try {
     await setDoc(doc(db, "log", `${it.date}_${it.shift}_${token}`), {
-      date: it.date, shift: it.shift, token, by: me.name || "",
+      // week נשלח כדי שהכללים יוכלו לאמת מול ההרשמה שהעובד באמת לקח
+      // את המשמרת. בלעדיו אי אפשר לגזור את מזהה השבוע מתוך התאריך.
+      date: it.date, week: it.wid, shift: it.shift, token, by: (me.name || "").slice(0, 80),
       customers: form.customers,
       peak: (form.peak || "").slice(0, 10),
       weather: (form.weather || "").slice(0, 40),

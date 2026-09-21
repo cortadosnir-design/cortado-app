@@ -14,16 +14,23 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // תמונות של פוסטים: כולם יכולים לקרוא (פייסבוק ואינסטגרם צריכים גישה), רק המנהל מעלה.
+    /* ⚠️ הקובץ הזה לא נפרס. הפרויקט על תוכנית Spark ו-Cloud Storage כבוי —
+       ראה CLAUDE.md §2, ו-.github/workflows/deploy.yml שפורס hosting+firestore
+       בלבד. הוא נשמר לתיעוד, ומהודק מראש: ביום שמישהו יעבור ל-Blaze ויפרוס
+       אותו, "allow read: if true" היה הופך תמונות של צוות ולקוחות לציבוריות
+       על סמך זה שקשה לנחש שם קובץ. עדיף שזה יישבר ויתוקן מאשר שייפתח בשקט. */
+
+    // תמונות של פוסטים. אם יום אחד באמת צריך קריאה ציבורית בשביל Meta,
+    // פותחים במפורש כאן — בהחלטה, לא בברירת מחדל.
     match /posts/{file} {
-      allow read: if true;
+      allow read: if isOwner();
       allow write: if isOwner() && isImage();
     }
 
-    // תמונות השיחה השבועית. הקריאה פתוחה כי השרת שולח אותן ל-Gemini
-    // בלי הזדהות, והכתובת עצמה מכילה טוקן אקראי שאי אפשר לנחש.
+    // תמונות השיחה השבועית. היום הן ממילא נשלחות כ-data URL ישירות
+    // מהדפדפן ולא עוברות דרך אחסון בכלל.
     match /brief/{week}/{file} {
-      allow read: if true;
+      allow read: if isOwner();
       allow write: if isOwner() && isImage();
     }
   }
