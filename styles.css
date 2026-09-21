@@ -606,3 +606,10 @@ body.sheeton{overflow:hidden}
 .asset.drv img{outline:2px solid transparent;outline-offset:2px}
 .asset.drv.on img{outline-color:var(--accent,#2d5a87)}
 .asset .apillar{font-size:11px;padding:1px 2px;max-width:80px}
+
+/* תוכנית השיגור השבועי: שורה ליום, ומה שכבר לא רלוונטי דהוי. */
+.wkplan { display: grid; gap: 2px; margin: 10px 0; }
+.wkrow { display: grid; grid-template-columns: 5em 1fr auto; gap: 10px; align-items: baseline;
+  padding: 7px 10px; border-radius: 8px; background: var(--card-2, rgba(0,0,0,.03)); }
+.wkrow.off { opacity: .45; }
+.wkrow span:last-child { text-align: left; }

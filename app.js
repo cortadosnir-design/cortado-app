@@ -6,6 +6,7 @@ import { S, auth, db, provider, $, addDays, weekId, defaultWeekStart, emit, on, 
 import * as Shifts from "./shifts.js";
 import * as Creative from "./creative.js";
 import * as Drive from "./drive.js";
+import * as Weekly from "./weekly.js";
 import * as Reach from "./reach.js";
 import * as Ops from "./ops.js";
 import * as People from "./people.js";
@@ -171,6 +172,7 @@ onAuthStateChanged(auth, async (user) => {
 Shifts.init();
 Creative.init();
 Drive.bind();
+Weekly.bind();
 Reach.init();
 Ops.init();
 People.init();

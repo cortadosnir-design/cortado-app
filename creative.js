@@ -1412,7 +1412,13 @@ async function renderMeta(){
 async function checkPublish(){
   if (publishOk) return true;
   if (!WORKER_URL || !S.isOwner) return false;
-  try { const r = await api("/publish/state", {}); publishOk = !!(r && r.facebook); }
+  try {
+    const r = await api("/publish/state", {});
+    publishOk = !!(r && r.facebook);
+    // מזהה העמוד נשמר בתצורה — ממנו ה-QR שבפוסטר בונה את הכתובת.
+    // נשמר פעם אחת, לא בכל טעינה: זו כתיבה לפיירסטור.
+    if (r && r.pageId && Card.cfg().fbPageId !== r.pageId) await Card.saveCfg({ fbPageId: r.pageId });
+  }
   catch { publishOk = false; }
   renderExport();
   return publishOk;

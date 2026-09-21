@@ -888,7 +888,11 @@ async function publishDue(env){
 }
 
 async function publishState(env){
-  return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID, queue: !!env.FIREBASE_SA };
+  // pageId יוצא החוצה בכוונה: הוא מזהה ציבורי (facebook.com/<id> עובד לכל
+  // אחד), והפוסטר בונה ממנו את ה-QR. כתובת לפי מזהה לא נשברת כששם
+  // המשתמש של העמוד משתנה.
+  return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID,
+    queue: !!env.FIREBASE_SA, pageId: env.FB_PAGE_ID || "", igUser: env.IG_USER_ID || "" };
 }
 
 /* ===== מספרים אמיתיים במקום הקלדה =====

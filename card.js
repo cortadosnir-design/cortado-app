@@ -6,6 +6,7 @@ import { S, db, DAYS, DAYS_SHORT, $, el, clear, ymd, dm, fromYmd, addDays, doc, 
   onSnapshot, serverTimestamp, track } from "./core.js";
 import { CARD, BRAND, THEMES, TARGETS, targetOf } from "./playbook.js";
 import { hoursByDay, phase } from "./shifts.js";
+import { drawQR } from "./qr.js";
 
 /* ===== ספריית המדיה =====
    כל מה שאפשר לשים על כרטיס יושב כאן: סמלים, צילומי עגלה, מדבקות, חותמות,
@@ -197,8 +198,10 @@ const LAYOUT_HINT = {
   // שני אלה לא מציירים צילום בכלל: הטקסט הוא התוכן, והרקע הוא צבע המותג.
   week:  { headlinePos: "none", showHours: false, scrimStyle: "none", accentBar: false },
   today: { headlinePos: "none", showHours: false, scrimStyle: "none", accentBar: false },
+  // הפוסטר השבועי: הצילום כן מצויר, אבל ברצועה אחת ולא כרקע מלא.
+  poster: { headlinePos: "none", showHours: false, scrimStyle: "none", accentBar: false, theme: "poster" },
 };
-const IS_BOARD = (l) => l === "week" || l === "today";
+const IS_BOARD = (l) => l === "week" || l === "today" || l === "poster";
 
 export async function build(opts = {}){
   const { photo = "", headline = "", date = "", layout = "photo", target = "", mark = "" } = opts;
@@ -226,7 +229,7 @@ export async function build(opts = {}){
   const [img, badge] = await Promise.all([loadImage(photo), loadImage(mark || markUrl(c))]);
   ctx.fillStyle = c.bg || "#22303c";
   ctx.fillRect(0, 0, W, H);
-  if (img){
+  if (img && layout !== "poster"){
     const r = Math.max(W / img.width, H / img.height);
     const w = img.width * r, h = img.height * r;
     // ברקע של לוח הצילום מטושטש לפני שמכסים אותו. טשטוש קודם להלבנה
@@ -259,7 +262,8 @@ export async function build(opts = {}){
   /* לוח השעות: שבוע שלם או יום אחד. כאן הטקסט הוא התוכן, לא כיתוב על
      צילום — ולכן יש לו מסלול ציור משלו והוא מסיים את הכרטיס. */
   if (IS_BOARD(layout)){
-    drawBoard(ctx, { W, H, box, c, layout, date, badge, logoW: Math.round(W * (c.logoSize || .2)) });
+    const board = { W, H, box, c, layout, date, badge, img, logoW: Math.round(W * (c.logoSize || .2)) };
+    if (layout === "poster") drawPoster(ctx, board); else drawBoard(ctx, board);
     if (c.showGuides) drawGuides(ctx, W, H, box, t);
     return cv.toDataURL("image/jpeg", .9);
   }
@@ -542,6 +546,195 @@ function drawBoard(ctx, o){
     ctx.fillText(`${BRAND.place} · ${c.waze || ""}`, R, ly + Math.round(lh * .45) + Math.round(ns * 1.15));
     ctx.globalAlpha = 1;
   }
+  ctx.restore();
+}
+
+/* ===== הפוסטר השבועי =====
+   הפורמט שנבחר: לוגו, "שעות פתיחה", טווח התאריכים, שבע שורות ימים,
+   רצועת צילום עם משפט, ופוטר עם QR.
+
+   מה שמחזיק אותו נכון לאורך זמן: כל מספר כאן מגיע מ-weekHours(), כלומר
+   מהמשמרות ששובצו. אין כאן טקסט שמישהו מקליד, ולכן פוסטר לא יכול
+   להכריז שעות שסותרות את הלוח.
+
+   היום של הפרסום מודגש — לוח רך בצבע המותג, פס בקצה, וכתב מודגש.
+   זה מה שהופך פוסטר שבועי אחד לשבעה פוסטים יומיים. */
+function coverRect(ctx, img, dx, dy, dw, dh, focusY = .5){
+  if (!img) return;
+  const r = Math.max(dw / img.width, dh / img.height);
+  const w = img.width * r, h = img.height * r;
+  ctx.save(); ctx.beginPath(); ctx.rect(dx, dy, dw, dh); ctx.clip();
+  ctx.drawImage(img, dx + (dw - w) / 2, dy + (dh - h) * focusY, w, h);
+  ctx.restore();
+}
+
+// "יום א" עד "יום ה", ואז "שישי" ו"שבת" — כמו שכתוב על הפוסטר בעגלה.
+const dayLabel = (i) => i < 5 ? "יום " + DAYS_SHORT[i] : DAYS[i];
+
+/* הכתובת שה-QR מצביע עליה. מזהה העמוד מגיע מהשרת ונשמר בתצורה, כי
+   כתובת שמבוססת על מזהה לא נשברת כששם המשתמש של העמוד משתנה. */
+export function qrLinks(c = cfg()){
+  const out = [];
+  const which = c.qrWhich || "fb";
+  const fb = c.qrFbUrl || (c.fbPageId ? `https://www.facebook.com/${c.fbPageId}` : "");
+  if ((which === "fb" || which === "both") && fb) out.push({ url: fb, label: "פייסבוק" });
+  if ((which === "ig" || which === "both") && BRAND.ig) out.push({ url: `https://instagram.com/${BRAND.ig}`, label: "אינסטגרם" });
+  return out;
+}
+
+function drawPoster(ctx, o){
+  const { W, H, box, c, date, badge, img } = o;
+  const days = weekHours();
+  const today = weekIndex(date);
+  const ink = c.ink, accent = c.accent, bg = c.boardBg || "#f7eaca";
+  const u = box.h / 1500;                 // כל המידות נגזרות מגובה האזור הבטוח
+  const px = (n) => Math.round(n * u);
+  const links = qrLinks(c);
+
+  ctx.save();
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  const cx = box.x + box.w / 2;
+  let y = box.y;
+  ctx.textAlign = "center";
+
+  /* הסמל */
+  if (badge){
+    const sw = px(124), sh = Math.round(sw * (badge.height / badge.width || 1));
+    ctx.drawImage(badge, cx - sw / 2, y, sw, sh);
+    y += sh + px(26);
+  }
+
+  /* הכותרת וטווח התאריכים */
+  const tSize = px(78);
+  ctx.fillStyle = ink;
+  ctx.font = `400 ${tSize}px "${c.display}", system-ui, sans-serif`;
+  y += tSize;
+  ctx.fillText("שעות פתיחה", cx, y);
+  y += px(48);
+  ctx.fillStyle = accent;
+  ctx.font = `700 ${px(44)}px "${c.body}", system-ui, sans-serif`;
+  ltr(ctx, weekRange(), cx, y);
+
+  /* הקו המפריד עם הנקודה */
+  y += px(34);
+  const dw = px(195), dgap = px(55);
+  ctx.save(); ctx.globalAlpha = .3; ctx.fillStyle = ink;
+  ctx.fillRect(cx - dgap - dw, y, dw, 2);
+  ctx.fillRect(cx + dgap, y, dw, 2);
+  ctx.restore();
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.arc(cx, y + 1, Math.max(3, px(6)), 0, Math.PI * 2); ctx.fill();
+  y += px(38);
+
+  /* שבע השורות */
+  const panelW = Math.round(box.w * .94), panelX = cx - panelW / 2;
+  const rh = px(62);
+  for (let i = 0; i < days.length; i++){
+    const d = days[i], on = i === today;
+    if (on){
+      // ההדגשה של היום: לוח רך, ופס בצבע המותג בקצה.
+      ctx.save();
+      ctx.globalAlpha = .12; ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.roundRect(panelX - px(16), y + px(3), panelW + px(32), rh - px(6), px(14));
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillRect(panelX + panelW + px(16) - px(6), y + px(3), px(6), rh - px(6));
+      ctx.restore();
+    } else if (c.rowRule){
+      ctx.save(); ctx.globalAlpha = .12; ctx.fillStyle = ink;
+      ctx.fillRect(panelX, y + rh - 1, panelW, 1); ctx.restore();
+    }
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = on ? accent : ink;
+    ctx.font = `700 ${px(on ? 42 : 38)}px "${c.body}", system-ui, sans-serif`;
+    ctx.fillText(dayLabel(i), panelX + panelW, y + rh * .68);
+
+    ctx.textAlign = "left";
+    ctx.font = `${on ? 700 : 600} ${px(on ? 40 : 36)}px "${c.body}", system-ui, sans-serif`;
+    if (d.open){
+      ctx.fillStyle = on ? accent : ink;
+      ltr(ctx, d.text.split("  ").join("   ·   "), panelX, y + rh * .68);
+    } else {
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = on ? 1 : .82;
+      ctx.fillText("סגור", panelX, y + rh * .68);
+      ctx.globalAlpha = 1;
+    }
+    y += rh;
+  }
+  const rowsEnd = y + px(24);
+
+  /* הפוטר — נקבע מלמטה, והצילום מקבל את מה שנשאר */
+  const footH = links.length ? px(210) : px(140);
+  const footTop = box.y + box.h - footH;
+  const heroTop = rowsEnd;
+  const heroH = Math.max(px(200), footTop - px(46) - heroTop);
+
+  /* רצועת הצילום. המשפט יושב בתוכה, על הצללה — ככה הצילום מקבל את כל
+     הגובה שנשאר במקום לוותר על רצועה שלמה בשביל שורת טקסט אחת. */
+  if (img){
+    coverRect(ctx, img, 0, heroTop, W, heroH, typeof c.posterFocus === "number" ? c.posterFocus : .5);
+    const fadeT = px(70), fadeB = px(80);
+    const gT = ctx.createLinearGradient(0, heroTop, 0, heroTop + fadeT);
+    gT.addColorStop(0, bg); gT.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gT; ctx.fillRect(0, heroTop, W, fadeT);
+    const gB = ctx.createLinearGradient(0, heroTop + heroH - fadeB, 0, heroTop + heroH);
+    gB.addColorStop(0, "rgba(0,0,0,0)"); gB.addColorStop(1, bg);
+    ctx.fillStyle = gB; ctx.fillRect(0, heroTop + heroH - fadeB, W, fadeB);
+
+    if (c.posterTag){
+      // לבן על צילום בהיר לא נקרא — לכן הצללה מתחת למשפט, תמיד.
+      const scrimH = px(118), scrimBot = heroTop + heroH - fadeB;
+      const gS = ctx.createLinearGradient(0, scrimBot - scrimH, 0, scrimBot);
+      gS.addColorStop(0, "rgba(0,0,0,0)"); gS.addColorStop(1, "rgba(0,0,0,.58)");
+      ctx.fillStyle = gS; ctx.fillRect(0, scrimBot - scrimH, W, scrimH);
+      ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+      ctx.font = `400 ${px(42)}px "${c.display}", system-ui, sans-serif`;
+      ctx.fillText(c.posterTag, cx, scrimBot - px(16));
+    }
+  }
+
+  /* הפוטר */
+  ctx.save(); ctx.globalAlpha = .26; ctx.fillStyle = ink;
+  ctx.fillRect(box.x, footTop, box.w, 2); ctx.restore();
+
+  let textLeft = box.x;
+  if (links.length){
+    const qs = Math.min(px(172), Math.round(box.w * .19));
+    let qx = box.x;
+    for (const link of links){
+      // אזור שקט של שלושה מודולים לפחות — בלעדיו סורקים רבים לא רואים את הקוד
+      drawQR(ctx, link.url, qx, footTop + px(22), qs, { dark: ink, light: bg, quiet: 3 });
+      ctx.textAlign = "center"; ctx.fillStyle = ink;
+      ctx.font = `600 ${px(24)}px "${c.body}", system-ui, sans-serif`;
+      ctx.globalAlpha = .75;
+      ctx.fillText(link.label, qx + qs / 2, footTop + px(22) + qs + px(28));
+      ctx.globalAlpha = 1;
+      qx += qs + px(22);
+    }
+    textLeft = qx + px(24);
+  }
+
+  const fy = footTop + px(74), fy2 = fy + px(46);
+  ctx.textAlign = "right"; ctx.fillStyle = ink;
+  ctx.font = `700 ${px(38)}px "${c.body}", system-ui, sans-serif`;
+  ctx.fillText(BRAND.place, box.x + box.w, fy);
+  ctx.font = `600 ${px(30)}px "${c.body}", system-ui, sans-serif`;
+  ctx.globalAlpha = .7;
+  ctx.fillText(c.waze || "", box.x + box.w, fy2);
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = "left";
+  ctx.font = `700 ${px(38)}px "${c.body}", system-ui, sans-serif`;
+  ctx.fillText(BRAND.name, textLeft, fy);
+  ctx.font = `600 ${px(30)}px "${c.body}", system-ui, sans-serif`;
+  ctx.globalAlpha = .7;
+  ltr(ctx, "@" + BRAND.ig, textLeft, fy2);
+  ctx.globalAlpha = 1;
+
   ctx.restore();
 }
 

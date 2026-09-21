@@ -346,6 +346,12 @@ export const THEMES = {
              headlinePos: "none",   align: "right", accentBar: false, shadow: false,
              ink: "#3c3228", accent: "#a74218", boardBg: "#f7eaca",
              wash: .9, washBlur: .012, rowRule: true },
+  // הפוסטר השבועי: רקע שמנת, טקסט פחם, צילום המקום ברצועה אחת.
+  // זו הערכה של הפורמט שרץ בעגלה — ולכן גם ברירת המחדל של layout "poster".
+  poster:  { label: "פוסטר השבוע", scrimStyle: "none", scrim: 0, block: false, frame: false,
+             headlinePos: "none",   align: "right", accentBar: false, shadow: false,
+             ink: "#3c3228", accent: "#a74218", boardBg: "#f7eaca",
+             wash: 1, washBlur: 0, rowRule: true },
   minimal: { label: "מינימלי",    scrimStyle: "gradient", scrim: .40, block: false, frame: false,
              headlinePos: "none",   align: "right", accentBar: true,  shadow: true },
 };
@@ -393,5 +399,14 @@ export const CARD = {
   hoursSize: .046,
   showWaze: true,
   waze: "בווייז: קפה קורטדו",
+  /* ===== הפוסטר השבועי ===== */
+  posterTag: "קפה טוב, נוף שאין לו סוף",   // המשפט שעל הצילום
+  posterFocus: .5,                          // מיקוד החיתוך של הרצועה
+  posterTime: "08:00",                      // שעת השיגור היומית
+  /* קוד QR בפוטר. fb | ig | both | none.
+     כתובת הפייסבוק נגזרת ממזהה העמוד שבשרת — כתובת שמבוססת על מזהה
+     תמיד תקפה, גם אם שם המשתמש של העמוד ישתנה. */
+  qrWhich: "fb",
+  qrFbUrl: "",                              // דריסה ידנית, אם יש כתובת יפה יותר
   showGuides: false,             // קווי האזור הבטוח — לכיוונון בלבד, לא בפרסום
 };
