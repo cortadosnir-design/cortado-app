@@ -10,6 +10,36 @@ const PHASES = {
   locked:       { label: "שבוע סגור",     cls: ""     },
 };
 const DEFAULT_SHIFT = { start: "06:30", end: "11:00", need: 1 };
+
+/* ===== שעות הפתיחה הקבועות =====
+   מה שכתוב בדף העסק בגוגל, לפי יום בשבוע. זה המקור היחיד לכפתור
+   "מלא לפי שעות הפתיחה" — משנים כאן, וכל שבוע חדש נבנה מהשעות החדשות.
+   כל יום הוא רשימת חלונות [התחלה, סיום]; רשימה ריקה = סגור.
+   יום שני פתוח בשעות הבוקר הרגילות — בשבוע של יום כיפור הוא נסגר לבד,
+   כי CLOSED_ON למטה מזהה את החג. */
+export const WEEK_HOURS = [
+  [["09:00","12:00"]],                      // ראשון
+  [["09:00","12:00"]],                      // שני
+  [["09:00","12:00"], ["16:00","19:00"]],   // שלישי
+  [["09:30","12:30"]],                      // רביעי
+  [["09:30","12:30"]],                      // חמישי
+  [["09:00","12:00"]],                      // שישי
+  [["16:30","19:00"]],                      // שבת
+];
+// חגים שבהם העגלה סגורה לגמרי. בסוכות ובשאר החגים פותחים כרגיל.
+const CLOSED_ON = ["יום כיפור"];
+const isClosed = (d) => { const h = holidayOn(d); return !!h && CLOSED_ON.some(n => h[1].startsWith(n)); };
+
+/** המשמרות של השבוע המוצג לפי WEEK_HOURS, בלי הימים שהעגלה סגורה בהם. */
+export function templateShifts(weekStart = S.weekStart){
+  const out = [];
+  for (let i = 0; i < 7; i++){
+    if (isClosed(addDays(weekStart, i))) continue;
+    for (const [start, end] of (WEEK_HOURS[i] || []))
+      out.push({ id: newId(), day: i, start, end, need: 1 });
+  }
+  return out;
+}
 const repaired = new Set();
 let loaded = false;   // האם ה-snapshot הראשון של השבוע הגיע
 
@@ -489,6 +519,13 @@ export function init(){
     const next = shiftsOf().map(s => ({ ...s, start: first.start, end: first.end, need: first.need }));
     saveWeek({ shifts: next });
   });
+  $("fillTemplate").addEventListener("click", async (e) => withBusy(e.currentTarget, async () => {
+    const next = templateShifts();
+    if (!next.length){ status("mgrStatus", "warn", "אין שעות פתיחה מוגדרות לשבוע הזה."); return; }
+    if (shiftsOf().length && !confirm("להחליף את המשמרות של השבוע בשעות הפתיחה הקבועות?")) return;
+    await purgeSignups(S.signups.map(u => u.shift));
+    await saveWeek({ shifts: next });
+  }));
   $("copyPrevWeek").addEventListener("click", async (e) => withBusy(e.currentTarget, async () => {
     try {
       const snap = await getDoc(doc(db, "weeks", weekId(addDays(S.weekStart, -7))));
