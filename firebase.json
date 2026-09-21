@@ -8,7 +8,8 @@
       "*.md",
       "worker/**",
       "tests/**",
-      "harness.html"
+      "harness.html",
+      "sim.html"
     ],
     "headers": [
       {

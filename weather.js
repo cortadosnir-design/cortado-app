@@ -54,7 +54,7 @@ function writeCache(days){
 export async function load(){
   if (cache) return cache;
   const cached = readCache();
-  if (cached){ cache = cached; return cache; }
+  if (cached){ cache = cached; emit("weather", cache); return cache; }
   if (Date.now() - lastFail < RETRY_MS) return [];
 
   const p = new URLSearchParams({

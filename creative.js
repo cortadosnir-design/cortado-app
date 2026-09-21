@@ -959,7 +959,7 @@ function exportCsv(){
   rows.forEach(p => (p.network || NETS).forEach(net =>
     body.push([p.date, p.time || "10:30", net, fullText(p), "", p.image || ""].map(esc).join(","))));
   download(`cortado-${wid()}.csv`, [head.join(","), ...body].join("\n"), "text/csv;charset=utf-8");
-  status("exportStatus", "ok", `${rows.length} פוסטים, שורה לכל רשת. העלה במתזמן (Bulk / Import) וסמן כאן 'תוזמן'.`);
+  status("exportStatus", "ok", `${rows.length} פוסטים, שורה לכל רשת. העלה במתזמן (Bulk / Import), ואז "כולם תוזמנו ✓".`);
 }
 
 function copyAll(btn){
@@ -992,6 +992,31 @@ async function markScheduled(id){
   try { await setDoc(doc(db, "posts", id), { status: "scheduled" }, { merge: true }); }
   catch { status("exportStatus", "bad", "העדכון נכשל."); }
 }
+async function markAllScheduled(btn){
+  const rows = exportRows();
+  if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לסמן."); return; }
+  await withBusy(btn, async () => {
+    for (const p of rows) await markScheduled(p.id);
+    status("exportStatus", "ok", `${rows.length} סומנו כמתוזמנים. "פורסם" יסומן לבד כשהזמן יעבור.`);
+  });
+}
+
+// פוסט שתוזמן במתזמן וזמנו עבר — פורסם. המתזמן עשה את זה, לא צריך לספר לאפליקציה.
+// רץ בכל ציור; כותב רק מה שהשתנה, פעם אחת לכל פוסט.
+const sweeping = new Set();
+function sweepPublished(){
+  if (!S.isOwner) return;
+  const now = new Date();
+  for (const p of S.posts){
+    if (p.status !== "scheduled" || !p.date || sweeping.has(p.id)) continue;
+    const at = fromYmd(p.date); const [h, m] = String(p.time || "23:59").split(":").map(Number);
+    at.setHours(h || 0, m || 0, 0, 0);
+    if (at > now) continue;
+    sweeping.add(p.id);
+    setDoc(doc(db, "posts", p.id), { status: "done", doneAt: serverTimestamp(), doneBy: "auto" }, { merge: true })
+      .catch(() => sweeping.delete(p.id));
+  }
+}
 
 /* ===== ציור ===== */
 // כמה משבצות מוכנות השבוע. משמש את שורת "עכשיו".
@@ -1001,6 +1026,7 @@ export function weekProgress(){
   return { done: live.filter(s => isDone(slotPost(s))).length, total: live.length };
 }
 export function render(){
+  sweepPublished();
   emit("state");
   if ($("p-creative").hidden) return;
   renderBoard();
@@ -1070,6 +1096,7 @@ export function init(){
   });
 
   $("exportCsv").addEventListener("click", exportCsv);
+  $("scheduleAll").addEventListener("click", (e) => markAllScheduled(e.currentTarget));
   $("copyWeek").addEventListener("click", (e) => copyAll(e.currentTarget));
 
   // בנק הקליפים

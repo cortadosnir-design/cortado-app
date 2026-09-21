@@ -285,8 +285,38 @@ console.log("\n15. מעקב אחרי העדכון הידני בגוגל");
   ok("googleAt על מסמך השבוע נקרא כ'סומן'", wrote.marked === true);
   await p.close();
 }
+/* ── 16. מה שהאפליקציה עושה לבד ── */
+console.log("\n16. סימוני סטטוס שנעשים לבד");
+{
+  const p = await fresh();
+  // פוסט שתוזמן ל-אתמול → "פורסם" בלי נגיעה
+  const r = await p.evaluate(async () => {
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const d = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,"0")}-${String(y.getDate()).padStart(2,"0")}`;
+    window.__store.posts["old"] = { week: "wtest", date: d, time: "10:00", status: "scheduled", text: "אתמול" };
+    window.__store.posts["fut"] = { week: "wtest", date: "2099-01-01", time: "10:00", status: "scheduled", text: "עתיד" };
+    window.S.posts = Object.entries(window.__store.posts).map(([id, x]) => ({ id, ...x }));
+    window.C.render();
+    await new Promise(r => setTimeout(r, 200));
+    return { old: window.__store.posts.old.status, fut: window.__store.posts.fut.status, by: window.__store.posts.old.doneBy };
+  });
+  ok("מתוזמן שזמנו עבר → פורסם, לבד", r.old === "done" && r.by === "auto", JSON.stringify(r));
+  ok("מתוזמן לעתיד נשאר מתוזמן", r.fut === "scheduled");
+  // "כולם תוזמנו" — נגיעה אחת לכל המוכנים
+  await p.evaluate(() => { window.__store.posts = {}; window.S.posts = []; });
+  await p.evaluate(() => window.C.newPost());
+  await p.fill("#cText", "פוסט ראשון מוכן לתזמון."); await p.fill("#cLine", "שורה שלי.");
+  await p.click("#saveReady"); await p.waitForTimeout(300);
+  await p.evaluate(() => document.getElementById("closeComposer").click());
+  await p.evaluate(() => { document.getElementById("exportCard").open = true; });
+  await p.click("#scheduleAll"); await p.waitForTimeout(300);
+  const st = await p.evaluate(() => Object.values(window.__store.posts).map(x => x.status));
+  ok("'כולם תוזמנו ✓' מסמן את כל המוכנים", st.length === 1 && st[0] === "scheduled", st.join(","));
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();
 process.exit(fail ? 1 : 0);
+
 

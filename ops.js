@@ -2,6 +2,7 @@
 import { S, emit, on, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
   status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, whoOf, track, makeToken, zLink,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
+import * as Weather from "./weather.js";
 
 const MIN_ENTRIES = 5;
 const WEATHER = ["","נעים","חם","שרב","גשום","קר","רוח"];
@@ -234,11 +235,30 @@ export function renderLog(){
   }
 }
 
+// מזג האוויר של היום כבר ידוע מהתחזית. הבעלים לא צריך לבחור אותו מרשימה —
+// רק לתקן אם התחזית פספסה. ממופה לשבע האפשרויות של היומן.
+const FORECAST_TO_LOG = [
+  [/שרב/, "שרב"], [/גשם|טפטוף|רעמים|שלג/, "גשום"], [/ערפל|מעונן/, "נעים"], [/בהיר/, "נעים"],
+];
+export function prefillWeather(){
+  const sel = $("lWeather"), date = $("lDate") && $("lDate").value;
+  if (!sel || !date || sel.value) return;
+  const f = Weather.forDate(date);
+  if (!f) return;
+  let v = "";
+  if (f.tmax >= 38) v = "שרב";
+  else if (f.tmax >= 32) v = "חם";
+  else if (f.tmax <= 14) v = "קר";
+  else for (const [re, val] of FORECAST_TO_LOG) if (re.test(f.label || "")){ v = val; break; }
+  if (v && WEATHER.includes(v)){ sel.value = v; sel.title = "מהתחזית — שנה אם היה אחרת"; }
+}
+
 /* ===== חיווט ===== */
 export function init(){
   on("state", () => { if (!$("p-team").hidden) renderRoster(); });
   WEATHER.forEach(w => $("lWeather").append(el("option", { value: w, text: w || "—" })));
   $("lDate").value = ymd(new Date());
+  prefillWeather();
 
   $("tSave").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     const name = $("tName").value.trim();
@@ -269,9 +289,10 @@ export function init(){
         $("lWeather").value = l.weather || ""; $("lPromo").value = l.promo || ""; $("lNotes").value = l.notes || "";
         $("lMissing").value = l.missing || "";
         status("logStatus", "warn", "כבר דיווחת על היום הזה. שמירה תעדכן את הדיווח.");
-      } else { ["lCustomers","lPeak","lPromo","lNotes","lMissing"].forEach(i => $(i).value = ""); status("logStatus", "", ""); }
+      } else { ["lCustomers","lPeak","lPromo","lNotes","lMissing"].forEach(i => $(i).value = ""); $("lWeather").value = ""; prefillWeather(); status("logStatus", "", ""); }
     } catch {}
   });
+  on("weather", prefillWeather);
 
   $("lSave").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     const date = $("lDate").value;
