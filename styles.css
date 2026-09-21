@@ -429,3 +429,17 @@ table.t tr.me a{color:var(--accent)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb .icon{position:absolute;inset-block-start:2px;inset-inline-end:2px;min-height:0;padding:0 5px;
   border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:12px;line-height:1.6}
+
+/* ===== תחזית מזג אוויר =====
+   שבעה תאים מעל לוח המשמרות. הצבע הוא האות: ירוק נוח, אדום יום בעייתי.
+   משתמש באותם טוקנים כמו שאר האפליקציה, אז מצב כהה עובד לבד. */
+.wx{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:2px 0 4px}
+.wxday{display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:6px 2px;border-radius:10px;background:var(--sunken);color:var(--muted);
+  font-size:13px;line-height:1.2;cursor:default}
+.wxday.wx-good{background:var(--ok-soft);color:var(--ok)}
+.wxday.wx-bad{background:var(--bad-soft);color:var(--bad)}
+.wxd{font-weight:700;font-size:12px;opacity:.75}
+.wxi{font-size:17px;line-height:1.1}
+.wxt{font-weight:600;font-variant-numeric:tabular-nums}
+.wxnote{grid-column:1/-1;margin:2px 0 0;color:var(--muted)}

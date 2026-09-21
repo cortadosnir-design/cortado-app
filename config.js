@@ -21,3 +21,8 @@ export const OWNER_EMAILS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
 
 // כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
 export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
+
+// מיקום העגלה, לתחזית מזג האוויר. קואורדינטות מקורבות של קיבוץ שניר.
+// אם התחזית נראית לא מדויקת: פותחים את Google Maps על העגלה, לוחצים ימני
+// על הנקודה, ומעתיקים את שני המספרים לכאן.
+export const PLACE = { lat: 33.24, lon: 35.63, name: "קיבוץ שניר" };

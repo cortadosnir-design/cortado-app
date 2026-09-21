@@ -6,6 +6,7 @@ import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, ho
   } from "./core.js";
 import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
 import { openDays, phase, wid, hoursByDay } from "./shifts.js";
+import * as Weather from "./weather.js";
 
 /* ===== שלושת העמודים ===== */
 export const PILLAR3 = {
@@ -497,6 +498,8 @@ function aiContext(){
     logs: (S.logs || []).slice().sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0, 21)
       .map(l => ({ date: l.date, customers: l.customers, peak: l.peak, weather: l.weather, promo: l.promo })),
     hours: hoursByDay(), openDays: openDays().map(i => DAYS[i]),
+    // תחזית השבוע + מה שמזג אוויר עושה למכירות בפועל, מהיומן שלך.
+    weather: Weather.forAI(), weatherImpact: Weather.impactLine(),
     words: WORDS,
   };
 }

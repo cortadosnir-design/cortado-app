@@ -11,6 +11,7 @@ import * as People from "./people.js";
 import * as Poster from "./poster.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
+import * as Weather from "./weather.js";
 
 const TABS = ["shifts","creative","reach","log","team"];
 const OWNER_TABS = ["creative","reach","team"];
@@ -134,6 +135,7 @@ People.init();
 Poster.init();
 Launch.init();
 Now.init();
+Weather.init();
 Shifts.render();
 Ops.renderLog();
 
