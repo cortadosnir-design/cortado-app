@@ -17,6 +17,7 @@ await new Promise(r => setTimeout(r, 2500));
 let code = 0;
 code |= await run("node", ["tests/ui.mjs"], { PORT });
 code |= await run("node", ["tests/worker.mjs"]);
+code |= await run("node", ["tests/version.mjs"]);
 
 server.kill();
 clean();

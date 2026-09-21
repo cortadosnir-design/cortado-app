@@ -12,6 +12,7 @@ import * as Poster from "./poster.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
 import * as Weather from "./weather.js";
+import { APP_VERSION } from "./config.js";
 
 const TABS = ["shifts","creative","reach","log","team"];
 const OWNER_TABS = ["creative","reach","team"];
@@ -139,4 +140,35 @@ Weather.init();
 Shifts.render();
 Ops.renderLog();
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+/* ===== גרסה ועדכונים =====
+   ה-Service Worker שומר את קבצי האפליקציה. בלי הקוד הזה הוא מתחלף רק
+   מתי שבא לו, והבעלים רואה את הגרסה הישנה אחרי שדחפנו חדשה. */
+const build = $("build");
+if (build) build.textContent = "· " + APP_VERSION;
+
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").then(reg => {
+    const offer = (worker) => {
+      if (!worker) return;
+      worker.addEventListener("statechange", () => {
+        // "installed" + כבר יש שולט = יש גרסה חדשה שממתינה
+        if (worker.state === "installed" && navigator.serviceWorker.controller) show();
+      });
+    };
+    const show = () => { const bar = $("newver"); if (bar) bar.hidden = false; };
+    if (reg.waiting && navigator.serviceWorker.controller) show();
+    reg.addEventListener("updatefound", () => offer(reg.installing));
+    offer(reg.installing);
+
+    const check = () => reg.update().catch(() => {});
+    check();
+    // חוזרים ללשונית אחרי יום — כדאי לבדוק שוב
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+
+    const btn = $("reloadNow");
+    if (btn) btn.addEventListener("click", () => {
+      if (reg.waiting) reg.waiting.postMessage({ type: "skip" });
+      location.reload();
+    });
+  }).catch(() => {});
+}

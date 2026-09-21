@@ -1,6 +1,11 @@
 // ההגדרות של פרויקט Firebase "cortado-ops".
 // הערכים האלה גלויים בדפדפן בכל מקרה, וזה תקין ומתוכנן.
 // האבטחה נאכפת בכללים שב-firestore.rules, לא כאן.
+// גרסת הבנייה. מוצגת בכותרת, וזהה ל-VERSION ב-sw.js (יש בדיקה שמוודאת).
+// **מעלים אותה בכל דחיפה שמשנה קבצים** — אחרת ה-Service Worker לא מתחלף
+// והדפדפן ממשיך להגיש את הגרסה הישנה.
+export const APP_VERSION = "2026-09-21.1";
+
 export const firebaseConfig = {
   apiKey: "AIzaSyD75yNOaZM6prmFAm2iyeLNcgzuQl-gh4Y",
   authDomain: "cortado-ops.firebaseapp.com",

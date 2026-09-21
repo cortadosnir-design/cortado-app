@@ -13,9 +13,15 @@
 </head>
 <body>
 <div id="app">
+  <!-- נדלק כשה-Service Worker הוריד גרסה חדשה. בלי זה הדפדפן ממשיך
+       להגיש את הישנה והאפליקציה "נראית אותו דבר" אחרי כל עדכון. -->
+  <div class="newver" id="newver" hidden>
+    <span>יש גרסה חדשה של האפליקציה.</span>
+    <button class="primary" id="reloadNow">רענן</button>
+  </div>
   <header class="top">
     <div>
-      <div class="eyebrow">קיבוץ שניר</div>
+      <div class="eyebrow">קיבוץ שניר <span class="mono build" id="build"></span></div>
       <h1><span class="mark" aria-hidden="true">☕</span>קורטדו</h1>
     </div>
     <div class="who" id="who" hidden>

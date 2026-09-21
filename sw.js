@@ -1,5 +1,7 @@
 // מטמון בסיסי כדי שהאפליקציה תיפתח מהר, וגם כשאין רשת.
-const CACHE = "cortado-shell-v10";
+// חייב להיות זהה ל-APP_VERSION ב-config.js. tests/version.mjs נופל אם לא.
+const VERSION = "2026-09-21.1";
+const CACHE = "cortado-shell-" + VERSION;
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./playbook.js",
   "./shifts.js", "./creative.js", "./reach.js", "./ops.js", "./poster.js", "./launch.js", "./now.js", "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html"];
 self.addEventListener("install", (e) => {
