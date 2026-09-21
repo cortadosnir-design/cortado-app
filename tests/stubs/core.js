@@ -71,6 +71,10 @@ export function onSnapshot(target, cb){
   setTimeout(() => fire(e), 0);
   return () => { const i = listeners.indexOf(e); if (i >= 0) listeners.splice(i, 1); };
 }
+export async function getDoc(ref){
+  const d = (store[ref.col] || {})[ref.id];
+  return { id: ref.id, exists: () => !!d, data: () => d || {} };
+}
 export async function setDoc(ref, body, opts){
   store[ref.col] = store[ref.col] || {};
   store[ref.col][ref.id] = (opts && opts.merge)

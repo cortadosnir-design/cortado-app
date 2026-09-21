@@ -189,6 +189,8 @@ button.icon.del{align-self:center;min-width:44px;min-height:44px;border-radius:1
 button.icon.del:hover{background:var(--bad-soft);color:var(--bad)}
 .planshift input[type=time]{padding:8px 6px;font-size:16px;min-height:44px}
 .planshift select{padding:8px 6px;min-height:44px}
+/* שעות תמיד במספרים לטיניים ומשמאל לימין, גם בממשק עברי */
+.planshift select.timesel{font-family:var(--mono);font-size:16px;direction:ltr;text-align:center}
 button.icon{border:none;background:none;color:var(--muted);padding:6px 8px;min-width:32px;min-height:32px;font-size:15px;line-height:1}
 button.icon:hover{color:var(--bad)}
 

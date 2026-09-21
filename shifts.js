@@ -149,6 +149,22 @@ function renderAvailabilityForm(){
 }
 
 /* ===== שלב 2: המנהל בונה את השבוע ===== */
+/* שדה שעה משלנו, ולא <input type="time"> של הדפדפן. הסיבה: הדפדפן מצייר
+   את השדה לפי שפת הממשק שלו, ובאנגלית זה שעון 12 שעות — 16:00 נראה
+   "04:00", וה-AM/PM נחתך בפריסה מימין לשמאל. בעגלה זו טעות אמיתית:
+   משמרת ערב שנראית כמו משמרת לילה. רשימה שלנו תמיד 24 שעות, בכל דפדפן. */
+const STEP = 15;
+function timeSelect(value, onpick){
+  const sel = el("select", { class: "timesel", onchange: (e) => onpick(e.target.value) });
+  const opts = [];
+  for (let m = 5 * 60; m <= 23 * 60 + 45; m += STEP) opts.push(fromMin(m));
+  if (value && !opts.includes(value)) opts.push(value);   // שעה חריגה שכבר שמורה
+  opts.sort((a, b) => toMin(a) - toMin(b));
+  opts.forEach(t => sel.append(el("option", { value: t, text: t, selected: t === value || undefined })));
+  return sel;
+}
+
+
 function renderPlanner(){
   const box = clear($("planner"));
   const shifts = shiftsOf();
@@ -171,8 +187,7 @@ function renderPlanner(){
         const row = el("div", { class: "planshift" });
         const field = (label, value, patchKey) => el("label", { class: "tf" },
           el("span", { text: label }),
-          el("input", { type: "time", value, required: true,
-            onchange: (e) => editShift(s.id, { [patchKey]: e.target.value }) }));
+          timeSelect(value, (v) => editShift(s.id, { [patchKey]: v })));
         row.append(field("מתחילה", s.start, "start"));
         row.append(field("נגמרת", s.end, "end"));
         const nd = el("select", { onchange: (e) => editShift(s.id, { need: +e.target.value }) });

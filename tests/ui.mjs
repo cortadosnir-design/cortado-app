@@ -451,8 +451,8 @@ console.log("\n21. משיכת מספרים ממטא");
   ok("כפתור העתקה אחד לכל הקבוצות", copies === 1, String(copies));
   await p.close();
 }
-/* ── 22. דוח Z: צילום, אישור, שמירה, פילוח ── */
-console.log("\n22. דוח Z ופילוח מכירות");
+/* ── 23. דוח Z: צילום, אישור, שמירה, פילוח ── */
+console.log("\n23. דוח Z ופילוח מכירות");
 {
   const p = await fresh();
   await p.evaluate(() => { document.getElementById("p-creative").hidden = true; document.getElementById("p-sales").hidden = false; });
@@ -496,10 +496,55 @@ console.log("\n22. דוח Z ופילוח מכירות");
   ok("דוחות המכירות נטענים ל'שאל את הנתונים'", /דוחות המכירות/.test(await p.textContent("#anaInfo")));
   await p.close();
 }
+/* ── 22. שיגור כל המוכנים בלחיצה אחת ── */
+console.log("\n22. שיגור מרוכז");
+{
+  const p = await fresh();
+  await p.evaluate(() => {
+    window.__api["/publish/state"] = { facebook: true, instagram: true, queue: true };
+    window.__api["/publish/schedule"] = (b) => ({ fbPostId: "fb_" + b.postId, fbPhotoId: "ph", publishAt: b.at, igPending: true });
+  });
+  // שני פוסטים מוכנים השבוע, אחד עם צילום מלא בצד
+  await p.evaluate(() => {
+    const d = (n) => { const x = new Date(window.S.weekStart); x.setDate(x.getDate() + n);
+      return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
+    window.__store.posts = {
+      r1: { week: "wtest", date: d(3), time: "17:30", status: "ready", text: "מוכן א", hashtags: ["#קורטדו"] },
+      r2: { week: "wtest", date: d(5), time: "08:00", status: "ready", text: "מוכן ב", hashtags: [] },
+      dr: { week: "wtest", date: d(2), time: "10:30", status: "idea", text: "טיוטה" },
+    };
+    window.__store.postmedia = { r1: { image: "data:image/jpeg;base64,AAAA" } };
+    window.S.posts = Object.entries(window.__store.posts).map(([id, x]) => ({ id, ...x }));
+    window.C.render();
+  });
+  await p.evaluate(() => { document.getElementById("exportCard").open = true; });
+  await p.waitForTimeout(500);
+  ok("עם שרת מחובר: כפתור שיגור, בלי CSV", await p.locator("#sendAll").isVisible() && await p.locator("#exportCsv").isHidden());
+  p.once("dialog", d => d.accept());
+  await p.click("#sendAll");
+  await p.waitForTimeout(900);
+  const calls = await p.evaluate(() => window.__apiCalls.filter(c => c.path === "/publish/schedule").map(c => ({ id: c.body.postId, img: !!c.body.image })));
+  ok("שוגרו רק המוכנים", calls.length === 2 && calls.every(c => c.id.startsWith("r")), calls.map(c => c.id).join(","));
+  ok("הצילום המלא נשלף מהמסמך הנפרד", (calls.find(c => c.id === "r1") || {}).img === true);
+  const st = await p.evaluate(() => Object.fromEntries(Object.entries(window.__store.posts).map(([k, v]) => [k, v.status])));
+  ok("המוכנים סומנו מתוזמנים, הטיוטה לא", st.r1 === "scheduled" && st.r2 === "scheduled" && st.dr === "idea", JSON.stringify(st));
+  ok("ההודעה מסכמת כמה יצאו", /2/.test(await p.textContent("#exportStatus")), await p.textContent("#exportStatus"));
+  await p.close();
+}
+{
+  // בלי שרת: הדרך הישנה נשארת
+  const p = await fresh();
+  await p.evaluate(() => { window.__api["/publish/state"] = { fail: "אין שרת" }; });
+  await p.evaluate(() => { document.getElementById("exportCard").open = true; });
+  await p.waitForTimeout(500);
+  ok("בלי שרת: CSV נשאר, בלי כפתור שיגור", await p.locator("#exportCsv").isVisible() && await p.locator("#sendAll").isHidden());
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();
 process.exit(fail ? 1 : 0);
+
 
 
 

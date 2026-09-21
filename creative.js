@@ -2,7 +2,7 @@
 // העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
 import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
-  doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
+  doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
 import { FORMATS, TIMING, HASHTAGS, VOICE, COMPETITORS } from "./playbook.js";
 import { openDays, phase, wid, hoursByDay } from "./shifts.js";
@@ -876,11 +876,18 @@ async function savePost(newStatus, btn){
       };
       // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא מצורף בפרסום.
       if (composerThumb) body.thumb = composerThumb;
+      if (composerPhoto) body.hasMedia = true;
       if (editSlot) body.slot = editSlot;
       if (aiOrigin) body.aiDraft = aiOrigin;
       if (lastShoot || $("shootHint").textContent) body.shoot = (lastShoot || $("shootHint").textContent.replace(/^מה לצלם: /, "")).slice(0, 200);
       const id = editing || ("p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6));
       await setDoc(doc(db, "posts", id), body, { merge: true });
+      // הצילום המלא יושב במסמך נפרד: הלוח טוען 150 פוסטים, והוא לא צריך
+      // לגרור מאות קילובייט. נמחק ברגע שהפוסט מתפרסם.
+      if (composerPhoto){
+        try { await setDoc(doc(db, "postmedia", id), { image: composerPhoto, at: serverTimestamp() }); }
+        catch { status("compStatus", "warn", "הטקסט נשמר, אבל הצילום המלא לא — פרסום מרוכז יצא בלי תמונה."); }
+      }
       if (aiOrigin && newStatus !== "idea") await learnFromEdit(aiOrigin, text);
       $("cText").value = text;
       editing = id; savedId = id; $("delPost").hidden = false;
@@ -891,6 +898,31 @@ async function savePost(newStatus, btn){
     }
   });
   return savedId;
+}
+
+// הצילום המלא של פוסט: מהזיכרון אם הוא פתוח בקומפוזר, אחרת מהמסמך הנפרד.
+async function fullPhoto(id){
+  if (composerPhoto && editing === id) return composerPhoto;
+  try { const d = await getDoc(doc(db, "postmedia", id)); return d.exists() ? (d.data().image || "") : ""; }
+  catch { return ""; }
+}
+// אחרי שהפוסט יצא אין למה להחזיק את המקור. הממוזערת נשארת ללוח.
+const dropMedia = (id) => deleteDoc(doc(db, "postmedia", id)).catch(() => {});
+
+// שיגור פוסט אחד: מחזיר את תשובת השרת, או זורק.
+async function sendToMeta(id, when){
+  const p = S.posts.find(x => x.id === id) || {};
+  const text = [p.text || "", (p.hashtags || []).join(" ")].filter(Boolean).join("\n\n").slice(0, 2200);
+  const r = await api("/publish/schedule", { postId: id, text, image: await fullPhoto(id), at: when.getTime() });
+  if (!r.saved){
+    await setDoc(doc(db, "posts", id), {
+      status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
+      publishAt: r.publishAt || when.getTime(), igPending: !!r.igPending,
+      igPostId: r.igPostId || "", igSkipped: r.igSkipped || "", igError: r.igError || "",
+    }, { merge: true });
+  }
+  if (!r.igPending) dropMedia(id);       // עוד בתור → השרת עוד יצטרך את התמונה
+  return r;
 }
 
 /* ===== תזמון: נגיעה אחת, שתי רשתות =====
@@ -907,21 +939,7 @@ async function schedulePost(btn){
   await withBusy(btn, async () => {
     try {
       status("compStatus", "", "שולח…");
-      const p = S.posts.find(x => x.id === id) || {};
-      const r = await api("/publish/schedule", {
-        postId: id,
-        text: [mergedText(), $("cHash").value.trim()].filter(Boolean).join("\n\n").slice(0, 2200),
-        image: composerPhoto || "",                // הצילום המלא, לא הממוזערת
-        at: when.getTime(),
-      });
-      // אם לשרת אין גישה ל-Firestore, האפליקציה שומרת את התוצאה בעצמה
-      if (!r.saved){
-        await setDoc(doc(db, "posts", id), {
-          status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
-          publishAt: r.publishAt || when.getTime(), igPending: !!r.igPending,
-          igPostId: r.igPostId || "", igSkipped: r.igSkipped || "", igError: r.igError || "",
-        }, { merge: true });
-      }
+      const r = await sendToMeta(id, when);
       const at = new Date(r.publishAt || when.getTime());
       const now = Math.abs(at - Date.now()) < 11 * 60000;
       const fb = now ? "פורסם בפייסבוק" : `מתוזמן לפייסבוק ל-${dm(at)} ${String(at.getHours()).padStart(2,"0")}:${String(at.getMinutes()).padStart(2,"0")}`;
@@ -1023,6 +1041,17 @@ function copyAll(btn){
 function renderExport(){
   const box = clear($("exportList"));
   const rows = exportRows();
+  // שני מצבים, לא שתי דרכים: יש שרת מחובר → משגרים מכאן. אין → CSV.
+  const live = publishOk;
+  const head = $("exportHow");
+  if (head) head.textContent = live
+    ? "לחיצה אחת משגרת את כל המוכנים לפייסבוק ולאינסטגרם, כל אחד בשעה שלו."
+    : "העמוד עוד לא מחובר לשרת, אז הייצוא הוא למתזמן חיצוני.";
+  const only = (id, show) => { const n = $(id); if (n) n.hidden = !show; };
+  only("sendAll", live);
+  only("exportCsv", !live);
+  only("scheduleAll", !live);
+  only("copyWeek", !live);
   if (!rows.length){ box.append(el("p", { class: "small", text: "כשמשבצת מסומנת 'מוכן' היא מופיעה כאן." })); return; }
   rows.forEach(p => {
     const d = fromYmd(p.date);
@@ -1039,6 +1068,40 @@ async function markScheduled(id){
   try { await setDoc(doc(db, "posts", id), { status: "scheduled" }, { merge: true }); }
   catch { status("exportStatus", "bad", "העדכון נכשל."); }
 }
+/* ===== שיגור כל המוכנים =====
+   עד עכשיו היו שתי דרכים לאותו דבר: "תזמן ופרסם" בקומפוזר, ולידו כרטיס
+   CSV שמייצא למתזמן חיצוני. שתי דרכים לאותו יעד הן החלטה מיותרת. עכשיו
+   הכרטיס משגר בעצמו — וה-CSV נשאר רק כשאין שרת מחובר. */
+// נבדק כשפותחים את הכרטיס — הרגע היחיד שבו זה מעניין — ולא בכל ציור.
+// הצלחה נזכרת; כישלון ייבדק שוב בפתיחה הבאה, כך שתקלת רשת חולפת לא
+// נועלת את הכרטיס על מסלול ה-CSV.
+let publishOk = false;
+async function checkPublish(){
+  if (publishOk) return true;
+  if (!WORKER_URL || !S.isOwner) return false;
+  try { const r = await api("/publish/state", {}); publishOk = !!(r && r.facebook); }
+  catch { publishOk = false; }
+  renderExport();
+  return publishOk;
+}
+
+async function sendAllReady(btn){
+  const rows = exportRows();
+  if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לשגר."); return; }
+  if (!confirm(`לשגר ${rows.length} פוסטים לפייסבוק ולאינסטגרם?`)) return;
+  await withBusy(btn, async () => {
+    let ok = 0; const bad = [];
+    for (const p of rows){
+      status("exportStatus", "", `משגר ${ok + bad.length + 1} מתוך ${rows.length}…`);
+      const when = new Date(`${p.date}T${p.time || "10:30"}`);
+      try { await sendToMeta(p.id, isNaN(when) ? new Date() : when); ok++; }
+      catch (e){ bad.push(`${dm(fromYmd(p.date))}: ${e.message}`); }
+    }
+    status("exportStatus", bad.length ? (ok ? "warn" : "bad") : "ok",
+      bad.length ? `${ok} שוגרו. נכשלו — ${bad.join(" · ")}` : `${ok} פוסטים שוגרו. מה שמתוזמן יעלה לבד בשעה שלו.`);
+  });
+}
+
 async function markAllScheduled(btn){
   const rows = exportRows();
   if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לסמן."); return; }
@@ -1146,6 +1209,8 @@ export function init(){
 
   $("exportCsv").addEventListener("click", exportCsv);
   $("scheduleAll").addEventListener("click", (e) => markAllScheduled(e.currentTarget));
+  $("sendAll").addEventListener("click", (e) => sendAllReady(e.currentTarget));
+  $("exportCard").addEventListener("toggle", (e) => { if (e.target.open) checkPublish(); });
   $("copyWeek").addEventListener("click", (e) => copyAll(e.currentTarget));
 
   // בנק הקליפים
