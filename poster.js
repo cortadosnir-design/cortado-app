@@ -1,5 +1,5 @@
 // מחולל תמונת הפוסט. הצילום שלך, הטיפוגרפיה שלנו. הכל בדפדפן, בלי שרת.
-import { S, $, el, clear, DAYS, dm, addDays, status, download, on } from "./core.js";
+import { S, $, el, clear, DAYS, dm, addDays, status, download, on, api, withBusy, WORKER_URL } from "./core.js";
 import { hoursByDay } from "./shifts.js";
 
 const SIZES = { portrait: [1080, 1350], square: [1080, 1080], story: [1080, 1920] };
@@ -12,6 +12,18 @@ const THEMES = {
 };
 const THEME_LABEL = { cream: "שמנת", night: "לילה", olive: "זית", clay: "חמרה" };
 const LAYOUTS = { photo: "תמונה עם טקסט", plain: "טקסט בלבד", hours: "לוח שעות" };
+
+/* ===== תבניות =====
+   3 גדלים × 4 ערכות × 3 פריסות = 36 צירופים, ועוד שלושה שדות טקסט. זה ביקש
+   מהבעלים להיות מעצב. במקום זה: ארבע תבניות. הטקסט נלקח מהפוסט לבד, והפקדים
+   יורדים ל"לשנות ידנית" — לא נמחקים, רק מפסיקים להיות השלב הראשון. */
+const TEMPLATES = [
+  { key: "daily",   label: "יומיומי", hint: "הצילום שלך",     layout: "photo", theme: "cream", size: "portrait" },
+  { key: "hours",   label: "שעות",    hint: "מתי ואיפה",       layout: "hours", theme: "olive", size: "portrait" },
+  { key: "special", label: "מיוחד",   hint: "חג, אירוע",       layout: "photo", theme: "night", size: "portrait" },
+  { key: "free",    label: "פתוח",    hint: "תאר במילים",      free: true },
+];
+let activeTpl = "";
 
 let photo = null;   // HTMLImageElement
 let ready = false;
@@ -192,16 +204,73 @@ function setPhoto(file){
   r.readAsDataURL(file);
 }
 
-function fromPost(){
+// silent: כשתבנית נבחרת, הטקסט נמשך מהפוסט בלי הודעה ובלי נדנוד אם אין טקסט.
+function fromPost(silent){
   const text = ($("cText").value || "").trim();
-  if (!text){ status("posterStatus", "warn", "אין טקסט בפוסט. כתוב קודם."); return; }
+  if (!text){ if (!silent) status("posterStatus", "warn", "אין טקסט בפוסט. כתוב קודם."); return false; }
   const lines = text.split("\n").filter(l => l.trim());
   state.head = (lines[0] || "").slice(0, 90);
   state.sub = lines.slice(1, 3).join(" ").slice(0, 140);
-  $("posterHead").value = state.head;
-  $("posterSub").value = state.sub;
+  syncControls();
   refresh();
-  status("posterStatus", "ok", "נלקח מהפוסט. אפשר לקצר ולערוך.");
+  if (!silent) status("posterStatus", "ok", "נלקח מהפוסט. אפשר לקצר ולערוך.");
+  return true;
+}
+
+// הפקדים הידניים משקפים תמיד את המצב, כדי שמי שפותח "לשנות" יראה מה יש עכשיו.
+function syncControls(){
+  const set = (id, v) => { const n = $(id); if (n) n.value = v; };
+  set("posterLayout", state.layout); set("posterTheme", state.theme); set("posterSize", state.size);
+  set("posterHead", state.head); set("posterSub", state.sub); set("posterBadge", state.badge);
+}
+
+function renderTemplates(){
+  const box = $("posterTpl"); if (!box) return;
+  clear(box);
+  TEMPLATES.forEach(t => {
+    if (t.free && !(S.isOwner && WORKER_URL)) return;     // בלי שרת אין "פתוח"
+    box.append(el("button", {
+      class: "tplbtn" + (activeTpl === t.key ? " on" : ""),
+      onclick: () => pickTemplate(t.key),
+    }, el("b", { text: t.label }), el("span", { class: "small", text: t.hint })));
+  });
+}
+
+function pickTemplate(key){
+  const t = TEMPLATES.find(x => x.key === key); if (!t) return;
+  activeTpl = key;
+  renderTemplates();
+  const free = $("posterFreeBox");
+  if (free) free.hidden = !t.free;
+  if (t.free){ const i = $("posterFree"); if (i) i.focus(); return; }
+
+  state.layout = t.layout; state.theme = t.theme; state.size = t.size;
+  // "שעות" מצייר את השעות עצמן, אז כותרת מהפוסט רק תסתיר אותן.
+  if (t.layout === "hours"){ state.head = ""; state.sub = ""; state.badge = state.badge || "שעות השבוע"; }
+  const took = t.layout === "hours" ? true : fromPost(true);
+  syncControls();
+  refresh();
+  status("posterStatus", "ok", took ? `תבנית "${t.label}" מוכנה.` : `תבנית "${t.label}" מוכנה. כתוב טקסט בפוסט והוא ייכנס לבד.`);
+}
+
+// "פתוח": מתארים במילים, והמודל מחזיר מפרט. לא מחזיר את 36 הצירופים.
+async function freeBuild(btn){
+  const want = ($("posterFree").value || "").trim();
+  if (!want){ status("posterStatus", "warn", "כתוב במילים מה אתה רוצה שיהיה בתמונה."); return; }
+  await withBusy(btn, async () => {
+    try {
+      const r = await api("/ai/poster", {
+        want,
+        text: ($("cText").value || "").slice(0, 500),
+        hasPhoto: !!photo,
+      });
+      state.layout = r.layout; state.theme = r.theme; state.size = r.size;
+      state.head = r.head || state.head; state.sub = r.sub || ""; state.badge = r.badge || "";
+      syncControls();
+      refresh();
+      status("posterStatus", "ok", "נבנה. אפשר לשנות ידנית למטה.");
+    } catch (e){ status("posterStatus", "bad", e.message); }
+  });
 }
 
 function save(){
@@ -234,8 +303,15 @@ export function init(){
   $("posterBadge").addEventListener("input", (e) => { state.badge = e.target.value; refresh(); });
   $("posterPhoto").addEventListener("change", (e) => setPhoto(e.target.files && e.target.files[0]));
   $("posterClearPhoto").addEventListener("click", () => { photo = null; $("posterPhoto").value = ""; refresh(); });
-  $("posterFromPost").addEventListener("click", fromPost);
+  $("posterFromPost").addEventListener("click", () => fromPost(false));
   $("posterSave").addEventListener("click", save);
 
+  renderTemplates();
+  const go = $("posterFreeGo");
+  if (go) go.addEventListener("click", (e) => freeBuild(e.currentTarget));
+  const fr = $("posterFree");
+  if (fr) fr.addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); freeBuild($("posterFreeGo")); } });
+
   on("week", () => { if (ready && state.layout === "hours") refresh(); });
+  on("state", renderTemplates);   // "פתוח" מופיע רק כשיש שרת ומנהל
 }
