@@ -146,6 +146,29 @@ Ops.renderLog();
 /* ===== גרסה ועדכונים =====
    ה-Service Worker שומר את קבצי האפליקציה. בלי הקוד הזה הוא מתחלף רק
    מתי שבא לו, והבעלים רואה את הגרסה הישנה אחרי שדחפנו חדשה. */
+/* ===== ערבוב גרסאות =====
+   index.html ו-app.js נשמרים במטמון בנפרד, ולכן אחרי דחיפה הדפדפן עלול
+   להגיש HTML חדש לצד JS ישן. אז לשונית חדשה מצוירת, אבל לחיצה עליה לא
+   עושה כלום — ה-JS הישן מעולם לא חיבר לה מאזין. זה נראה למשתמש כמו
+   "האפליקציה תקועה", בלי שום שגיאה. כאן מזהים את הפער ומתקנים, פעם אחת. */
+const declared = document.querySelector('meta[name="app-build"]');
+if (declared && declared.content && declared.content !== APP_VERSION){
+  const once = "cortado-fixmix-" + declared.content;
+  let already = false;
+  try { already = sessionStorage.getItem(once) === "1"; } catch {}
+  if (!already){
+    try { sessionStorage.setItem(once, "1"); } catch {}
+    (async () => {
+      try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch {}
+      try {
+        const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.unregister();
+      } catch {}
+      location.reload();
+    })();
+  }
+}
+
 const build = $("build");
 if (build) build.textContent = "· " + APP_VERSION;
 
