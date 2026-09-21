@@ -1,0 +1,295 @@
+// playwright עשוי להיות מותקן גלובלית ולא במאגר
+let chromium;
+try { ({ chromium } = await import("playwright")); }
+catch { ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs")); }
+const PORT = process.env.PORT || 8899;
+const PAGE = `http://127.0.0.1:${PORT}/harness.html`;
+const PHOTO = new URL("photo.jpg", import.meta.url).pathname;
+let pass = 0, fail = 0;
+const ok  = (n, c, extra="") => { c ? (pass++, console.log("  ✓ " + n + (extra?"  "+extra:""))) : (fail++, console.log("  ✗ " + n + "  " + extra)); };
+
+const b = await chromium.launch();
+const errors = [];
+async function fresh(opts = {}){
+  if (typeof opts === "number") opts = { w: opts };
+  const p = await b.newPage({ viewport: { width: opts.w || 390, height: opts.h || 844 },
+    colorScheme: opts.scheme || "light", deviceScaleFactor: opts.dpr || 1 });
+  p.on("pageerror", e => errors.push("JS: " + e.message));
+  p.on("console", m => { const t = m.text();
+    if (m.type() === "error" && !t.includes("ERR_CERT")) errors.push("CONSOLE: " + t); });
+  await p.goto(opts.url || PAGE, { waitUntil: "domcontentloaded" });
+  if (!opts.url){ await p.waitForFunction(() => window.__ready === true); await p.waitForTimeout(250); }
+  return p;
+}
+
+/* ── 1. הלוך-חזור של התמונה דרך פיירסטור המזויף ── */
+console.log("\n1. התמונה נשמרת ומצוירת בלוח");
+{
+  const p = await fresh();
+  await p.evaluate(() => window.C.newPost());
+  await p.setInputFiles("#cPhoto", PHOTO);
+  await p.waitForFunction(() => document.querySelector("#igImg img"));
+  await p.fill("#cText", "הבוקר הראשון שבו היה צריך סוודר. שלושה קבועים על הספסל.");
+  await p.fill("#cLine", "דני לקח כפול, כרגיל.");
+  await p.click("#saveReady");
+  await p.waitForTimeout(600);
+  const w = await p.evaluate(() => window.__writes.filter(x => x.col === "posts"));
+  ok("נכתב מסמך פוסט", w.length === 1, JSON.stringify(w.map(x=>x.keys.length)));
+  ok("המסמך מכיל thumb", w[0] && w[0].keys.includes("thumb"));
+  const st = await p.evaluate(() => { const k = Object.keys(window.__store.posts)[0];
+    const d = window.__store.posts[k]; return { thumbLen: (d.thumb||"").length, status: d.status, bytes: JSON.stringify(d).length }; });
+  ok("הממוזערת קטנה מ-20KB", st.thumbLen > 1000 && st.thumbLen < 20000, `${Math.round(st.thumbLen/1024)}KB`);
+  ok("המסמך כולו קטן מ-1MB (מגבלת פיירסטור)", st.bytes < 1000000, `${Math.round(st.bytes/1024)}KB`);
+  ok("הסטטוס 'מוכן' נשמר", st.status === "ready", st.status);
+  // הלוח מתרענן מה-snapshot, בדיוק כמו באפליקציה האמיתית
+  await p.evaluate(() => { document.getElementById("closeComposer").click(); });
+  await p.waitForTimeout(300);
+  const tiles = await p.locator(".wstrip .wtile img").count();
+  ok("התמונה מופיעה ברצועת השבוע", tiles >= 1, `${tiles} תאים עם תמונה`);
+  // רענון: טעינה מחדש מהמסמך השמור
+  const persisted = await p.evaluate(async () => {
+    const id = Object.keys(window.__store.posts)[0];
+    window.C.loadPost(id);
+    await new Promise(r => setTimeout(r, 200));
+    const im = document.querySelector("#igImg img");
+    return !!im && im.src.startsWith("data:image/jpeg");
+  });
+  ok("פתיחה מחדש מציגה את התמונה השמורה", persisted);
+  await p.close();
+}
+
+/* ── 2. שער ההוספה ── */
+console.log("\n2. שער ההוספה: טיוטת AI לא יוצאת בלי משפט שלך");
+{
+  const p = await fresh();
+  await p.evaluate(() => { window.__api["/ai/post"] = { text: "בוקר של סוף ספטמבר בעגלה. הקפה חם והנוף פתוח לגולן.", hashtags: ["#קורטדו"] }; });
+  await p.evaluate(() => window.C.newPost());
+  await p.click("#aiWrite");
+  await p.waitForTimeout(400);
+  const drafted = await p.inputValue("#cText");
+  ok("הטיוטה נכנסה לשדה", drafted.length > 20);
+  await p.click("#saveReady");
+  await p.waitForTimeout(300);
+  let writes = await p.evaluate(() => window.__writes.filter(x => x.col === "posts").length);
+  const msg = await p.textContent("#compStatus");
+  ok("נחסם בלי משפט משלך", writes === 0, msg.slice(0, 40));
+  await p.fill("#cLine", "שלמה ישב שעה וחצי ולא נגע בטלפון.");
+  await p.click("#saveReady");
+  await p.waitForTimeout(400);
+  writes = await p.evaluate(() => window.__writes.filter(x => x.col === "posts").length);
+  ok("נשמר אחרי שהוספת שורה", writes === 1);
+  const learned = await p.evaluate(() => (window.__store.brand.memory || {}).examples || []);
+  ok("התיקון נשמר ללימוד הקול", learned.length === 1);
+  await p.close();
+}
+
+/* ── 3. תמונת הפוסט: מילים בלבד ── */
+console.log("\n3. תמונת הפוסט נבנית ממילים");
+{
+  const p = await fresh();
+  ok("אין כפתורי תבניות", await p.locator(".tplbtn").count() === 0);
+  ok("אין פקדי סגנון/גודל/צבעים", await p.locator("#posterLayout, #posterTheme, #posterSize").count() === 0);
+  await p.evaluate(() => { window.__api["/ai/poster"] = { layout:"plain", theme:"night", size:"story", head:"פתוחים עד מאוחר", sub:"", badge:"ערב חג" }; });
+  await p.fill("#posterSay", 'משהו כהה לערב חג, הכותרת "פתוחים עד מאוחר"');
+  await p.click("#posterGo");
+  await p.waitForTimeout(700);
+  ok("נוצרה תמונה בגודל סטורי", (await p.textContent("#posterMeta")) === "1080×1920", await p.textContent("#posterMeta"));
+  // נפילה של ה-AI חייבת ליפול לקריאה מקומית, לא למסך מת
+  await p.evaluate(() => { window.__api["/ai/poster"] = { fail: "הגעת למכסה החינמית של Gemini." }; });
+  await p.fill("#posterSay", "ריבוע בהיר לבוקר, בלי תמונה");
+  await p.click("#posterGo");
+  await p.waitForTimeout(700);
+  ok("נפילת AI → בנייה מקומית", (await p.textContent("#posterMeta")) === "1080×1080", await p.textContent("#posterMeta"));
+  ok("ההודעה בעברית ומסבירה", /Gemini|מכסה/.test(await p.textContent("#posterStatus")));
+  // "שגר" מבקש תמונת שעות באותה דרך
+  await p.evaluate(() => { window.__api["/ai/poster"] = { layout:"hours", theme:"olive", size:"portrait", head:"", sub:"", badge:"שעות השבוע" }; });
+  await p.evaluate(() => window.L && document.getElementById("tab-creative"));
+  const asked = await p.evaluate(async () => { window.P.ask("לוח שעות הפתיחה של השבוע");
+    await new Promise(r => setTimeout(r, 800)); return document.getElementById("posterSay").value; });
+  ok("ask() ממלא את השדה ובונה", asked.includes("שעות"), asked);
+  await p.close();
+}
+
+/* ── 4. מסך הכתיבה ── */
+console.log("\n4. מסך הכתיבה");
+{
+  const p = await fresh();
+  ok("סגור בהתחלה", await p.locator("#composer").isHidden());
+  await p.evaluate(() => window.C.newPost());
+  ok("נפתח כשכבה", await p.evaluate(() => getComputedStyle(document.getElementById("composer")).position) === "fixed");
+  ok("גלילת הרקע ננעלת", await p.evaluate(() => document.body.classList.contains("sheeton")));
+  ok("'פרטים' נפתח לפוסט מעבר לקצב", await p.evaluate(() => document.getElementById("compMore").open));
+  ok("שדה התאריך נגיש", await p.locator("#cDate").isVisible());
+  const bar = await p.evaluate(() => { const r = document.querySelector(".sheetbar").getBoundingClientRect();
+    return r.bottom <= window.innerHeight + 1 && r.height > 30; });
+  ok("סרגל הפעולות בתוך המסך", bar);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(200);
+  ok("Escape סוגר", await p.locator("#composer").isHidden() && !(await p.evaluate(() => document.body.classList.contains("sheeton"))));
+  // שבוע בלי חומר: הצעד הבא הוא לספר, לא לכתוב על דף ריק
+  const heroLabel = await p.textContent(".nextup button.primary");
+  ok("בשבוע ריק הכפתור הוא 'ספר לי'", /ספר לי/.test(heroLabel), heroLabel);
+  await p.click(".nextup button.primary");
+  await p.waitForTimeout(300);
+  ok("הכפתור פותח את השיחה השבועית", await p.locator("#briefCard").isVisible());
+  // משבצת של הקצב: אין טופס תאריך, יש שורת מידע
+  await p.click(".slotrow");
+  await p.waitForTimeout(300);
+  ok("משבצת קצב: שורת מידע ולא טופס",
+    await p.locator("#slotMeta").isVisible() && await p.locator("#cFixed").isHidden());
+  ok("'פרטים' סגור במשבצת קצב", !(await p.evaluate(() => document.getElementById("compMore").open)));
+  await p.close();
+}
+
+/* ── 5. ייצוא ── */
+console.log("\n5. ייצוא למתזמן");
+{
+  const p = await fresh();
+  await p.evaluate(() => window.C.newPost());
+  await p.fill("#cText", "שישי בבוקר, הנוף פתוח והקפה חזק.");
+  await p.fill("#cLine", "אורנה הביאה עוגת תפוחים.");
+  await p.click("#saveReady"); await p.waitForTimeout(500);
+  await p.evaluate(() => document.getElementById("closeComposer").click());
+  await p.evaluate(() => document.getElementById("exportCsv").click());
+  await p.waitForTimeout(300);
+  const d = await p.evaluate(() => window.__downloaded);
+  ok("CSV נוצר עם תוכן", !!d && d.size > 80, d ? `${d.size} תווים` : "לא ירד");
+  ok("שם הקובץ נכון", !!d && /^cortado-.*\.csv$/.test(d.name), d && d.name);
+  await p.close();
+}
+
+/* ── 6. מצבי הרצועה ── */
+console.log("\n6. רצועת השבוע");
+{
+  const p = await fresh();
+  ok("שבעה תאים", await p.locator(".wday").count() === 7);
+  const today = await p.locator(".wday.today").count();
+  ok("יום אחד מסומן כהיום", today === 1, `${today}`);
+  const cart = await p.locator(".wday.cart").count();
+  ok("ימי פתיחה מודגשים", cart === 4, `${cart} ימים`);
+  ok("צעד אחד בלבד", await p.locator(".nextup").count() === 1);
+  ok("כפתור ראשי אחד בצעד הבא", await p.locator(".nextup button.primary").count() === 1);
+  await p.close();
+}
+
+/* ── 7. לשוניות אחרות לא נשברו ── */
+console.log("\n7. שאר האפליקציה");
+{
+  const p = await fresh({ w: 1000, h: 900 });
+  const bad = await p.evaluate(() => {
+    const out = [];
+    for (const s of document.querySelectorAll("section.tabpanel")){
+      s.hidden = false;
+      if (s.scrollWidth > document.documentElement.clientWidth + 2) out.push(s.id + " גולש לרוחב");
+    }
+    return out;
+  });
+  ok("אין גלישה לרוחב באף לשונית", bad.length === 0, bad.join(", "));
+  await p.close();
+}
+const m = await fresh({ w: 360, h: 780 });
+{
+  const over = await m.evaluate(() => {
+    for (const s of document.querySelectorAll("section.tabpanel")) s.hidden = false;
+    return document.documentElement.scrollWidth - document.documentElement.clientWidth;
+  });
+  ok("אין גלילה אופקית ב-360px", over <= 0, `${over}px`);
+  await m.close();
+}
+
+/* ── 8. תקציב הנתונים: 150 פוסטים עם תמונות ── */
+console.log("\n8. תקציב פיירסטור");
+{
+  const p = await fresh();
+  const r = await p.evaluate(async () => {
+    const k = document.createElement("canvas"); k.width = k.height = 240;
+    const g = k.getContext("2d");
+    g.fillStyle = "#6B4A32"; g.fillRect(0,0,240,240);
+    for (let i=0;i<300;i++){ g.fillStyle = `hsl(${i*7%360} 40% ${30+i%40}%)`;
+      g.fillRect(Math.random()*240, Math.random()*240, 18, 18); }   // רעש, כמו צילום אמיתי
+    const thumb = k.toDataURL("image/jpeg", 0.5);
+    const t0 = performance.now();
+    for (let i = 0; i < 150; i++){
+      window.__store.posts["bulk" + i] = { week:"wtest", date:"2026-09-01", status:"done",
+        text:"פוסט לדוגמה ".repeat(12), hashtags:["#קורטדו","#קיבוץשניר"], thumb };
+    }
+    const bytes = JSON.stringify(Object.values(window.__store.posts)).length;
+    return { thumbKB: Math.round(thumb.length/1024), totalMB: +(bytes/1048576).toFixed(2), ms: Math.round(performance.now()-t0) };
+  });
+  ok("ממוזערת של צילום רועש", r.thumbKB < 20, `${r.thumbKB}KB`);
+  ok("150 פוסטים מתחת ל-3MB", r.totalMB < 3, `${r.totalMB}MB`);
+  // הלוח מצייר רק את השבוע הנוכחי — לא 150 תמונות
+  const t0 = Date.now();
+  await p.evaluate(() => window.C.render());
+  await p.waitForTimeout(300);
+  const imgs = await p.locator(".wstrip img, .slotrow img, .nextup img").count();
+  ok("הלוח מצייר רק את השבוע", imgs <= 8, `${imgs} תמונות, ${Date.now()-t0}ms`);
+  await p.close();
+}
+
+/* ── 9. מצב כהה ── */
+console.log("\n9. מצב כהה");
+{
+  const p = await fresh({ scheme: "dark", dpr: 2 });
+  await p.evaluate(() => window.C.newPost());
+  await p.waitForTimeout(300);
+  const c = await p.evaluate(() => {
+    const g = (sel, prop) => getComputedStyle(document.querySelector(sel))[prop];
+    const lum = (s) => { const m = s.match(/\d+/g); return m ? (+m[0]*.299 + +m[1]*.587 + +m[2]*.114) : -1; };
+    return { bodyBg: lum(g("body","backgroundColor")), sheetBg: lum(g("#composer","backgroundColor")),
+      barBg: lum(g(".sheetbar","backgroundColor")), igBg: lum(g(".igimg","backgroundColor")),
+      capInk: lum(g("#igText","color")) };
+  });
+  ok("הרקע כהה", c.bodyBg < 70, `${Math.round(c.bodyBg)}`);
+  ok("שכבת הכתיבה כהה ולא לבנה", c.sheetBg < 90, `${Math.round(c.sheetBg)}`);
+  ok("סרגל הפעולות כהה", c.barBg < 90, `${Math.round(c.barBg)}`);
+  ok("מסגרת התמונה כהה", c.igBg < 90, `${Math.round(c.igBg)}`);
+  ok("הטקסט בהיר על רקע כהה", c.capInk > 150, `${Math.round(c.capInk)}`);
+  await p.evaluate(() => document.getElementById("closeComposer").click());
+  await p.waitForTimeout(200);
+  await p.close();
+}
+
+/* ── 10. נגישות ── */
+console.log("\n10. נגישות");
+{
+  const p = await fresh();
+  const a = await p.evaluate(() => {
+    const out = { unnamed: [], small: [] };
+    for (const n of document.querySelectorAll(".wday, .slotrow, .nextup button, #posterGo, .sheetbar button")){
+      const name = (n.getAttribute("aria-label") || n.textContent || "").trim();
+      if (!name) out.unnamed.push(n.className);
+      const r = n.getBoundingClientRect();
+      if (r.height && r.height < 40) out.small.push(n.className + ":" + Math.round(r.height));
+    }
+    return out;
+  });
+  ok("לכל כפתור בלוח יש שם נגיש", a.unnamed.length === 0, a.unnamed.join(", "));
+  ok("אזורי נגיעה 40px ומעלה", a.small.length === 0, a.small.slice(0,4).join(", "));
+  await p.evaluate(() => window.C.newPost());
+  await p.waitForTimeout(200);
+  const dlg = await p.evaluate(() => { const c = document.getElementById("composer");
+    return { role: c.getAttribute("role"), modal: c.getAttribute("aria-modal"), label: c.getAttribute("aria-labelledby") }; });
+  ok("המסך מוצהר כדיאלוג", dlg.role === "dialog" && dlg.modal === "true" && !!dlg.label, JSON.stringify(dlg));
+  const labels = await p.evaluate(() => [...document.querySelectorAll("#composer input, #composer textarea, #composer select")]
+    .filter(n => n.type !== "hidden" && !n.labels?.length && !n.getAttribute("aria-label")).map(n => n.id));
+  ok("לכל שדה במסך הכתיבה יש תווית", labels.length === 0, labels.join(", "));
+  await p.close();
+}
+
+/* ── 11. שאר העמודים ── */
+console.log("\n11. עמודי העובד והשעות");
+for (const [name, url] of [["z.html", "http://127.0.0.1:8899/z.html"], ["hours.html", "http://127.0.0.1:8899/hours.html"]]){
+  const p = await fresh({ url });
+  await p.waitForTimeout(600);
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const txt = (await p.textContent("body")).trim().length;
+  ok(name + " נטען ומציג תוכן", txt > 40, `${txt} תווים`);
+  ok(name + " בלי גלילה אופקית", over <= 0, `${over}px`);
+  await p.close();
+}
+
+console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
+console.log(`\n${pass} עברו · ${fail} נכשלו`);
+await b.close();
+process.exit(fail ? 1 : 0);

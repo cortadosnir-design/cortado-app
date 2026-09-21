@@ -335,6 +335,10 @@ function renderNext(box, items){
    "לגלול ולחפש איפה כותבים" לבין "נגעתי במשבצת, אני כותב". */
 function openSheet(){
   const c = $("composer");
+  // "פרטים" מחזיק את התאריך והשעה. בפוסט מעבר לקצב צריך אותם, במשבצת
+  // של הקצב הם קבועים. נקבע פעם אחת בפתיחה ולא בכל הקלדה.
+  const more = $("compMore");
+  if (more) more.open = !editSlot;
   c.hidden = false;
   document.body.classList.add("sheeton");
   c.scrollTop = 0;
@@ -366,12 +370,28 @@ function renderPreview(){
   $("igTags").textContent = ($("cHash").value || "").split(/\s+/).filter(t => t.startsWith("#")).slice(0, 6).join(" ");
 }
 
+// כרטיס השיחה נפתח מהצעד הבא בלבד. שני כפתורים שאומרים "ספר לי"
+// זה לא שתי אפשרויות — זו החלטה מיותרת.
+let briefOpen = false;
+
 function openBrief(){
   const c = $("briefCard");
   if (!c) return;
+  briefOpen = true;
   c.hidden = false;
   c.scrollIntoView({ behavior: "smooth", block: "start" });
   const t = $("briefText"); if (t) t.focus();
+}
+
+// נקודת פתיחה אחת. כרטיס השיחה ו"כיוונים" מופיעים רק כשיש במה לגעת.
+function renderEntry(){
+  const hasMaterial = !!(brief.text || brief.photos.length || brief.answers.length);
+  const live = S.isOwner && !!WORKER_URL;
+  const card = $("briefCard");
+  if (card) card.hidden = !live || !(briefOpen || hasMaterial);
+  const plan = $("aiPlan");
+  // בלי חומר על השבוע "כיוונים" מחזיר כיוון שמתאים לכל בית קפה. שם הוא מזיק.
+  if (plan) plan.hidden = !live || !hasMaterial;
 }
 
 function renderBoard(){
@@ -391,6 +411,7 @@ function renderBoard(){
 
   renderStrip(box, items);
   renderNext(box, items);
+  renderEntry();
 
   // מצב השיבוץ. שורה אחת מתחת לרצועה, לא הודעה שתופסת מסך.
   if (ph !== "locked"){
@@ -723,9 +744,6 @@ function renderFixed(){
   const onSlot = !!editSlot;
   const fixed = $("cFixed"), meta = $("slotMeta");
   if (fixed) fixed.hidden = onSlot;
-  // פוסט מעבר לקצב: התאריך והשעה יושבים ב"פרטים", אז הוא נפתח לבד.
-  const more = $("compMore");
-  if (more && !onSlot) more.open = true;
   if (!meta) return;
   meta.hidden = !onSlot;
   if (!onSlot) return;

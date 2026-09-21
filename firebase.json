@@ -6,7 +6,9 @@
       "**/.*",
       "**/node_modules/**",
       "*.md",
-      "worker/**"
+      "worker/**",
+      "tests/**",
+      "harness.html"
     ],
     "headers": [
       {

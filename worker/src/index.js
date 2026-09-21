@@ -93,7 +93,9 @@ const ERROR_MAP = [
     () => "גוגל חסמה את הבקשה בגלל מסנן התוכן. נסה לנסח אחרת."],
   // ── מודל ──
   [/no longer available|NOT_FOUND|not found|is not supported|deprecated/i,
-    () => "המודל שהוגדר בשרת כבר לא קיים. צריך לעדכן את GEMINI_MODEL בהגדרות של Cloudflare."],
+    // כאן מגיעים רק אחרי שכל MODEL_CHAIN נכשל, ולא בהכרח בגלל הגדרה ידנית.
+    () => "אף מודל של Gemini לא נענה — כנראה השתנו שמות המודלים. אם הגדרת GEMINI_MODEL " +
+          "ב-Cloudflare, מחק אותו; אחרת צריך לעדכן את רשימת המודלים בשרת."],
   // ── מטא ──
   [/Session has expired|OAuthException|access token|code.*190/i,
     () => "הטוקן של עמוד הפייסבוק פג. צריך לחבר את העמוד מחדש בלשונית הפצה."],
