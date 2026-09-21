@@ -83,33 +83,6 @@ console.log("\n2. שער ההוספה: טיוטת AI לא יוצאת בלי מש
   await p.close();
 }
 
-/* ── 3. תמונת הפוסט: מילים בלבד ── */
-console.log("\n3. תמונת הפוסט נבנית ממילים");
-{
-  const p = await fresh();
-  ok("אין כפתורי תבניות", await p.locator(".tplbtn").count() === 0);
-  ok("אין פקדי סגנון/גודל/צבעים", await p.locator("#posterLayout, #posterTheme, #posterSize").count() === 0);
-  await p.evaluate(() => { window.__api["/ai/poster"] = { layout:"plain", theme:"night", size:"story", head:"פתוחים עד מאוחר", sub:"", badge:"ערב חג" }; });
-  await p.fill("#posterSay", 'משהו כהה לערב חג, הכותרת "פתוחים עד מאוחר"');
-  await p.click("#posterGo");
-  await p.waitForTimeout(700);
-  ok("נוצרה תמונה בגודל סטורי", (await p.textContent("#posterMeta")) === "1080×1920", await p.textContent("#posterMeta"));
-  // נפילה של ה-AI חייבת ליפול לקריאה מקומית, לא למסך מת
-  await p.evaluate(() => { window.__api["/ai/poster"] = { fail: "הגעת למכסה החינמית של Gemini." }; });
-  await p.fill("#posterSay", "ריבוע בהיר לבוקר, בלי תמונה");
-  await p.click("#posterGo");
-  await p.waitForTimeout(700);
-  ok("נפילת AI → בנייה מקומית", (await p.textContent("#posterMeta")) === "1080×1080", await p.textContent("#posterMeta"));
-  ok("ההודעה בעברית ומסבירה", /Gemini|מכסה/.test(await p.textContent("#posterStatus")));
-  // "שגר" מבקש תמונת שעות באותה דרך
-  await p.evaluate(() => { window.__api["/ai/poster"] = { layout:"hours", theme:"olive", size:"portrait", head:"", sub:"", badge:"שעות השבוע" }; });
-  await p.evaluate(() => window.L && document.getElementById("tab-creative"));
-  const asked = await p.evaluate(async () => { window.P.ask("לוח שעות הפתיחה של השבוע");
-    await new Promise(r => setTimeout(r, 800)); return document.getElementById("posterSay").value; });
-  ok("ask() ממלא את השדה ובונה", asked.includes("שעות"), asked);
-  await p.close();
-}
-
 /* ── 4. מסך הכתיבה ── */
 console.log("\n4. מסך הכתיבה");
 {

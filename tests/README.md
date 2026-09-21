@@ -11,7 +11,7 @@ node tests/run.mjs
 הבדיקות רצות על **קוד האפליקציה האמיתי**, לא על עותק. `harness.mjs` לוקח את
 `index.html` כמו שהוא ומוסיף לו [import map](https://developer.mozilla.org/docs/Web/HTML/Element/script/type/importmap)
 שמחליף את `core.js`, `shifts.js`, `weather.js` ו-`season.js` בדמה מתוך `stubs/`.
-כל השאר — `creative.js`, `poster.js`, `launch.js`, `styles.css` — הם המקור.
+כל השאר — `creative.js`, `launch.js`, `styles.css` — הם המקור.
 
 `stubs/core.js` מחזיק **Firestore מזויף שבאמת עושה הלוך-חזור**: `setDoc` כותב
 לחנות בזיכרון ומפעיל את ה-`onSnapshot`, בדיוק כמו פיירסטור אמיתי. ככה נבדק
@@ -22,7 +22,7 @@ node tests/run.mjs
 
 | קובץ | מה |
 |---|---|
-| `ui.mjs` | הלוך-חזור של התמונה, שער ההוספה, תמונת הפוסט מהמילים, מסך הכתיבה, ייצוא, רצועת השבוע, תקציב פיירסטור, מצב כהה, נגישות, נקודת פתיחה אחת |
+| `ui.mjs` | הלוך-חזור של התמונה, שער ההוספה, מסך הכתיבה, ייצוא, רצועת השבוע, תקציב פיירסטור, מצב כהה, נגישות, נקודת פתיחה אחת |
 | `worker.mjs` | שכבת תרגום השגיאות לעברית בוורקר, על הקוד האמיתי |
 
 `photo.jpg` הוא צילום סינתטי (150KB) שנכנס דרך שדה הקובץ האמיתי, כדי שנתיב

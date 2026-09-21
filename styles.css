@@ -358,9 +358,6 @@ table.t tr.me a{color:var(--accent)}
 .rosterrow .actions button,.rosterrow .actions a{font-size:13px;padding:5px 10px}
 
 /* ===== מחולל התמונה ===== */
-.posterwrap{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--sunken);
-  border-radius:12px;padding:12px;margin-top:4px}
-#posterPreview{max-width:100%;max-height:420px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 
 /* ===== שגר ===== */
 .launchcard{border-color:var(--accent)}
@@ -492,13 +489,6 @@ table.t tr.me a{color:var(--accent)}
 .card.fold[open]{padding-bottom:16px}
 .card.fold>summary+*{margin-top:0}
 
-
-/* ===== תמונת הפוסט =====
-   שדה אחד ומילים. אין תבניות, אין תפריטים, אין מה לעצב. */
-.say{display:flex;gap:8px;align-items:flex-start;margin:4px 0 14px}
-.say textarea{flex:1;min-width:0;resize:vertical;min-height:52px;line-height:1.4}
-.say button{flex:none;align-self:stretch;white-space:nowrap}
-@media (max-width:420px){ .say{flex-direction:column} .say button{width:100%;align-self:auto} }
 
 /* ===== מסך הכתיבה =====
    שכבה מעל הכל במקום כרטיס בתחתית הדף. סרגל הפעולות נדבק לתחתית,

@@ -27,7 +27,6 @@ export default {
         case "/ai/brief":    requireOwner(owner); return json(await aiBrief(env, body), cors);
         case "/ai/angle":    requireOwner(owner); return json(await aiAngle(env, body), cors);
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
-        case "/ai/poster":   requireOwner(owner); return json(await aiPoster(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
@@ -403,48 +402,6 @@ async function aiPost(env, b){
 }
 
 // זווית אחת ליום פעילות — מה מיוחד בו.
-// תמונת הפוסט, מתוך תיאור במילים. הבעלים לא צריך לבחור פריסה, ערכה וגודל —
-// הוא אומר מה הוא רוצה, והמודל מתרגם את זה למפרט שהמחולל יודע לצייר.
-const POSTER_LAYOUTS = ["photo", "plain", "hours"];
-const POSTER_THEMES  = ["cream", "night", "olive", "clay"];
-const POSTER_SIZES   = ["portrait", "square", "story"];
-
-async function aiPoster(env, b){
-  const want = String(b.want || "").trim().slice(0, 300);
-  if (!want) throw fail("bad_request", "כתוב במילים מה אתה רוצה שיהיה בתמונה.");
-  const prompt = [
-    BRAND,
-    "אתה מתרגם בקשה בעברית למפרט של תמונת פוסט. אתה לא כותב פוסט.",
-    `מה שהבעלים ביקש: ${want}`,
-    b.text ? `הטקסט של הפוסט, אם הוא עוזר להבין את ההקשר:\n${String(b.text).slice(0, 500)}` : "",
-    b.pillar ? `סוג הפוסט: ${b.pillar}.` : "",
-    b.holiday ? `מועד: ${b.holiday}.` : "",
-    b.hasPhoto ? "יש צילום שהועלה, אפשר להשתמש בפריסת תמונה." : "אין צילום, אל תבחר פריסת תמונה.",
-    [
-      "הכללים:",
-      `- layout: ${POSTER_LAYOUTS.join(" | ")}. photo = צילום עם טקסט מעליו. plain = טקסט על רקע צבעוני. hours = לוח שעות הפתיחה.`,
-      `- theme: ${POSTER_THEMES.join(" | ")}. cream בהיר ויומיומי, night כהה ודרמטי, olive רגוע, clay חמים לחגים.`,
-      `- size: ${POSTER_SIZES.join(" | ")}. portrait לפוסט, square לריבוע, story לסטורי.`,
-      "- head: הכותרת על התמונה. עד 60 תווים. קצר מנצח.",
-      "- sub: שורה שנייה, לא חובה. עד 110 תווים.",
-      "- badge: תווית קטנה בפינה, לא חובה. עד 18 תווים.",
-      "אל תכתוב מחירים, שעות שלא נמסרו לך, או הבטחות.",
-    ].join("\n"),
-    'החזר JSON בלבד: {"layout":"...","theme":"...","size":"...","head":"...","sub":"...","badge":"..."}.',
-  ].filter(Boolean).join("\n\n");
-
-  const r = await gemini(env, prompt, { json: true });
-  const pick = (v, list, dflt) => list.includes(String(v)) ? String(v) : dflt;
-  return {
-    layout: pick(r.layout, POSTER_LAYOUTS, b.hasPhoto ? "photo" : "plain"),
-    theme:  pick(r.theme,  POSTER_THEMES,  "cream"),
-    size:   pick(r.size,   POSTER_SIZES,   "portrait"),
-    head:  String(r.head  || "").slice(0, 60),
-    sub:   String(r.sub   || "").slice(0, 110),
-    badge: String(r.badge || "").slice(0, 18),
-  };
-}
-
 async function aiAngle(env, b){
   const prompt = [
     BRAND, memoryBlock(b),

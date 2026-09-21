@@ -3,7 +3,6 @@
 import { S, db, DAYS, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
   doc, setDoc, serverTimestamp } from "./core.js";
 import { hoursByDay, hoursPairs, hoursText, phase } from "./shifts.js";
-import { ask as askPoster } from "./poster.js";
 
 const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const GBP_URL = "https://business.google.com/";
@@ -69,18 +68,10 @@ function render(){
     }
     if (key === "instagram" && r.state === "manual"){
       actions = el("div", { class: "actions" },
-        el("button", { text: "העתק לביו", onclick: (e) => copyText(bioText(), e.currentTarget, "העתק לביו") }),
-        el("button", { text: "בנה תמונת שעות", onclick: () => toHoursPoster() }));
+        el("button", { text: "העתק לביו", onclick: (e) => copyText(bioText(), e.currentTarget, "העתק לביו") }));
     }
     box.append(row(key, r.state, r.note, actions));
   }
-}
-
-// תמונת השעות נבנית באותה דרך כמו כל תמונה אחרת: במילים.
-function toHoursPoster(){
-  const tab = $("tab-creative");
-  if (tab) tab.click();
-  askPoster("לוח שעות הפתיחה של השבוע");
 }
 
 /* ===== השיגור ===== */
@@ -149,7 +140,7 @@ async function launch(btn){
     render();
 
     // 4. אינסטגרם — אין שדה שעות בכלל
-    results.instagram = { state: "manual", note: "לאינסטגרם אין שדה שעות. מה שעובד: שורת שעות בביו, ותמונת שעות בסטורי." };
+    results.instagram = { state: "manual", note: "לאינסטגרם אין שדה שעות. מה שעובד: שורת שעות בביו." };
     render();
 
     const okCount = Object.values(results).filter(r => r.state === "ok").length;
