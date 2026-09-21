@@ -463,6 +463,19 @@ console.log("\n23. דוח Z ופילוח מכירות");
     categories: [{ name: "קפה", amount: 336, qty: 26 }, { name: "כריכים", amount: 402, qty: 11 },
       { name: "שתיה קלה", amount: 270, qty: 14 }, { name: "מאפים מתוקים", amount: 80, qty: 4 },
       { name: "עטופים", amount: 77, qty: 7 }, { name: "ללא קטגוריה", amount: 41, qty: 2 }], note: "" }; });
+  // שתי דרכים להזין דוח: מצלמה וגלריה. הקלדה ידנית ירדה.
+  const entry = await p.evaluate(() => ({
+    capture: document.getElementById("zPhoto") && document.getElementById("zPhoto").getAttribute("capture"),
+    gallery: !!document.getElementById("zGallery") && !document.getElementById("zGallery").hasAttribute("capture"),
+    manual: !!document.getElementById("zManual") }));
+  ok("כפתור הצילום פותח את המצלמה", entry.capture === "environment", String(entry.capture));
+  ok("כפתור הגלריה פותח את בוחר התמונות", entry.gallery);
+  ok("הקלדה ידנית ירדה מהמסך", !entry.manual);
+  // צילום מהגלריה עובר באותו מסלול קריאה, ואפשר לבטל את הטיוטה
+  await p.setInputFiles("#zGallery", PHOTO);
+  await p.waitForSelector("#zDraft .zgrid");
+  ok("צילום מהגלריה נקרא בשרת", (await p.evaluate(() => window.__apiCalls.filter(c => c.path === "/ai/zreport").length)) === 1);
+  await p.evaluate(() => [...document.querySelectorAll("#zDraft button")].find(b => b.textContent.trim() === "בטל").click());
   await p.setInputFiles("#zPhoto", PHOTO);
   await p.waitForSelector("#zDraft .zgrid");
   const sent = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/ai/zreport"));

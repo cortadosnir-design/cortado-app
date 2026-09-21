@@ -1,7 +1,7 @@
 // מכירות: דוח ה-Z של סגירת הקופה נכנס בצילום, נשמר, ומצטבר לפילוח.
 // הקריאה מהצילום נעשית בשרת (Gemini). מה שחוזר מוצג לאישור לפני שמירה,
 // כי OCR על נייר תרמי הוא הערכה, והמספרים האלה הולכים לרואה החשבון.
-import { S, db, $, el, clear, status, withBusy, api, track, DAYS, fromYmd, dm, ymd,
+import { S, db, $, el, clear, status, withBusy, api, track, DAYS, fromYmd, dm,
   doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
 import { derive, totals, byCategory, byWeekday, trend, findings, asTable, round } from "./sales-stats.js";
 
@@ -226,9 +226,11 @@ export const table = () => asTable(S.sales || []);
 
 /* ===== חיווט ===== */
 export function init(){
-  const f = $("zPhoto");
-  if (!f) return;
-  f.addEventListener("change", async () => {
+  // שתי דרכים לאותה קריאה: מצלמה בסוף המשמרת, או צילום שכבר שמור בגלריה
+  // (הקלט בלי capture — ככה הפלאפון פותח את בוחר התמונות ולא את המצלמה).
+  const inputs = ["zPhoto", "zGallery"].map(id => $(id)).filter(Boolean);
+  if (!inputs.length) return;
+  for (const f of inputs) f.addEventListener("change", async () => {
     const file = f.files && f.files[0]; f.value = "";
     if (!file) return;
     status("zStatus", "", "קורא את הדוח מהצילום…");
@@ -242,10 +244,6 @@ export function init(){
       draft = null; renderDraft();
       status("zStatus", "bad", err.message || "לא הצלחתי לקרוא את הדוח.");
     }
-  });
-  $("zManual").addEventListener("click", () => {
-    draft = { date: ymd(new Date()), categories: [{ name: "", amount: null, qty: null }] };
-    renderDraft(); status("zStatus", "", "מלא ידנית מהפתק.");
   });
   render();
 }

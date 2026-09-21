@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-21.27">
+  <meta name="app-build" content="2026-09-21.28">
 <meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -506,10 +506,10 @@
     <section id="p-sales" class="tabpanel" role="tabpanel" hidden>
       <div class="card" data-api hidden>
         <h2>דוח סגירה (Z)</h2>
-        <p class="small">צלם את הפתק בסוף המשמרת. המספרים נקראים לבד, אתה רק מאשר. כל דוח שנשמר מצטרף לפילוח שלמטה.</p>
+        <p class="small">צלם את הפתק בסוף המשמרת, או בחר צילום שכבר שמור בגלריה. המספרים נקראים לבד, אתה רק מאשר. כל דוח שנשמר מצטרף לפילוח שלמטה.</p>
         <div class="actions">
           <label class="btn-file"><input id="zPhoto" type="file" accept="image/*" capture="environment">📷 צלם את הדוח</label>
-          <button id="zManual" type="button">✏️ הקלדה ידנית</button>
+          <label class="btn-file"><input id="zGallery" type="file" accept="image/*">🖼️ בחר מהגלריה</label>
         </div>
         <div class="status" id="zStatus" role="status"></div>
         <div id="zDraft" hidden></div>
