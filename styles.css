@@ -156,7 +156,6 @@ textarea{background:var(--surface);border:1px solid var(--line);border-radius:10
 
 /* מסך הצטרפות */
 #waiting{align-items:flex-start}
-#cPreview{margin-top:4px}
 
 /* ===== זמינות ===== */
 .availbox{display:flex;flex-direction:column;gap:6px}
@@ -196,21 +195,56 @@ button.icon:hover{color:var(--bad)}
 /* ===== לוח קריאייטיב ===== */
 .notice.ok{background:var(--ok-soft);color:var(--ok)}
 .notice.warn{background:var(--warn-soft);color:var(--warn)}
-.slotlist{display:flex;flex-direction:column;gap:10px}
-@media (min-width:700px){.slotlist{display:grid;grid-template-columns:1fr 1fr}.slotlist>.notice,.slotlist>.extras{grid-column:1/-1}}
-.slot{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
-.slot.empty{border-style:dashed;border-color:var(--warn);background:var(--ground)}
-.slot.done{border-color:var(--ok)}
-.slot.done .clip{color:var(--muted)}
+/* ===== לוח השבוע =====
+   רצועה ויזואלית של שבעה ימים, צעד אחד גדול, והשאר שורות.
+   התמונה על הלוח היא העיקר: מתכננים בעיניים, לא בטקסט חתוך. */
+.slotlist{display:flex;flex-direction:column;gap:12px}
+
+.wstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;max-width:560px}
+.wday{display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 2px;min-height:0;border:1px solid transparent;border-radius:12px;
+  background:none;font-weight:500}
+.wday .wname{font-size:12px;color:var(--muted);line-height:1}
+.wday .wnum{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1}
+.wday.cart .wname{color:var(--ink);font-weight:700}
+.wday.today{border-color:var(--accent);background:var(--accent-soft)}
+.wday.gone{opacity:.45}
+
+.wtile{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;
+  background:var(--sunken);display:flex;align-items:center;justify-content:center;font-size:17px}
+.wtile img{width:100%;height:100%;object-fit:cover;display:block}
+.wtile.ghost{background:none;border:1px dashed var(--line);color:var(--muted);font-size:15px}
+.wday.empty .wtile{outline:2px dashed var(--warn);outline-offset:-2px}
+.wday.draft .wtile{outline:2px solid var(--warn);outline-offset:-2px}
+.wday.done  .wtile{outline:2px solid var(--ok);outline-offset:-2px}
+
+/* הצעד הבא. אחד, גדול, עם כפתור אחד. */
+.nextup{display:flex;gap:12px;align-items:flex-start;background:var(--surface);
+  border:1px solid var(--accent);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
+.nextup .wtile.big{width:92px;flex:none;border-radius:12px;font-size:28px}
+.nxbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.nxangle{font-size:15px;line-height:1.45}
+.nextup .actions{margin-top:2px}
+
+.slotrows{display:flex;flex-direction:column;gap:6px}
+.slotrow{display:flex;align-items:center;gap:10px;width:100%;text-align:start;
+  padding:8px;border-radius:12px;font-weight:500;background:var(--surface)}
+.slotrow .wtile.sm{width:46px;flex:none;border-radius:8px;font-size:16px}
+.slotrow.done{border-color:var(--ok-soft)}
+.slotrow.empty{border-style:dashed}
+.slotrow.gone{opacity:.55}
+.slotrow .grow{min-width:0;display:block}
+.hint{padding-inline:2px}
+
+.metaline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);
+  background:var(--sunken);border-radius:10px;padding:8px 10px}
+.metaline .link{margin-inline-start:auto;font-size:13px}
+.extras{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 /* משבצת שזמנה חלף: נוכחת, לא תובענית. */
-.slot.gone{opacity:.55;border-style:dotted}
-.slot.gone .slothead b{font-weight:500}
 /* שורת המידע של משבצת קבועה: מה שאי אפשר לשנות כאן לא נראה כמו שדה. */
 .metaline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);
   background:var(--ground);border-radius:10px;padding:8px 12px;margin:0}
 .metaline .link{margin-inline-start:auto;font-size:13px}
-.slothead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.slot .actions{margin-top:0}
 .extras{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .calhead h2 .pill{vertical-align:middle;margin-inline-start:6px;font-size:13px}
 .rhythm{border-top:1px solid var(--line);padding-top:8px}
@@ -269,7 +303,6 @@ input.tiny{width:78px;padding:6px 8px;flex:none}
 .track i{display:block;height:100%;background:var(--accent);border-radius:999px}
 table.t tr.me{background:var(--accent-soft)}
 table.t tr.me a{color:var(--accent)}
-#cPreview{max-width:170px;border-radius:10px;margin-top:4px}
 .chip button.icon{margin-inline-start:2px;padding:0 2px}
 
 @media (max-width:560px){
@@ -459,8 +492,6 @@ table.t tr.me a{color:var(--accent)}
 .card.fold[open]{padding-bottom:16px}
 .card.fold>summary+*{margin-top:0}
 
-/* המשבצת המובילה: הצעד הבא, לא אחת מארבע. */
-.slot.next{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 
 /* ===== תמונת הפוסט =====
    שדה אחד ומילים. אין תבניות, אין תפריטים, אין מה לעצב. */
@@ -468,3 +499,40 @@ table.t tr.me a{color:var(--accent)}
 .say textarea{flex:1;min-width:0;resize:vertical;min-height:52px;line-height:1.4}
 .say button{flex:none;align-self:stretch;white-space:nowrap}
 @media (max-width:420px){ .say{flex-direction:column} .say button{width:100%;align-self:auto} }
+
+/* ===== מסך הכתיבה =====
+   שכבה מעל הכל במקום כרטיס בתחתית הדף. סרגל הפעולות נדבק לתחתית,
+   ולמעלה יושבת תצוגה מקדימה של הפוסט כמו שהוא ייראה בפיד. */
+body.sheeton{overflow:hidden}
+.sheet{position:fixed;inset:0;z-index:60;margin:0;border-radius:0;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:0 16px 0;gap:12px}
+/* .card הוא flex column: בלי זה הילדים נדחסים כשהתוכן ארוך מהמסך. */
+.sheet>*{flex:0 0 auto}
+.sheethead{position:sticky;top:0;z-index:2;background:var(--surface);
+  padding:12px 0 10px;border-bottom:1px solid var(--line)}
+.sheetbar{position:sticky;bottom:0;z-index:2;display:flex;gap:8px;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom,0))}
+.sheetbar button{flex:1;min-width:0}
+@media (min-width:760px){
+  .sheet{inset:24px 0;inset-inline:0;width:min(600px,calc(100% - 48px));margin-inline:auto;
+    border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);padding-inline:20px}
+}
+
+.ig{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.ighead{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:14px;
+  border-bottom:1px solid var(--line)}
+.igav{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);
+  display:grid;place-items:center;font-size:14px}
+.igimg{height:176px;position:relative;background:var(--sunken);display:grid;place-items:center;overflow:hidden}
+.igimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+@media (min-width:760px){ .igimg{height:240px} }
+.igbody{padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.igcap{font-size:15px;line-height:1.45;white-space:pre-wrap}
+.igmore{color:var(--muted)}
+.igtags{font-size:14px;color:var(--accent);word-break:break-word}
+
+.more{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:10px}
+.more>summary{cursor:pointer;color:var(--muted);font-size:14px;min-height:40px;
+  display:flex;align-items:center}

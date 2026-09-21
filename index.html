@@ -174,7 +174,7 @@
           <h2>הקריאייטיב של השבוע <span class="pill" id="slotState"></span></h2>
           <button id="aiPlan" data-api hidden>✨ כיוונים</button>
         </div>
-        <p class="small">ארבע משבצות קבועות. משבצת ריקה זו משימה. כשכולן מוכנות, השבוע סגור.</p>
+        <p class="small">השבוע במבט אחד. יום מודגש = העגלה פתוחה, מסגרת מקווקוות = משבצת שעוד לא נכתבה.</p>
         <div class="status" id="planStatus" role="status"></div>
         <div id="slotList" class="slotlist"></div>
         <details class="rhythm" id="rhythmDetails">
@@ -191,55 +191,71 @@
       </div>
 
       <div class="two">
-        <div class="card" id="composer" hidden>
-          <div class="calhead"><h2 id="compTitle">פוסט</h2><button class="link" id="closeComposer">סגור</button></div>
+        <div class="card sheet" id="composer" hidden role="dialog" aria-modal="true" aria-labelledby="compTitle">
+          <div class="calhead sheethead"><h2 id="compTitle">פוסט</h2><button class="link" id="closeComposer">סגור</button></div>
+
+          <!-- מה שיראו בפועל. Planoly ו-Later מראים תצוגה מקדימה כי מתכננים בעיניים. -->
+          <div class="ig" id="igPrev">
+            <div class="ighead"><span class="igav">☕</span><b id="igName">קפה קורטדו</b></div>
+            <div class="igimg" id="igImg"><span class="small">עוד אין תמונה</span></div>
+            <div class="igbody"><p id="igText" class="igcap"></p><p id="igTags" class="igtags"></p></div>
+          </div>
+
           <!-- משבצת של הקצב: התאריך, השעה והפורמט קבועים. שורת מידע, לא טופס. -->
           <p class="metaline" id="slotMeta" hidden></p>
-          <!-- פוסט מעבר לקצב: כאן כן בוחרים. -->
-          <div id="cFixed">
-            <div class="two-col">
-              <label for="cDate">תאריך<input id="cDate" type="date"></label>
-              <label for="cTime">שעה<input id="cTime" type="time"></label>
-            </div>
-            <p class="small" id="timeWhy"></p>
-            <p class="small" id="dateHint"></p>
-            <label for="cFormat">פורמט<select id="cFormat"></select></label>
-            <p class="small" id="formatHint"></p>
-          </div>
+
           <!-- התמונה ראשונה: היא מה שמביא אנשים, והיא גם מה שהכותב מסתכל עליו. -->
           <label for="cPhoto">התמונה — ממנה מתחילים
             <input id="cPhoto" type="file" accept="image/*" capture="environment">
           </label>
-          <img id="cPreview" alt="" hidden>
-          <input id="cImage" type="url" dir="ltr" hidden>
-          <p class="small" id="photoHint">אם תבחר תמונה עכשיו, הטיוטה תיכתב עליה ולא באוויר.</p>
+
           <label for="cIdea">הכיוון — משפט אחד</label>
           <div class="angle">
             <input id="cIdea" type="text" placeholder="למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר">
             <button class="icon" id="aiAngle" data-api hidden title="הצע כיוון">✨</button>
           </div>
           <div class="actions"><button class="primary" id="aiWrite" data-api hidden>✨ טיוטה</button></div>
+
           <label for="cText">הטקסט<textarea id="cText" rows="6" placeholder="או כתוב בעצמך…"></textarea></label>
           <p class="small" id="lenHint"></p>
           <ul class="tells" id="tells"></ul>
           <button class="link" id="cleanTells" hidden>נקה סימני מכונה</button>
+
           <label for="cLine" class="gate">השורה שלך
             <input id="cLine" type="text" placeholder="משפט אחד משלך: פרט, שם, מה קרה היום">
           </label>
           <p class="small" id="gateHint"></p>
-          <p class="small" id="shootHint"></p>
-          <label for="cHash">האשטגים<input id="cHash" type="text" dir="rtl"></label>
-          <div class="actions">
+
+          <!-- כל השאר. פעם אחת בשבוע נוגעים בזה, אז זה לא על המסך הראשי. -->
+          <details class="more" id="compMore">
+            <summary>פרטים</summary>
+            <div id="cFixed">
+              <div class="two-col">
+                <label for="cDate">תאריך<input id="cDate" type="date"></label>
+                <label for="cTime">שעה<input id="cTime" type="time"></label>
+              </div>
+              <p class="small" id="timeWhy"></p>
+              <p class="small" id="dateHint"></p>
+              <label for="cFormat">פורמט<select id="cFormat"></select></label>
+              <p class="small" id="formatHint"></p>
+            </div>
+            <p class="small" id="photoHint">אם תבחר תמונה עכשיו, הטיוטה תיכתב עליה ולא באוויר.</p>
+            <p class="small" id="shootHint"></p>
+            <label for="cHash">האשטגים<input id="cHash" type="text" dir="rtl"></label>
+            <label for="cImage" class="small">קישור לתמונה (לא חובה)<input id="cImage" type="url" dir="ltr" placeholder="https://…"></label>
+            <div class="actions">
+              <button id="copyPost">העתק טקסט</button>
+              <button class="link" id="newPost">+ פוסט מעבר לקצב</button>
+              <button class="link" id="delPost" hidden>מחק</button>
+            </div>
+          </details>
+
+          <div class="status" id="compStatus" role="status"></div>
+          <div class="sheetbar">
             <button id="saveIdea">שמור טיוטה</button>
             <button class="primary" id="saveReady">מוכן ✓</button>
             <button id="markDone">פורסם</button>
           </div>
-          <div class="actions">
-            <button id="copyPost">העתק טקסט</button>
-            <button class="link" id="newPost">+ פוסט מעבר לקצב</button>
-            <button class="link" id="delPost" hidden>מחק</button>
-          </div>
-          <div class="status" id="compStatus" role="status"></div>
         </div>
 
         <div class="side">

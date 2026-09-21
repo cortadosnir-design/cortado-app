@@ -4,7 +4,7 @@ import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, ho
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
   doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
-import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
+import { FORMATS, TIMING, HASHTAGS, VOICE, COMPETITORS } from "./playbook.js";
 import { openDays, phase, wid, hoursByDay } from "./shifts.js";
 import * as Weather from "./weather.js";
 import * as Season from "./season.js";
@@ -31,6 +31,7 @@ let aiOrigin = null;         // הטיוטה שה-AI הציע, כדי ללמוד
 let lastShoot = "";          // הצעת הצילום מהטיוטה האחרונה
 let pendingImage = null;
 let composerPhoto = null;   // data URL מוקטן, נשלח ל-AI כדי שיראה את התמונה
+let composerThumb = null;   // ~170px, נשמר במסמך הפוסט ומצויר בלוח
 let rhythm = null;           // brand/rhythm
 let clips = [];              // brand/clips.items
 
@@ -237,14 +238,147 @@ function addedWords(base, text){
   return (text || "").toLowerCase().split(/\s+/).filter(w => w && !a.has(w)).length;
 }
 
-/* ===== המשבצות של השבוע ===== */
-function renderSlots(){
+/* ===== לוח השבוע =====
+   רצועה של שבעה ימים עם התמונות עצמן, ומעליה צעד אחד הבא בתור.
+   מה שלמדנו מ-Later ומ-Planoly: מתכננים בעיניים. לוח בלי תמונות, בכלי
+   שכל מטרתו אינסטגרם ופייסבוק, הוא רשימת מטלות שמתחזה ללוח. */
+
+const DAY_LETTER = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+const PILLAR_ICON = { process: "☕", place: "📍", when: "🕒" };
+const stateOf = (p, past) => (past && !p) ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty";
+
+// התמונה של הפוסט, אם יש. thumb נשמר בפיירסטור, image הוא קישור חיצוני.
+const thumbOf = (p) => (p && (p.thumb || p.image)) || "";
+
+function tile(pillar, p, cls){
+  const t = el("div", { class: "wtile " + (cls || "") });
+  const src = thumbOf(p);
+  if (src) t.append(el("img", { src, alt: "", loading: "lazy" }));
+  else t.append(el("span", { class: "wicon", text: PILLAR_ICON[pillar] || "✎" }));
+  return t;
+}
+
+// רצועת השבוע. כל יום תא אחד: פתוח/סגור בעגלה, התמונה, והמצב.
+function renderStrip(box, items){
+  const today = ymd(new Date());
+  const open = openDays();
+  const list = slots();
+  const strip = el("div", { class: "wstrip", role: "group", "aria-label": "השבוע" });
+  for (let i = 0; i < 7; i++){
+    const date = ymd(addDays(S.weekStart, i));
+    const it = items.find(x => x.s.day === i);
+    const p = it ? it.p : null;
+    const extra = S.posts.find(x => x.date === date && !(x.week === wid() && list.some(k => k.key === x.slot)));
+    const st = it ? stateOf(p, it.past) : (extra ? stateOf(extra, false) : "none");
+    const h = holidayOn(date);
+    const cell = el("button", {
+      type: "button",
+      class: `wday ${st}` + (date === today ? " today" : "") + (open.includes(i) ? " cart" : ""),
+      title: h ? h[1] : "",
+      "aria-label": `${DAYS[i]} ${dm(addDays(S.weekStart, i))}${it ? " · " + slotLabel(it.s) : ""}`,
+      onclick: () => it ? (p ? loadPost(p.id) : openSlot(it.s))
+                       : extra ? loadPost(extra.id) : newPost(date),
+    });
+    cell.append(el("span", { class: "wname", text: DAY_LETTER[i] }));
+    if (it || extra) cell.append(tile(it ? it.s.pillar : "place", p || extra));
+    else cell.append(el("span", { class: "wtile ghost", text: "+" }));
+    cell.append(el("span", { class: "wnum", text: String(fromYmd(date).getDate()) }));
+    strip.append(cell);
+  }
+  box.append(strip);
+}
+
+// הצעד הבא. אחד. זו התשובה ל"איפה אני עומד" בשנייה אחת.
+function renderNext(box, items){
+  const it = items.find(({ p, past }) => !past && !isDone(p));
+  const card = el("div", { class: "nextup" });
+
+  if (!it){
+    const doneList = items.filter(x => isDone(x.p));
+    card.append(el("div", { class: "nxbody" },
+      el("b", { text: doneList.length ? "השבוע סגור ✓" : "אין משבצת פתוחה השבוע." }),
+      el("div", { class: "small", text: doneList.length
+        ? "כל המשבצות מוכנות. נשאר להוריד את ה-CSV למתזמן."
+        : "כל המשבצות עברו. הן חוזרות בשבוע הבא." })));
+    box.append(card);
+    return;
+  }
+
+  const { s, p } = it;
+  const sk = ((S.creative && S.creative.slots) || {})[s.key] || {};
+  const angle = (p && p.idea) || sk.angle || "";
+  const noMaterial = !brief.text && !brief.photos.length && !brief.answers.length && !angle;
+
+  card.append(tile(s.pillar, p, "big"));
+  const body = el("div", { class: "nxbody" },
+    el("div", { class: "nxwhen" },
+      el("b", { text: slotLabel(s) }),
+      el("span", { class: "small", text: ` · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))} · ${s.time}` })),
+    el("div", { class: "nxangle", text: angle || (PILLAR3[s.pillar] || {}).note || "" }));
+
+  // נקודת פתיחה אחת. כשאין חומר על השבוע, הצעד הבא הוא לספר — לא לכתוב.
+  if (noMaterial && WORKER_URL && S.isOwner){
+    body.append(el("div", { class: "actions" },
+      el("button", { class: "primary big", text: "ספר לי מה היה השבוע", onclick: openBrief }),
+      el("button", { class: "link", text: "לכתוב בלי זה", onclick: () => p ? loadPost(p.id) : openSlot(s) })));
+  } else {
+    body.append(el("div", { class: "actions" },
+      el("button", { class: "primary big", text: p ? "המשך לכתוב" : "כתוב עכשיו",
+        onclick: () => p ? loadPost(p.id) : openSlot(s) })));
+  }
+  card.append(body);
+  box.append(card);
+}
+
+/* ===== מסך הכתיבה =====
+   שכבה אחת מעל הכל, לא כרטיס בתחתית העמוד. בטלפון זה ההבדל בין
+   "לגלול ולחפש איפה כותבים" לבין "נגעתי במשבצת, אני כותב". */
+function openSheet(){
+  const c = $("composer");
+  c.hidden = false;
+  document.body.classList.add("sheeton");
+  c.scrollTop = 0;
+  renderPreview();
+}
+function closeSheet(){
+  $("composer").hidden = true;
+  document.body.classList.remove("sheeton");
+}
+
+// תצוגה מקדימה: איך הפוסט ייראה בפיד. מתעדכנת עם כל הקלדה.
+const IG_HANDLE = ((COMPETITORS || []).find(c => c.me) || {}).ig || "";
+
+function renderPreview(){
+  const img = $("igImg"); if (!img) return;
+  const name = $("igName");
+  if (name && IG_HANDLE) name.textContent = IG_HANDLE.replace(/^@/, "");
+  const src = composerPhoto || $("cImage").value || composerThumb || "";
+  clear(img);
+  if (src){ img.append(el("img", { src, alt: "" })); img.classList.add("has"); }
+  else { img.append(el("span", { class: "small", text: "עוד אין תמונה" })); img.classList.remove("has"); }
+
+  const text = mergedText();
+  const cap = $("igText");
+  const short = text.length > 120 ? text.slice(0, 120).replace(/\s+\S*$/, "") : text;
+  clear(cap);
+  cap.append(el("span", { text: short || "כאן יופיע הטקסט." }));
+  if (text.length > short.length) cap.append(el("span", { class: "igmore", text: " … עוד" }));
+  $("igTags").textContent = ($("cHash").value || "").split(/\s+/).filter(t => t.startsWith("#")).slice(0, 6).join(" ");
+}
+
+function openBrief(){
+  const c = $("briefCard");
+  if (!c) return;
+  c.hidden = false;
+  c.scrollIntoView({ behavior: "smooth", block: "start" });
+  const t = $("briefText"); if (t) t.focus();
+}
+
+function renderBoard(){
   const box = clear($("slotList"));
   const ph = phase(), open = openDays();
   const list = slots();
-  // כל משבצת עם הפוסט שלה ועם השאלה אם זמנה כבר חלף.
   const items = list.map(s => ({ s, p: slotPost(s), past: isPast(s) }));
-  // משבצת שעברה ונשארה ריקה יורדת מהחשבון. משבצת שעברה ויש בה פוסט נשארת בפנים.
   const active = items.filter(it => !(it.past && !it.p));
   const missed = items.length - active.length;
   const done = active.filter(it => isDone(it.p)).length;
@@ -255,68 +389,59 @@ function renderSlots(){
   head.textContent = allDone ? "השבוע סגור ✓"
     : `${done}/${active.length} מוכנים` + (missed ? ` · ${missed} עברו` : "");
 
-  // הודעה על מצב השבוע. כשאי אפשר לתקן אותה כאן — נותנים כפתור למקום שבו כן.
+  renderStrip(box, items);
+  renderNext(box, items);
+
+  // מצב השיבוץ. שורה אחת מתחת לרצועה, לא הודעה שתופסת מסך.
   if (ph !== "locked"){
-    const note = el("div", { class: "notice" + (open.length ? " info" : "") });
+    const note = el("div", { class: "small hint" });
     if (!open.length){
-      note.append(el("span", { text: "עוד לא נקבעו ימי פעילות. אפשר כבר לכתוב — השעות ייכנסו לבד. " }),
+      note.append(el("span", { text: "עוד לא נקבעו ימי פעילות. אפשר לכתוב — השעות ייכנסו לבד. " }),
         el("button", { class: "link", text: "לקבוע ימים", onclick: () => emit("tab", "shifts") }));
     } else {
       note.textContent = ph === "open"
-        ? "השיבוץ עדיין פתוח. אפשר לכתוב, אבל השעות עוד יכולות להשתנות."
-        : "השבוע עוד לא נפתח לשיבוץ. אפשר כבר לכתוב, השעות יתעדכנו בפוסט לבד.";
+        ? "השיבוץ עדיין פתוח — השעות עוד יכולות להשתנות."
+        : "השבוע עוד לא נפתח לשיבוץ. השעות יתעדכנו בפוסט לבד.";
     }
     box.append(note);
   }
 
-  const skel = (S.creative && S.creative.slots) || {};
-  // משבצת אחת מובילה. ארבע משבצות עם ארבעה כפתורים ראשיים הן ארבע החלטות;
-  // הקרובה בזמן שעוד לא נכתבה היא הצעד הבא, והשאר יכולות לחכות.
-  const nextKey = (items.find(({ p, past }) => !past && !isDone(p)) || {}).s?.key;
-  items.forEach(({ s, p, past }) => {
-    const gone = past && !p;                       // עבר וריק
-    const isNext = s.key === nextKey;
-    const date = slotDate(s);
-    const h = holidayOn(date);
-    const card = el("div", { class: "slot " + (gone ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty") + (isNext ? " next" : "") });
-    card.append(el("div", { class: "slothead" },
-      el("div", {}, el("b", { text: slotLabel(s) }),
-        el("span", { class: "small", text: ` · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))} · ${s.time}` }),
-        h ? el("span", { class: "hol", text: h[1] }) : null),
-      el("span", { class: "pill " + (gone ? "" : isDone(p) ? "ok" : p ? "warn" : ""),
-        text: gone ? "עבר" : p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" })));
-    if (p){
-      card.append(el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 110) }));
-    } else if (gone){
-      card.append(el("div", { class: "small muted", text: "הזמן של המשבצת הזו חלף. היא תחזור בשבוע הבא." }));
-    } else {
-      const sk = skel[s.key];
-      card.append(el("div", { class: "small", text: sk && sk.angle ? "כיוון: " + sk.angle : "עוד לא נכתב. " + (PILLAR3[s.pillar] || {}).note }));
-    }
-    card.append(el("div", { class: "actions" },
-      el("button", { class: (isNext && !gone) ? "primary" : "link",
-        text: !p ? (gone ? "כתוב בכל זאת" : isNext ? "כתוב עכשיו" : "כתוב") : isDone(p) ? "פתח" : "המשך",
-        onclick: () => p ? loadPost(p.id) : openSlot(s) }),
-      isDone(p) ? el("button", { class: "link", text: "העתק", onclick: (e) => copyText(fullText(p), e.currentTarget, "העתק") }) : null));
-    box.append(card);
-  });
+  // שאר המשבצות, שורה לכל אחת. הרצועה מראה אותן, זה נותן להן שם וכפתור.
+  const rest = items.filter(x => x !== items.find(({ p, past }) => !past && !isDone(p)));
+  if (rest.length){
+    const wrap = el("div", { class: "slotrows" });
+    rest.forEach(({ s, p, past }) => {
+      const st = stateOf(p, past);
+      const row = el("button", { type: "button", class: "slotrow " + st,
+        onclick: () => p ? loadPost(p.id) : openSlot(s) });
+      row.append(tile(s.pillar, p, "sm"));
+      row.append(el("span", { class: "grow" },
+        el("b", { text: slotLabel(s) }),
+        el("span", { class: "small", text: ` · ${DAYS[s.day]} ${s.time}` }),
+        el("div", { class: "small clip", text: (p && (p.text || p.idea || "").slice(0, 70))
+          || (st === "gone" ? "הזמן חלף — חוזר בשבוע הבא" : "עוד לא נכתב") })));
+      row.append(el("span", { class: "pill " + (st === "done" ? "ok" : st === "draft" ? "warn" : ""),
+        text: st === "gone" ? "עבר" : p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" }));
+      wrap.append(row);
+    });
+    box.append(wrap);
+  }
 
   // פוסטים מחוץ לקצב (אירוע, דוכן אורח, חג)
   const extra = S.posts.filter(p => weekDates().includes(p.date) && !(p.week === wid() && list.some(s => s.key === p.slot)))
     .sort((a,b) => (a.date + (a.time||"")).localeCompare(b.date + (b.time||"")));
   if (extra.length){
     const wrap = el("div", { class: "extras" }, el("h3", { class: "sub", text: "מעבר לקצב" }));
-    extra.forEach(p => wrap.append(el("div", { class: "idea" },
-      el("div", { class: "grow" },
-        el("div", {}, el("b", { text: DAYS[fromYmd(p.date).getDay()] + " " + dm(fromYmd(p.date)) }), " ",
-          el("span", { class: "mono small", text: p.time || "" }), " ",
-          el("span", { class: "pill " + (isDone(p) ? "ok" : ""), text: STATUS_LABEL[p.status] || "טיוטה" })),
-        el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 90) })),
-      el("button", { text: "פתח", onclick: () => loadPost(p.id) }))));
+    extra.forEach(p => wrap.append(el("button", { type: "button", class: "slotrow " + stateOf(p, false),
+      onclick: () => loadPost(p.id) },
+      tile("place", p, "sm"),
+      el("span", { class: "grow" },
+        el("b", { text: DAYS[fromYmd(p.date).getDay()] + " " + dm(fromYmd(p.date)) }),
+        el("span", { class: "mono small", text: " " + (p.time || "") }),
+        el("div", { class: "small clip", text: (p.text || p.idea || "").slice(0, 70) })),
+      el("span", { class: "pill " + (isDone(p) ? "ok" : ""), text: STATUS_LABEL[p.status] || "טיוטה" }))));
     box.append(wrap);
   }
-  if (allDone)
-    box.append(el("div", { class: "notice ok", text: "כל המשבצות מוכנות. הורד את ה-CSV למתזמן, וזהו — השבוע סגור." }));
 }
 
 /* ===== שלד לשבוע: כיוון לכל משבצת, בלי טקסט ===== */
@@ -414,23 +539,26 @@ function showDone(msg){
   $("briefDoneText").textContent = msg;
 }
 
-// אין Firebase Storage (תוכנית Spark). התמונות לא נשמרות בשום מקום:
-// הן מוקטנות כאן בדפדפן, נשלחות ל-AI כ-data URL, ונעלמות עם רענון הדף.
+// אין Firebase Storage (תוכנית Spark). הצילום המלא נשאר בזיכרון הדפדפן
+// ונשלח ל-AI כ-data URL. מה שכן נשמר זו תמונה ממוזערת של 240 פיקסל
+// (~8KB) בתוך מסמך הפוסט — היא מה שהופך את הלוח לוויזואלי, ושורדת רענון.
 const PHOTO_MAX_PX = 1280;
 const PHOTO_QUALITY = 0.72;
+const THUMB_PX = 240;
+const THUMB_QUALITY = 0.5;
 
-function shrinkToDataUrl(file){
+function shrinkToDataUrl(file, maxPx = PHOTO_MAX_PX, quality = PHOTO_QUALITY){
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, PHOTO_MAX_PX / Math.max(img.width, img.height));
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
       const c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(img.width * scale));
       c.height = Math.max(1, Math.round(img.height * scale));
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      resolve(c.toDataURL("image/jpeg", PHOTO_QUALITY));
+      resolve(c.toDataURL("image/jpeg", quality));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image")); };
     img.src = url;
@@ -522,10 +650,10 @@ const ai = (path, body) => api(path, { ...aiContext(), ...body });
 
 /* ===== עורך הפוסט ===== */
 function resetComposer(){
-  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; composerPhoto = null; lastShoot = "";
+  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; composerPhoto = null; composerThumb = null; lastShoot = "";
   $("cText").value = ""; $("cLine").value = ""; $("cIdea").value = "";
   $("cHash").value = defaultHashtags().join(" ");
-  $("cImage").value = ""; $("cPreview").hidden = true; $("cPhoto").value = "";
+  $("cImage").value = ""; $("cPhoto").value = "";
   $("shootHint").textContent = "";
   $("delPost").hidden = true;
   $("aiWrite").textContent = "✨ טיוטה";
@@ -548,8 +676,7 @@ function openSlot(s){
   $("compTitle").textContent = `${slotLabel(s)} · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))}`;
   $("timeWhy").textContent = "";
   renderComposerMeta();
-  $("composer").hidden = false;
-  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
+  openSheet();
 }
 
 export function newPost(date, preset = {}){
@@ -563,8 +690,7 @@ export function newPost(date, preset = {}){
   $("cIdea").value = preset.idea || "";
   $("compTitle").textContent = "פוסט מעבר לקצב";
   renderComposerMeta();
-  $("composer").hidden = false;
-  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
+  openSheet();
 }
 
 export function loadPost(id){
@@ -577,7 +703,7 @@ export function loadPost(id){
   $("cLine").value = p.line || "";
   $("cHash").value = (p.hashtags || []).join(" ") || defaultHashtags().join(" ");
   $("cImage").value = p.image || "";
-  $("cPreview").hidden = !p.image; if (p.image) $("cPreview").src = p.image;
+  composerThumb = p.thumb || null;
   if (p.shoot) $("shootHint").textContent = "מה לצלם: " + p.shoot;
   const s = slots().find(x => x.key === p.slot);
   $("compTitle").textContent = s ? `${slotLabel(s)} · ${DAYS[fromYmd(p.date).getDay()]} ${dm(fromYmd(p.date))}` : "עריכת פוסט";
@@ -585,8 +711,7 @@ export function loadPost(id){
   if (aiOrigin) $("aiWrite").textContent = "✨ גרסה אחרת";
   $("delPost").hidden = false;
   renderComposerMeta();
-  $("composer").hidden = false;
-  $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
+  openSheet();
 }
 
 function defaultHashtags(){
@@ -598,6 +723,9 @@ function renderFixed(){
   const onSlot = !!editSlot;
   const fixed = $("cFixed"), meta = $("slotMeta");
   if (fixed) fixed.hidden = onSlot;
+  // פוסט מעבר לקצב: התאריך והשעה יושבים ב"פרטים", אז הוא נפתח לבד.
+  const more = $("compMore");
+  if (more && !onSlot) more.open = true;
   if (!meta) return;
   meta.hidden = !onSlot;
   if (!onSlot) return;
@@ -647,6 +775,8 @@ function renderComposerMeta(){
   if (aiOrigin && !$("cLine").value.trim() && addedWords(aiOrigin, text) < 4)
     gate.textContent = "כדי לסמן מוכן: משפט אחד משלך למטה, או תיקון של הטיוטה.";
   else gate.textContent = "";
+
+  renderPreview();
 }
 
 /* ===== כתיבה ===== */
@@ -709,13 +839,8 @@ async function savePost(newStatus, btn){
   }
   await withBusy(btn, async () => {
     try {
-      let image = $("cImage").value || "";
-      if (pendingImage){
-        // בלי Firebase Storage אין לאן להעלות. התמונה נשארת בתצוגה המקדימה בלבד,
-        // ומצורפת ידנית בזמן הפרסום. שדה "כתובת תמונה" ממשיך לעבוד לקישור חיצוני.
-        pendingImage = null;
-        status("compStatus", "warn", "התמונה לא נשמרת — צרפי אותה ידנית בפרסום.");
-      }
+      const image = $("cImage").value || "";
+      pendingImage = null;
       const s = slots().find(x => x.key === editSlot);
       const body = {
         date, time: $("cTime").value || "", network: NETS, week: wid(),
@@ -725,6 +850,8 @@ async function savePost(newStatus, btn){
         hashtags: $("cHash").value.split(/\s+/).filter(t => t.startsWith("#")).slice(0, 15),
         image, status: newStatus, at: serverTimestamp(),
       };
+      // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא מצורף בפרסום.
+      if (composerThumb) body.thumb = composerThumb;
       if (editSlot) body.slot = editSlot;
       if (aiOrigin) body.aiDraft = aiOrigin;
       if (lastShoot || $("shootHint").textContent) body.shoot = (lastShoot || $("shootHint").textContent.replace(/^מה לצלם: /, "")).slice(0, 200);
@@ -743,7 +870,7 @@ async function savePost(newStatus, btn){
 
 async function removePost(){
   if (!editing || !confirm("למחוק את הפוסט?")) return;
-  try { await deleteDoc(doc(db, "posts", editing)); resetComposer(); $("composer").hidden = true; }
+  try { await deleteDoc(doc(db, "posts", editing)); resetComposer(); closeSheet(); }
   catch { status("compStatus", "bad", "המחיקה נכשלה."); }
 }
 
@@ -858,7 +985,7 @@ export function weekProgress(){
 export function render(){
   emit("state");
   if ($("p-creative").hidden) return;
-  renderSlots();
+  renderBoard();
   renderExport();
   renderComposerMeta();
 }
@@ -881,7 +1008,12 @@ export function init(){
   $("markDone").addEventListener("click", (e) => savePost("done", e.currentTarget));
   $("newPost").addEventListener("click", () => newPost());
   $("delPost").addEventListener("click", removePost);
-  $("closeComposer").addEventListener("click", () => { $("composer").hidden = true; $("slotList").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("closeComposer").addEventListener("click", closeSheet);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("composer").hidden) closeSheet();
+  });
+  $("cHash").addEventListener("input", renderPreview);
+  $("cImage").addEventListener("input", renderPreview);
   $("copyPost").addEventListener("click", (e) => {
     const p = { text: mergedText(), hashtags: $("cHash").value.split(/\s+/).filter(Boolean) };
     copyText(fullText(p), e.currentTarget, "העתק טקסט");
@@ -891,12 +1023,11 @@ export function init(){
     if (!f) return;
     if (f.size > 8 * 1024 * 1024){ status("compStatus", "warn", "התמונה גדולה מ-8MB."); e.target.value = ""; return; }
     pendingImage = f;
-    const r = new FileReader();
-    r.onload = () => { $("cPreview").src = r.result; $("cPreview").hidden = false; };
-    r.readAsDataURL(f);
-    // גם ל-AI: מוקטנת, כדי שהכותב יראה מה באמת בתמונה במקום לנחש.
-    shrinkToDataUrl(f).then(u => { composerPhoto = u; }).catch(() => { composerPhoto = null; });
-    status("compStatus", "ok", "התמונה תעלה בשמירה.");
+    // שתי גרסאות: אחת ל-AI שיראה מה באמת בתמונה, ואחת קטנה שנשמרת ללוח.
+    shrinkToDataUrl(f).then(u => { composerPhoto = u; renderPreview(); }).catch(() => { composerPhoto = null; });
+    shrinkToDataUrl(f, THUMB_PX, THUMB_QUALITY).then(u => { composerThumb = u; renderPreview(); })
+      .catch(() => { composerThumb = null; });
+    status("compStatus", "ok", "הצילום נכנס לטיוטה וללוח. את המקור מצרפים בפרסום.");
   });
 
   // השיחה השבועית
