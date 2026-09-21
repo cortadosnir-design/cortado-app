@@ -478,6 +478,26 @@ const FORMAT_RULE = {
   story: "זה סטורי. משפט אחד או שניים, ישיר מאוד.",
 };
 
+/* התבנית = המבנה. בלי זה המודל ממציא מבנה חדש בכל פוסט, ומשם הגנריות.
+   CTA_RULE הוא הסיום: בדיוק אחד, ומה שהאפליקציה כבר יודעת גובר על המצאה. */
+const CTA_RULE = {
+  hours: "סיים בשעות הפתיחה של היום בלבד, בשורה נפרדת וקצרה. בלי 'נשמח לראותכם'.",
+  waze: "סיים בהוראת ניווט אחת: 'בווייז: קפה קורטדו'. בלי כלום אחריה.",
+  question: "סיים בשאלה אחת קצרה שאפשר לענות עליה במילה. לא שאלה רטורית.",
+};
+function templateRule(b){
+  const t = b && b.template;
+  if (!t || typeof t !== "object") return "";
+  const out = [`התבנית: ${String(t.name || "").slice(0, 60)}. זה המבנה, אל תסטה ממנו.`];
+  if (t.open) out.push(`הפתיחה: ${String(t.open).slice(0, 300)}`);
+  if (t.body) out.push(`הגוף: ${String(t.body).slice(0, 300)}`);
+  if (Array.isArray(t.sec) && t.sec.length === 2) out.push(`אורך הסרטון: ${t.sec[0]}–${t.sec[1]} שניות. כתוב בהתאם.`);
+  if (t.cta && CTA_RULE[t.cta]) out.push(CTA_RULE[t.cta]);
+  const occ = Array.isArray(b.occasions) ? b.occasions.filter(x => typeof x === "string").slice(0, 6) : [];
+  if (occ.length) out.push(`נסיבות היום: ${occ.join(", ")}. התייחס רק למה שבאמת רלוונטי.`);
+  return out.join("\n");
+}
+
 async function aiPost(env, b){
   const prompt = [
     BRAND, memoryBlock(b),
@@ -488,10 +508,14 @@ async function aiPost(env, b){
     b.angle ? `הזווית של היום, כפי שהבעלים הגדיר: ${b.angle}. זה העיקר, בנה סביבה.` : "",
     b.idea ? `הכיוון של הפוסט: ${b.idea}. זה הנושא. אל תסטה ממנו.` : "",
     b.pillar ? `העמוד: ${b.pillar}.${b.pillarNote ? " " + String(b.pillarNote).slice(0, 200) : ""}` : "",
+    templateRule(b),
     FORMAT_RULE[b.format] || FORMAT_RULE.static,
     humanRule(b),
     "הפוסט מתפרסם בפייסבוק ובאינסטגרם יחד. כתוב גרסה אחת שעובדת בשתיהן.",
     hoursLine(b) ? `שעות הפתיחה השבוע (אלה העובדות, אל תשנה אותן):\n${hoursLine(b)}` : "",
+    // שעות אותו היום נצרבות על התמונה ונספחות לטקסט מהאפליקציה. אסור שהמודל
+    // יכתוב אותן שוב בניסוח שלו — ככה נוצרות סתירות מול הלוח.
+    b.dayHours ? `שעות הפתיחה ביום הפרסום: ${String(b.dayHours).slice(0, 80)}. הן כבר מופיעות על התמונה ובסוף הפוסט — אל תכתוב אותן בגוף הטקסט.` : "",
     b.avoid ? `זו הטיוטה הקודמת. כתוב משהו אחר לגמרי, פתיחה אחרת וזווית אחרת:\n${String(b.avoid).slice(0, 600)}` : "",
     "סיים בקריאה לפעולה אחת קונקרטית או בשאלה אחת. לא בשתיהן.",
     // כשיש תמונה, היא העובדה החזקה ביותר שיש לכותב על הפוסט הזה.
@@ -499,11 +523,13 @@ async function aiPost(env, b){
       ? "מצורפת התמונה שתתפרסם עם הפוסט. הסתכל עליה וכתוב על מה שבאמת רואים בה — " +
         "פרט אחד קונקרטי משם שווה יותר מכל תיאור כללי. אל תתאר את התמונה במילים, תישען עליה."
       : "",
-    'החזר JSON בלבד: {"text":"טקסט הפוסט","hashtags":["#..."],"shoot":"מה לצלם, משפט אחד"}. 8–12 האשטגים בעברית, לא יותר.',
+    'החזר JSON בלבד: {"text":"טקסט הפוסט","headline":"עד 6 מילים לכותרת שעל התמונה","hashtags":["#..."],"shoot":"מה לצלם, משפט אחד"}. 8–12 האשטגים בעברית, לא יותר.',
+    "הכותרת היא מה שקוראים בחצי שנייה על התמונה. לא משפט מהפוסט, לא סיסמה — ארבע עד שש מילים שעוצרות.",
   ].filter(Boolean).join("\n\n");
   const r = await gemini(env, prompt, { json: true, images: b.photos });
   return {
     text: String(r.text || "").trim(),
+    headline: String(r.headline || "").trim().slice(0, 80),
     hashtags: Array.isArray(r.hashtags) ? r.hashtags.filter(h => typeof h === "string" && h.startsWith("#")).slice(0, 15) : [],
     shoot: String(r.shoot || "").slice(0, 200),
   };

@@ -147,6 +147,9 @@ service cloud.firestore {
     // (עד 150 פוסטים בכל טעינה) לא יגרור אותו. נמחק ברגע שהפוסט יוצא.
     match /postmedia/{id} { allow read, write: if isOwner(); }
     match /brand/{doc}   { allow read, write: if isOwner(); }
+    // ספריית המדיה של הכרטיס: סמלים, צילומים ומדבקות. מסמך לכל פריט —
+    // מסמך בפיירסטור מוגבל ל-1MiB, ורשימה אחת הייתה נחסמת אחרי כמה תמונות.
+    match /assets/{id}   { allow read, write: if isOwner(); }
 
     // ── יומן משמרת ──
     // שני מסלולי כתיבה: מנהל/חבר צוות שנכנס עם גוגל (מזהה <date>_<uid>),

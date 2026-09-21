@@ -171,3 +171,192 @@ export const HOLIDAYS = [
   ["2027-10-23","שמחת תורה","ערב החג 22.10"],
   ["2027-12-25","חנוכה – נר ראשון","בערב"],
 ];
+
+/* ===== תבניות הקריאייטיב =====
+   עמוד הוא נושא, לא מבנה. עד היום ה-AI המציא מבנה חדש בכל שבוע, ולכן
+   הכיוונים יצאו גנריים ולא היה מה לצבור. תבנית היא מבנה קבוע: פתיחה,
+   גוף, סיום וכרטיס. זורקים נושא — התבנית אומרת איך הוא נראה.
+
+   occasion = מתי התבנית רלוונטית. ריק = תמיד.
+     weekend | holiday | rain | hot | closed | first | quiet
+   why      = מה המחקר אומר. זה מה שמוצג ליד התבנית עד שיש מספיק נתונים,
+              ואז הנתונים שלנו גוברים עליו (ראה templateStats ב-analyze.js). */
+export const TEMPLATES = [
+  /* ☕ הקפה בתהליך */
+  { key: "steam", name: "הקיטור", pillar: "process", format: "reel", sec: [7, 12], occasion: [],
+    card: "photo", cta: "hours",
+    open: "פתח בקלוז־אפ על הקיטור. בלי כותרת, בלי 'שלום'. הצליל הוא ההוק.",
+    body: "שלוש שניות קיטור, היד מסובבת, המזיגה. בלי דיבור, בלי מוזיקה שמכסה.",
+    shots: ["מאקרו על פיית הקיטור", "היד מסובבת את הכד", "המזיגה — סיום על הכוס"],
+    why: "תוכן תהליך הוא הפורמט מספר 1 במזון ומשקאות. הצפייה בבנייה מאפס היא מה שמחזיק." },
+
+  { key: "bean2cup", name: "מהשק לכוס", pillar: "process", format: "reel", sec: [10, 15], occasion: [],
+    card: "photo", cta: "question",
+    open: "קאט ראשון על השק הפתוח. המסע מתחיל מיד.",
+    body: "ארבעה קאטים: שק, טחינה, מיצוי, כוס מוכנה. קצב מהיר, בלי אוויר מת.",
+    shots: ["השק הפתוח מלמעלה", "הטחנה בעבודה", "המיצוי מהפילטר", "הכוס על הדלפק"],
+    why: "jump cuts בלי אוויר מת מחזיקים רטנשן. אינסטגרם מתמחרת את השניות הראשונות." },
+
+  { key: "firstcup", name: "ההזמנה הראשונה של הבוקר", pillar: "process", format: "reel", sec: [8, 12], occasion: ["first"],
+    card: "photo", cta: "hours",
+    open: "העגלה נפתחת. הרגע שלפני הלקוח הראשון.",
+    body: "רצף אחד, בלי חיתוך. יד אחת עושה הכול.",
+    shots: ["פתיחת התריס", "המכונה נדלקת", "הכוס הראשונה יוצאת"],
+    why: "'יום בחיים' ופתיחת היום הם מהפורמטים היציבים ביותר לעסק מקומי." },
+
+  /* 📍 המקום והאנשים */
+  { key: "view", name: "הנוף מאחורי הכתף", pillar: "place", format: "reel", sec: [7, 10], occasion: [],
+    card: "photo", cta: "waze",
+    open: "מתחילים צמוד על הכוס, ואז פאן איטי החוצה אל הנוף.",
+    body: "תנועה אחת רציפה. הנוף הוא הפאנץ', לא הרקע.",
+    shots: ["קלוז־אפ על הכוס ביד", "פאן איטי אל החרמון", "עצירה על הנוף המלא"],
+    why: "הפורמט שנשלח ב-DM. שיתוף בהודעה הוא סיגנל האיכות המוביל של רילס — 'בוא נעצור פה'." },
+
+  { key: "regular", name: "הלקוח הקבוע", pillar: "place", format: "reel", sec: [10, 15], occasion: [],
+    card: "quote", cta: "question",
+    open: "שם פרטי ומה הוא מזמין. משפט אחד, בלי הקדמה.",
+    body: "עשר שניות איתו. מה הוא מזמין כבר שנה ולמה. פנים, לא קפה.",
+    shots: ["הוא מגיע לדלפק", "ההזמנה נעשית", "הוא לוקח ויוצא"],
+    why: "הפנים מאחורי הדלפק והלקוחות הם מה שעובד לעסק מקומי — לא הפקה." },
+
+  { key: "today", name: "מה קרה היום", pillar: "place", format: "static", occasion: ["quiet"],
+    card: "photo", cta: "question",
+    open: "אירוע אמיתי אחד מהיום. משפט קצר שעוצר גלילה.",
+    body: "הסיפור לפני הקפה. פרט קונקרטי אחד — שם, שעה, מה נאמר.",
+    shots: ["הרגע עצמו, גם אם הצילום לא מושלם"],
+    why: "אותנטיות מנצחת ליטוש בקהל מקומי. פרט אמיתי אחד שווה יותר מתיאור כללי." },
+
+  { key: "rain", name: "הגשם הראשון", pillar: "place", format: "reel", sec: [7, 12], occasion: ["rain", "hot"],
+    card: "photo", cta: "hours",
+    open: "מזג האוויר הוא ההוק. טיפות על הגג, או האדים מול הקור.",
+    body: "מה שמזג האוויר עושה לעגלה היום. קצר, חושי.",
+    shots: ["טיפות/אדים", "הכוס החמה בידיים", "הנוף המעורפל"],
+    why: "תוכן שקשור לרגע הנוכחי מקבל עדיפות. מזג אוויר הוא הטריגר הכי מיידי שיש." },
+
+  /* 🕒 מתי ואיפה */
+  { key: "weekend", name: "הסופ״ש", pillar: "when", format: "static", occasion: ["weekend"],
+    card: "hours", cta: "hours",
+    open: "משפט אחד: מתי פתוחים בסופ״ש. בלי 'שלום לכולם'.",
+    body: "השעות הן התוכן. שתי שורות, לא פסקה.",
+    shots: ["העגלה פתוחה, זווית רחבה"],
+    why: "חלון ההחלטה 'מה עושים בסופ״ש' — הפוסט שמביא אנשים בפועל, לא לייקים." },
+
+  { key: "waze", name: "בווייז: קפה קורטדו", pillar: "when", format: "static", occasion: [],
+    card: "hours", cta: "waze",
+    open: "איך מגיעים. המרחק מנקודת ציון שכולם מכירים.",
+    body: "שורה אחת של ניווט. 'בווייז: קפה קורטדו'.",
+    shots: ["צילום מסך של הניווט", "העגלה מהכביש"],
+    why: "באזור מחפשים 'קפה ליד'. ניווט מפורש מסיר את החיכוך האחרון לפני נסיעה." },
+
+  { key: "onroad", name: "עצירה בדרך צפונה", pillar: "when", format: "reel", sec: [8, 12], occasion: ["weekend"],
+    card: "photo", cta: "waze",
+    open: "'בדרך צפונה?' — פנייה ישירה למטייל, בשנייה הראשונה.",
+    body: "כמה דקות סטייה מהכביש, ומה מחכה שם. ממוקד במטיילים.",
+    shots: ["הכביש צפונה", "הפנייה אל הקיבוץ", "העגלה והנוף"],
+    why: "פנייה לקהל ספציפי מכפילה את שיעור ההוק. 'מטייל בדרך צפונה' חד יותר מ'כולם'." },
+
+  { key: "holiday", name: "מועד", pillar: "when", format: "static", occasion: ["holiday"],
+    card: "hours", cta: "hours",
+    open: "המועד בשם שלו, ומיד מה זה אומר לגבי השעות.",
+    body: "פתוח/סגור, ומתי חוזרים. בלי ברכות ארוכות.",
+    shots: ["העגלה עם משהו מהמועד"],
+    why: "בחגים החיפוש הוא 'מי פתוח'. תשובה ישירה מנצחת ברכה." },
+
+  { key: "closed", name: "סגור היום", pillar: "when", format: "static", occasion: ["closed"],
+    card: "hours", cta: "hours",
+    open: "סגור — נאמר בשורה הראשונה, בלי התנצלות ארוכה.",
+    body: "מתי חוזרים. זה כל הפוסט.",
+    shots: ["העגלה סגורה, או ארכיון"],
+    why: "פוסט 'סגור' מונע נסיעת סרק, וזה מה שמשמר לקוח חוזר." },
+];
+
+export const templateOf = (key) => TEMPLATES.find(t => t.key === key) || null;
+// התבניות שמתאימות לעמוד ולנסיבות היום. תבנית בלי occasion מתאימה תמיד.
+export const templatesFor = (pillar, occasions = []) => TEMPLATES
+  .filter(t => (!pillar || t.pillar === pillar))
+  .filter(t => !t.occasion.length || t.occasion.some(o => occasions.includes(o)))
+  .sort((a, b) => (b.occasion.length ? 1 : 0) - (a.occasion.length ? 1 : 0));
+
+/* ===== היעדים =====
+   אותו כרטיס לא מתאים לכל מקום. לכל שיבוץ יש מידה משלו ואזור בטוח משלו —
+   השטח שה-UI של הרשת לא דורס ושהחיתוך לא בולע. המספרים באחוזים כדי
+   שיישארו נכונים גם אם המידה תשתנה.
+
+   מה שחשוב לדעת (מפרטי 2026):
+   · פיד: אין דריסת UI, רק חיתוך קל בקצוות. הסכנה היא הגריד — הפרופיל
+     חותך לריבוע מרכזי, ומה שבחוץ נעלם.
+   · סטורי: 14% עליונים ו-20% תחתונים תפוסים.
+   · ריל: ה-35% התחתונים נבלעים בערימת לייק/תגובה/שיתוף/אודיו/כיתוב,
+     וצד ימין תפוס יותר מצד שמאל. */
+export const TARGETS = [
+  { key: "ig_feed",   label: "אינסטגרם — פיד",        net: "instagram", w: 1080, h: 1350,
+    safe: { top: .04, bottom: .04, left: .04, right: .04 }, grid: true,
+    note: "4:5. הכי הרבה שטח בפיד. הגריד יחתוך לריבוע — מה שחשוב במרכז." },
+  { key: "ig_square", label: "אינסטגרם — ריבוע",      net: "instagram", w: 1080, h: 1080,
+    safe: { top: .04, bottom: .04, left: .04, right: .04 }, grid: false,
+    note: "1:1. מה שנראה בגריד בדיוק כמו בפיד." },
+  { key: "ig_story",  label: "אינסטגרם — סטורי",      net: "instagram", w: 1080, h: 1920,
+    safe: { top: .14, bottom: .20, left: .06, right: .06 }, grid: false,
+    note: "9:16. 14% עליונים ו-20% תחתונים תפוסים ב-UI." },
+  { key: "ig_reel",   label: "אינסטגרם — כיסוי ריל",  net: "instagram", w: 1080, h: 1920,
+    safe: { top: .14, bottom: .35, left: .06, right: .11 }, grid: true,
+    note: "9:16. השליש התחתון נבלע בערימת הכפתורים. הכיסוי נחתך לריבוע בפרופיל." },
+  { key: "fb_feed",   label: "פייסבוק — פיד",         net: "facebook",  w: 1080, h: 1350,
+    safe: { top: .04, bottom: .04, left: .04, right: .04 }, grid: false,
+    note: "4:5. פייסבוק לא חותך לגריד, אז אפשר למלא." },
+  { key: "fb_story",  label: "פייסבוק — סטורי",       net: "facebook",  w: 1080, h: 1920,
+    safe: { top: .14, bottom: .20, left: .06, right: .06 }, grid: false,
+    note: "9:16, כמו סטורי באינסטגרם." },
+];
+export const targetOf = (key) => TARGETS.find(t => t.key === key) || TARGETS[0];
+
+/* ===== ערכות עיצוב =====
+   נקודות פתיחה, לא כלא. כל ערך כאן ניתן לדריסה ב-brand/card או לפוסט בודד,
+   דרך פאנל העיצוב באפליקציה. ערכה = חבילת ברירות מחדל שנראית שלמה. */
+export const THEMES = {
+  clean:   { label: "נקי",        scrimStyle: "gradient", scrim: .55, block: false, frame: false,
+             headlinePos: "top",    align: "right", accentBar: true,  shadow: true },
+  band:    { label: "פס תחתון",   scrimStyle: "band",     scrim: .72, block: false, frame: false,
+             headlinePos: "top",    align: "right", accentBar: false, shadow: true },
+  block:   { label: "בלוק כותרת", scrimStyle: "none",     scrim: 0,   block: true,  frame: false,
+             headlinePos: "bottom", align: "right", accentBar: false, shadow: false },
+  frame:   { label: "מסגרת",      scrimStyle: "uniform",  scrim: .38, block: false, frame: true,
+             headlinePos: "center", align: "center", accentBar: false, shadow: true },
+  minimal: { label: "מינימלי",    scrimStyle: "gradient", scrim: .40, block: false, frame: false,
+             headlinePos: "none",   align: "right", accentBar: true,  shadow: true },
+};
+
+/* ===== הכרטיס =====
+   ברירות המחדל בלבד. מה שנשמור ב-brand/card גובר על כל שדה כאן, ומה
+   שנבחר לפוסט בודד גובר על שניהם. הסדר: CARD ← THEMES[theme] ← brand/card ← הפוסט. */
+export const CARD = {
+  theme: "clean",
+  target: "ig_feed",
+  targets: ["ig_feed"],          // מה נבנה בלחיצה אחת
+  ink: "#ffffff",
+  accent: "#2d5a87",
+  bg: "#22303c",                 // כשאין צילום
+  display: "Secular One",
+  body: "Assistant",
+  pad: .074,                     // שוליים נוספים מעבר לאזור הבטוח
+  align: "right",
+  headlinePos: "top",            // top | center | bottom | none
+  headlineSize: .078,            // יחסית לרוחב
+  headlineMax: 3,
+  logoCorner: "bottom-left",     // top/bottom × right/center/left
+  logoSize: .16,
+  scrimStyle: "gradient",        // gradient | uniform | band | none
+  scrim: .55,
+  tint: "",                      // גוון צבעוני מעל הצילום, ריק = בלי
+  tintAlpha: .18,
+  frame: false,
+  frameWidth: .008,
+  block: false,                  // בלוק אטום מאחורי הכותרת
+  accentBar: true,
+  shadow: true,
+  showHours: true,
+  hoursSize: .046,
+  showWaze: true,
+  waze: "בווייז: קפה קורטדו",
+  showGuides: false,             // קווי האזור הבטוח — לכיוונון בלבד, לא בפרסום
+};

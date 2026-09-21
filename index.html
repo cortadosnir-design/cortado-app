@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-21.17">
+  <meta name="app-build" content="2026-09-21.18">
 <meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&family=Heebo:wght@400;700&family=Rubik:wght@400;700&family=Alef:wght@400;700&family=Frank+Ruhl+Libre:wght@400;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -220,7 +220,11 @@
             <input id="cPhoto" type="file" accept="image/*" capture="environment">
           </label>
 
-          <label for="cIdea">הכיוון — משפט אחד</label>
+          <!-- התבנית: המבנה הקבוע של הפוסט. זורקים נושא, התבנית אומרת איך הוא נראה. -->
+          <label for="cTemplate">התבנית<select id="cTemplate"></select></label>
+          <div class="tplnote" id="tplNote" hidden></div>
+
+          <label for="cIdea">הנושא — משפט אחד</label>
           <div class="angle">
             <input id="cIdea" type="text" placeholder="למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר">
             <button class="icon" id="aiAngle" data-api hidden title="הצע כיוון">✨</button>
@@ -231,6 +235,20 @@
           <p class="small" id="lenHint"></p>
           <ul class="tells" id="tells"></ul>
           <button class="link" id="cleanTells" hidden>נקה סימני מכונה</button>
+
+          <!-- הכרטיס: הסמל, שעות אותו היום והכותרת נצרבים על התמונה. -->
+          <fieldset class="cardbox">
+            <legend>הכרטיס</legend>
+            <label for="cHead">הכותרת שעל התמונה
+              <input id="cHead" type="text" maxlength="80" placeholder="עד שש מילים. מה שקוראים בחצי שנייה">
+            </label>
+            <p class="small">לאילו שיבוצים לבנות:</p>
+            <div class="targets" id="cTargets"></div>
+            <div class="actions"><button class="primary" id="cBuildCard">בנה כרטיס</button></div>
+            <p class="small">הבסיס הוא הצילום שבחרת. אין צילום — נלקח צילום העגלה מהמלאי. הראשון ברשימה הוא מה שמתפרסם; השאר להורדה.</p>
+            <div class="assets" id="cCards"></div>
+            <label class="check" for="cHours"><input type="checkbox" id="cHours" checked> להוסיף את שעות היום גם לטקסט</label>
+          </fieldset>
 
           <label for="cLine" class="gate">השורה שלך
             <input id="cLine" type="text" placeholder="משפט אחד משלך: פרט, שם, מה קרה היום">
@@ -271,6 +289,53 @@
         </div>
 
         <div class="side">
+          <details class="card fold" id="brandAssets">
+            <summary>ספריית המדיה</summary>
+            <p class="small">סמלים, צילומי עגלה, מדבקות, חותמות, לוגו של שותף — כל תמונה שתרצה לשים על כרטיס. אפשר להעלות כמה קבצים יחד.</p>
+            <div class="two-col">
+              <label for="assetKind">סוג<select id="assetKind">
+                <option value="photo">צילום</option>
+                <option value="logo">סמל</option>
+                <option value="sticker">מדבקה</option>
+              </select></label>
+              <label for="assetFilter">הצג<select id="assetFilter">
+                <option value="">הכול</option>
+                <option value="photo">צילומים</option>
+                <option value="logo">סמלים</option>
+                <option value="sticker">מדבקות</option>
+              </select></label>
+            </div>
+            <label for="assetFile">העלה קבצים
+              <input id="assetFile" type="file" accept="image/*" multiple>
+            </label>
+            <p class="small">סמל ומדבקה נשמרים כ-PNG כדי לשמור שקיפות. צילום נשמר כ-JPEG.</p>
+            <div class="status" id="assetStatus" role="status"></div>
+            <div id="assetList"></div>
+          </details>
+
+          <details class="card fold" id="cardDesign">
+            <summary>עיצוב הכרטיס</summary>
+            <p class="small">כל שינוי נראה מיד. שמירה הופכת אותו לברירת המחדל של כל כרטיס.</p>
+            <div class="two-col">
+              <label for="dsTarget">שיבוץ לתצוגה<select id="dsTarget"></select></label>
+              <label for="dsDate">תאריך לדוגמה<input id="dsDate" type="date"></label>
+            </div>
+            <label for="dsText">כותרת לדוגמה<input id="dsText" type="text" value="הכוס הזאת, והנוף הזה"></label>
+            <div class="dspreview" id="dsPreview"></div>
+            <p class="small" id="dsNote"></p>
+            <div class="dsgrid" id="dsControls"></div>
+            <h4 class="small kindhead">שכבות נוספות</h4>
+            <p class="small">תמונה, לוגו נוסף, מדבקה או טקסט — בכל מקום על הכרטיס. המיקום יחסי, אז שכבה אחת נוחתת נכון בכל השיבוצים.</p>
+            <div id="dsLayers"></div>
+            <div class="actions" id="dsBar"></div>
+          </details>
+
+          <details class="card fold" id="tplBoardCard">
+            <summary>מה עובד — דירוג התבניות</summary>
+            <p class="small">המחקר הוא נקודת הפתיחה. מרגע שיש שני פוסטים מאותה תבנית עם נתוני חשיפה, הנתונים שלנו גוברים.</p>
+            <div id="tplBoard"></div>
+          </details>
+
           <details class="card fold">
             <summary>בנק הקליפים <span class="pill" id="clipCount"></span></summary>
             <p class="small">20 דקות צילום מכסות שבועיים.</p>

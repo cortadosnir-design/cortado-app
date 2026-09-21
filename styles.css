@@ -556,3 +556,40 @@ body.sheeton{overflow:hidden}
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
     transition-duration:.01ms !important;scroll-behavior:auto !important}
 }
+
+/* ===== הקריאייטיב: תבניות, כרטיס ומלאי ===== */
+.tplnote{border-inline-start:3px solid var(--accent,#2d5a87);padding:6px 10px;margin:4px 0 10px;
+  background:color-mix(in srgb,var(--accent,#2d5a87) 6%,transparent);border-radius:0 6px 6px 0}
+.tplnote p{margin:2px 0}
+.tplnote .why{opacity:.75;font-style:italic}
+.tplnote .shots{margin:6px 0 4px;padding-inline-start:18px;font-size:13px;opacity:.85}
+.tplnote .shots li{margin:1px 0}
+.cardbox{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;margin:10px 0}
+.cardbox legend{font-family:var(--display);padding:0 6px}
+.cardbox .actions{align-self:end}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:6px}
+.check input{width:auto;margin:0}
+.logoprev{min-height:56px;display:flex;align-items:center;margin:6px 0 10px}
+.logoprev img{max-height:56px;max-width:140px;object-fit:contain}
+.assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-top:8px}
+.asset{margin:0}
+.asset img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;display:block}
+.asset figcaption{display:flex;justify-content:space-between;gap:4px;align-items:center}
+.tplrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line,#eee)}
+.tplrow b{flex:1}
+.targets{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;margin:4px 0 8px}
+.targets .check{margin-top:0}
+.dspreview{display:flex;justify-content:center;background:var(--ground,#f3f1ee);border-radius:8px;padding:8px;margin:6px 0}
+.dspreview img{max-height:340px;max-width:100%;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+.dsgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:8px}
+.dsgrid label{font-size:13px}
+.dsgrid .check{grid-column:span 2}
+.dsgrid input[type=color]{height:32px;padding:2px}
+.dsgrid input[type=range]{width:100%}
+.kindhead{margin:12px 0 4px;font-weight:700;opacity:.7}
+.asset img.trans{background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 50%/16px 16px;object-fit:contain}
+.asset .aname{font-size:12px;padding:2px 4px;width:100%;min-width:0}
+.kindtag{font-size:11px;opacity:.6}
+.layer{border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 8px;margin:6px 0}
+.layhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.layhead b{flex:1;font-size:13px}

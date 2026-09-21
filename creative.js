@@ -4,7 +4,8 @@ import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
   doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
-import { FORMATS, TIMING, HASHTAGS, VOICE, COMPETITORS } from "./playbook.js";
+import { FORMATS, TIMING, HASHTAGS, VOICE, COMPETITORS, TEMPLATES, templateOf, templatesFor } from "./playbook.js";
+import * as Card from "./card.js";
 import { openDays, phase, wid, hoursByDay } from "./shifts.js";
 import * as Weather from "./weather.js";
 import * as Season from "./season.js";
@@ -34,6 +35,7 @@ let composerPhoto = null;   // data URL מוקטן, נשלח ל-AI כדי שיר
 let composerThumb = null;   // ~170px, נשמר במסמך הפוסט ומצויר בלוח
 let rhythm = null;           // brand/rhythm
 let clips = [];              // brand/clips.items
+let cardUrl = null;          // הכרטיס שנבנה — התמונה שתתפרסם בפועל
 
 const STATUS_LABEL = { idea: "טיוטה", ready: "מוכן", scheduled: "מתוזמן", done: "פורסם" };
 const DONE = ["ready", "scheduled", "done"];
@@ -56,6 +58,7 @@ export function subscribe(){
     (snap) => { clips = (snap.exists() && Array.isArray(snap.data().items)) ? snap.data().items : []; renderClips(); },
     () => {}));
   subscribeCreative();
+  Card.subscribe();
 }
 
 let unsubCreative = null;
@@ -397,6 +400,7 @@ function renderEntry(){
 }
 
 function renderBoard(){
+  renderLeaderboard();
   const box = clear($("slotList"));
   const ph = phase(), open = openDays();
   const list = slots();
@@ -717,7 +721,7 @@ const ai = (path, body) => api(path, { ...aiContext(), ...body });
 
 /* ===== עורך הפוסט ===== */
 function resetComposer(){
-  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; composerPhoto = null; composerThumb = null; lastShoot = "";
+  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; composerPhoto = null; composerThumb = null; lastShoot = ""; cardUrl = null; cards = [];
   $("cText").value = ""; $("cLine").value = ""; $("cIdea").value = "";
   $("cHash").value = defaultHashtags().join(" ");
   $("cImage").value = ""; $("cPhoto").value = "";
@@ -826,6 +830,7 @@ function renderComposerMeta(){
   const f = FORMATS.find(x => x.key === $("cFormat").value);
   $("formatHint").textContent = f ? f.note : "";
   renderFixed();
+  renderTemplates();
 
   const text = $("cText").value || "";
   const n = wordCount(text);
@@ -846,6 +851,162 @@ function renderComposerMeta(){
   renderPreview();
 }
 
+/* ===== נסיבות היום =====
+   תבנית לא מתאימה "תמיד" — היא מתאימה למצב. הנסיבות נגזרות ממה שהמערכת
+   כבר יודעת: הלוח, החגים, המשמרות והתחזית. אף אחד לא מקליד אותן. */
+function occasionsOn(date){
+  const out = [];
+  if (!date) return out;
+  const d = fromYmd(date);
+  const dow = d.getDay();
+  if (dow === 4 || dow === 5 || dow === 6) out.push("weekend");
+  if (holidayOn(date)) out.push("holiday");
+  if (!Card.hoursOn(date).open) out.push("closed");
+  if (dow === 0 || dow === 1) out.push("quiet");
+  const w = Weather.forDate(date);
+  if (w){
+    if ((w.rain || 0) >= 40) out.push("rain");
+    if ((w.tmax || 0) >= 32) out.push("hot");
+  }
+  const first = weekDates().find(x => Card.hoursOn(x).open);
+  if (first === date) out.push("first");
+  return out;
+}
+
+/* ===== התבנית =====
+   העמוד אומר על מה הפוסט. התבנית אומרת איך הוא בנוי: פתיחה, גוף, סיום
+   וכרטיס. זה מה שהיה חסר — ובלעדיו המודל המציא מבנה חדש בכל שבוע. */
+const currentTemplate = () => templateOf($("cTemplate") ? $("cTemplate").value : "");
+
+function renderTemplates(){
+  const sel = $("cTemplate");
+  if (!sel) return;
+  const date = $("cDate").value;
+  const s = slots().find(x => x.key === editSlot);
+  const pillar = s ? s.pillar : "";
+  const occ = occasionsOn(date);
+  const fit = templatesFor(pillar, occ);
+  // מחוץ למשבצת של הקצב אין עמוד קבוע, אז כל התבניות פתוחות.
+  const list = fit.length ? fit : TEMPLATES;
+  const keep = sel.value;
+  clear(sel);
+  sel.append(el("option", { value: "", text: "— בלי תבנית —" }));
+  for (const t of list)
+    sel.append(el("option", { value: t.key, text: t.name + (t.occasion.length && t.occasion.some(o => occ.includes(o)) ? " ★" : "") }));
+  sel.value = list.some(t => t.key === keep) ? keep : (list[0] ? list[0].key : "");
+  renderTemplateNote();
+}
+
+function renderTemplateNote(){
+  const box = $("tplNote");
+  if (!box) return;
+  clear(box);
+  const t = currentTemplate();
+  if (!t){ box.hidden = true; return; }
+  box.hidden = false;
+  const st = templateScore(t.key);
+  box.append(el("p", { class: "small", text: t.open }));
+  box.append(el("p", { class: "small", text: t.body }));
+  if (t.shots && t.shots.length)
+    box.append(el("ol", { class: "shots" }, ...t.shots.map(x => el("li", { text: x }))));
+  // המחקר מוצג עד שיש מספיק מדידות. מרגע שיש — הנתונים שלנו גוברים עליו.
+  box.append(el("p", { class: "small why", text: st ? st.line : "מחקר: " + t.why }));
+}
+
+/* ציון התבנית מהנתונים שלנו. פחות משני פוסטים = עוד אין מה ללמוד ממנו,
+   ואז מוצג המחקר במקום. ממוצע חשיפה, כי זה מה שנאסף ב-/insights/posts. */
+export function templateScore(key){
+  const done = S.posts.filter(p => p.template === key && p.performance && p.performance.reach > 0);
+  if (done.length < 2) return null;
+  const avg = Math.round(done.reduce((a, p) => a + (p.performance.reach || 0), 0) / done.length);
+  const all = S.posts.filter(p => p.performance && p.performance.reach > 0);
+  const base = all.length ? Math.round(all.reduce((a, p) => a + p.performance.reach, 0) / all.length) : 0;
+  const diff = base ? Math.round(((avg - base) / base) * 100) : 0;
+  return { n: done.length, avg, diff,
+    line: `הנתונים שלנו: ${done.length} פוסטים, ${avg} חשיפה בממוצע` +
+      (base ? ` — ${diff >= 0 ? "+" : ""}${diff}% מול הממוצע.` : ".") };
+}
+
+// דירוג התבניות לפי מה שבאמת עבד. מוצג בכרטיס הצד.
+export function renderLeaderboard(){
+  const box = $("tplBoard");
+  if (!box) return;
+  clear(box);
+  const rows = TEMPLATES.map(t => ({ t, st: templateScore(t.key) })).filter(r => r.st)
+    .sort((a, b) => b.st.avg - a.st.avg);
+  if (!rows.length){
+    box.append(el("p", { class: "small", text: "עוד אין מספיק מדידות. צריך שני פוסטים מאותה תבנית עם נתוני חשיפה. עד אז התבניות מדורגות לפי המחקר." }));
+    return;
+  }
+  for (const { t, st } of rows)
+    box.append(el("div", { class: "tplrow" },
+      el("b", { text: t.name }),
+      el("span", { class: "mono small", text: st.avg + " חשיפה" }),
+      el("span", { class: "pill " + (st.diff >= 0 ? "ok" : ""), text: (st.diff >= 0 ? "+" : "") + st.diff + "%" }),
+      el("span", { class: "small", text: st.n + " פוסטים" })));
+}
+
+/* ===== הכרטיס =====
+   מה שחוזר בכל פוסט — הסמל, שעות אותו היום, המיקום — לא נכתב מחדש בכל
+   פעם. הוא נצרב על התמונה. הצילום הוא מה שאתה בוחר: מה שצולם עכשיו,
+   או אחד מצילומי המלאי של העגלה. */
+let cards = [];              // מה שנבנה בפועל, יעד אחר יעד
+
+// אילו שיבוצים לבנות. ברירת המחדל נשמרת בעיצוב, ואפשר לשנות לפוסט בודד.
+function renderTargets(){
+  const box = $("cTargets");
+  if (!box) return;
+  const saved = Card.cfg().targets || ["ig_feed"];
+  if (box.childElementCount) return;      // נבנה פעם אחת, לא בכל רינדור
+  for (const t of Card.targets())
+    box.append(el("label", { class: "check", for: "tg_" + t.key },
+      el("input", { type: "checkbox", id: "tg_" + t.key, value: t.key, checked: saved.includes(t.key) }),
+      t.label));
+}
+const chosenTargets = () => [...document.querySelectorAll("#cTargets input:checked")].map(i => i.value);
+
+function renderCards(){
+  const box = $("cCards");
+  if (!box) return;
+  clear(box);
+  for (const c of cards)
+    box.append(el("figure", { class: "asset" },
+      el("img", { src: c.url, alt: c.target.label }),
+      el("figcaption", { class: "small" },
+        el("span", { text: c.target.label }),
+        el("a", { href: c.url, download: `cortado-${c.target.key}.jpg`, class: "link", text: "הורד" }))));
+}
+
+async function buildCard(btn){
+  const date = $("cDate").value;
+  if (!date){ status("compStatus", "warn", "בחר תאריך — הכרטיס צורב את שעות אותו היום."); return; }
+  await withBusy(btn, async () => {
+    try {
+      const t = currentTemplate();
+      const base = composerPhoto || (Card.shots()[0] || {}).url || "";
+      const picked = chosenTargets();
+      const built = await Card.buildAll(picked, {
+        photo: base,
+        headline: $("cHead").value.trim(),
+        date,
+        layout: (t && t.card) || "photo",
+      });
+      cards = built;
+      // הראשון הוא מה שמתפרסם דרך ה-API. השאר להורדה — סטורי מעלים ביד.
+      cardUrl = built[0] ? built[0].url : null;
+      if (cardUrl){
+        composerPhoto = cardUrl;
+        composerThumb = await Card.thumbOf(cardUrl);
+      }
+      renderCards();
+      renderPreview();
+      status("compStatus", "ok", built.length > 1
+        ? `${built.length} גרסאות. הראשונה מתפרסמת, השאר להורדה.`
+        : "הכרטיס מוכן. הסמל והשעות בפנים — לא צריך לכתוב אותן בטקסט.");
+    } catch (e){ status("compStatus", "bad", e.message); }
+  });
+}
+
 /* ===== כתיבה ===== */
 async function write(btn){
   const date = $("cDate").value;
@@ -854,17 +1015,23 @@ async function write(btn){
     try {
       status("compStatus", "", "");
       const s = slots().find(x => x.key === editSlot);
+      const t = currentTemplate();
       const r = await ai("/ai/post", {
         idea: $("cIdea").value.trim().slice(0, 200), date, day: DAYS[fromYmd(date).getDay()],
         holiday: (holidayOn(date) || [])[1] || "",
         pillar: s ? slotLabel(s) : "", pillarNote: s ? (PILLAR3[s.pillar] || {}).note : "",
         format: $("cFormat").value,
+        // התבנית היא המבנה. בלעדיה המודל ממציא מבנה חדש בכל פעם, ומשם הגנריות.
+        template: t ? { name: t.name, open: t.open, body: t.body, cta: t.cta, sec: t.sec || null } : null,
+        occasions: occasionsOn(date),
+        dayHours: Card.hoursLineOn(date),   // הפתיחה של אותו היום. עובדה, לא ניסוח.
         photos: composerPhoto ? [composerPhoto] : [],    // התמונה שתתפרסם, אם כבר נבחרה
         avoid: aiOrigin ? aiOrigin.slice(0, 600) : "",   // גרסה אחרת = לא אותו דבר שוב
       });
       if (r.text){ $("cText").value = cleanTells(r.text); aiOrigin = $("cText").value; }
       if (Array.isArray(r.hashtags) && r.hashtags.length) $("cHash").value = r.hashtags.join(" ");
       if (r.shoot){ lastShoot = r.shoot; $("shootHint").textContent = "מה לצלם: " + r.shoot; }
+      if (r.headline && $("cHead") && !$("cHead").value.trim()) $("cHead").value = r.headline;
       btn.dataset.next = "✨ גרסה אחרת";
       renderComposerMeta();
       status("compStatus", "ok", "טיוטה. עכשיו משפט אחד משלך למטה — זה מה שהופך את זה לשלכם.");
@@ -890,8 +1057,21 @@ async function suggestAngle(btn){
 function mergedText(){
   const text = $("cText").value.trim();
   const line = $("cLine").value.trim();
-  if (!line || text.includes(line)) return text;
-  return text ? text + "\n\n" + line : line;
+  const body = (!line || text.includes(line)) ? text : (text ? text + "\n\n" + line : line);
+  return withHours(body);
+}
+
+/* הפתיחה של אותו היום נספחת לכל פוסט. זו העובדה שהכי הרבה אנשים מחפשים,
+   והיא נגזרת מהמשמרות — אז היא לא יכולה לסתור את הלוח. אם כבר כתבת אותה
+   בגוף הטקסט, לא מוסיפים שוב. */
+function withHours(body){
+  const date = $("cDate").value;
+  const h = date ? Card.hoursOn(date) : null;
+  if (!h || !h.day) return body;
+  if (!$("cHours") || !$("cHours").checked) return body;
+  const line = h.open ? `${h.day}: ${h.text}` : `${h.day}: סגור`;
+  if (body.includes(h.text) || body.includes(line)) return body;
+  return body ? body + "\n\n" + line : line;
 }
 
 async function savePost(newStatus, btn){
@@ -926,6 +1106,8 @@ async function savePost(newStatus, btn){
       }
       // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא מצורף בפרסום.
       if (composerThumb) body.thumb = composerThumb;
+      body.template = ($("cTemplate") && $("cTemplate").value) || "";
+      body.headline = ($("cHead") && $("cHead").value.trim().slice(0, 80)) || "";
       if (composerPhoto) body.hasMedia = true;
       if (editSlot) body.slot = editSlot;
       if (aiOrigin) body.aiDraft = aiOrigin;
@@ -1217,6 +1399,27 @@ export function init(){
   $("cleanTells").addEventListener("click", () => { $("cText").value = cleanTells($("cText").value); renderComposerMeta(); });
 
   $("aiWrite").addEventListener("click", (e) => write(e.currentTarget));
+  // התבנית, הכותרת והכרטיס
+  if ($("cTemplate")) $("cTemplate").addEventListener("change", renderTemplateNote);
+  if ($("cBuildCard")) $("cBuildCard").addEventListener("click", (e) => buildCard(e.currentTarget));
+  if ($("cHead")) $("cHead").addEventListener("input", renderPreview);
+  if ($("cHours")) $("cHours").addEventListener("change", renderComposerMeta);
+  renderTargets();
+  Card.bind();
+  Card.bindDesigner();
+  // בחירת צילום מלאי: נכנס כבסיס לכרטיס, בלי להעלות שום דבר לאחסון.
+  // לחיצה על פריט בספרייה: צילום הופך לבסיס הכרטיס. סמל או מדבקה הם
+  // שכבה, לא רקע — ולשם הם נוספים דרך פאנל העיצוב.
+  Card.onPickShot((a) => {
+    if (a.kind !== "photo"){
+      status("compStatus", "warn", `"${a.name}" הוא ${Card.KINDS[a.kind]}. להוסיף אותו לכרטיס: פאנל "עיצוב הכרטיס" ← שכבות נוספות ← + תמונה מהספרייה.`);
+      return;
+    }
+    composerPhoto = a.url;
+    Card.thumbOf(a.url).then(u => { composerThumb = u; renderPreview(); });
+    renderPreview();
+    status("compStatus", "ok", `${a.name} נבחר. עכשיו "בנה כרטיס".`);
+  });
   $("aiAngle").addEventListener("click", (e) => suggestAngle(e.currentTarget));
   $("aiPlan").addEventListener("click", (e) => skeleton(e.currentTarget));
   $("saveIdea").addEventListener("click", (e) => savePost("idea", e.currentTarget));
