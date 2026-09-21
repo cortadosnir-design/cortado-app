@@ -339,6 +339,13 @@ export const THEMES = {
   board:   { label: "לוח שעות",   scrimStyle: "none",     scrim: 0,   block: false, frame: false,
              headlinePos: "none",   align: "right", accentBar: false, shadow: false,
              ink: "#f7eaca", accent: "#a74218", boardBg: "#596d92" },
+  // הגרסה הרגועה: שמנת, טקסט פחם, והמקום עצמו מטושטש ברקע.
+  // לפי המחקר — טקסט על צילום עמוס הוא הכישלון הנפוץ ביותר, ולכן
+  // הצילום מטושטש ומולבן כמעט לגמרי לפני שכותבים עליו.
+  soft:    { label: "רגוע",       scrimStyle: "none",     scrim: 0,   block: false, frame: false,
+             headlinePos: "none",   align: "right", accentBar: false, shadow: false,
+             ink: "#3c3228", accent: "#a74218", boardBg: "#f7eaca",
+             wash: .9, washBlur: .012, rowRule: true },
   minimal: { label: "מינימלי",    scrimStyle: "gradient", scrim: .40, block: false, frame: false,
              headlinePos: "none",   align: "right", accentBar: true,  shadow: true },
 };
@@ -356,6 +363,9 @@ export const CARD = {
   // צבעי הלוח, מתוך הפוסטר שרץ בעגלה היום. הכחול הוא הרקע, השמנת היא
   // הטקסט, והחלודה זהה לטבעת שבלוגו — אותו מותג בדיוק.
   boardBg: "#596d92",
+  wash: 1,                       // 1 = לוח אטום. פחות מזה מראה את המקום מאחורי הטקסט.
+  washBlur: 0,                   // טשטוש הצילום שברקע, יחסית לרוחב
+  rowRule: false,                // קו שיער בין שורות הימים
   display: "Secular One",
   body: "Assistant",
   pad: .074,                     // שוליים נוספים מעבר לאזור הבטוח

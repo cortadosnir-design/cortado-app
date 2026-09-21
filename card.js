@@ -229,7 +229,12 @@ export async function build(opts = {}){
   if (img){
     const r = Math.max(W / img.width, H / img.height);
     const w = img.width * r, h = img.height * r;
+    // ברקע של לוח הצילום מטושטש לפני שמכסים אותו. טשטוש קודם להלבנה
+    // נותן שטח רגוע; הלבנה לבדה משאירה קצוות שמתחרים בטקסט.
+    const blur = IS_BOARD(layout) ? (c.washBlur || 0) : 0;
+    if (blur) ctx.filter = `blur(${Math.round(W * blur)}px)`;
     ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+    ctx.filter = "none";
   }
 
   /* 2. גוון וההכהיה. בלי אלה טקסט לבן על צילום בהיר פשוט לא נקרא. */
@@ -411,10 +416,13 @@ function drawBoard(ctx, o){
   const today = weekIndex(date);
   const ink = c.ink, accent = c.accent;
 
-  // רקע מלא בצבע הלוח. הצילום, אם היה, כבר צויר — כאן הוא מיותר.
+  /* צעיף בצבע הלוח מעל הצילום. wash = 1 מכסה לגמרי (לוח אטום),
+     0.88 משאיר רמז של המקום מאחורי הטקסט בלי להתחרות בו. */
   ctx.save();
+  ctx.globalAlpha = typeof c.wash === "number" ? c.wash : 1;
   ctx.fillStyle = c.boardBg || "#596d92";
   ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
 
   const R = box.x + box.w, L = box.x;
   const unit = W / 1080;
@@ -422,7 +430,10 @@ function drawBoard(ctx, o){
 
   /* כותרת */
   ctx.textAlign = "right"; ctx.fillStyle = ink;
-  const tSize = Math.round(W * (layout === "today" ? .078 : .072));
+  /* גוש הכותרת לא יעלה על רבע מגובה הלוח. בריבוע, שבו הגובה קטן והרוחב
+     לא, הכותרת לפי הרוחב בלבד בלעה את הרשימה והשורות נדרסו זו על זו. */
+  const headCap = box.h * (layout === "today" ? .30 : .25);
+  const tSize = Math.round(Math.min(W * (layout === "today" ? .078 : .072), headCap / 3.4));
   ctx.font = `400 ${tSize}px "${c.display}", system-ui, sans-serif`;
   y += tSize;
   ctx.fillText(layout === "today" ? "שעות הפעילות היום" : "שעות פעילות השבוע", R, y);
@@ -478,7 +489,9 @@ function drawBoard(ctx, o){
     const bottom = box.y + box.h - (badge ? Math.round(logoW * 1.25) : 0);
     const gap = Math.max(1, (bottom - y) / rows);
     // הגופן גדל עם המקום שיש, במקום להישאר קטן ולהשאיר חצי כרטיס ריק
-    const fs = Math.max(Math.round(W * .042), Math.min(Math.round(W * .08), Math.round(gap * .62)));
+    // הרצפה הקודמת (W*.042) הייתה גבוהה מהמרווח בפורמט ריבועי, והשורות
+    // נדרסו זו על זו. המרווח הוא מה שקובע, ולו יש רצפה נמוכה בלבד.
+    const fs = Math.max(Math.round(W * .028), Math.min(Math.round(W * .08), Math.round(gap * .6)));
     for (let i = 0; i < rows; i++){
       const d = days[i];
       const ry = y + gap * i + gap * .72;
@@ -492,6 +505,13 @@ function drawBoard(ctx, o){
         ctx.beginPath();
         ctx.ellipse(box.x + box.w / 2, ry - fs * .32, box.w * .52, gap * .46, 0, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      }
+      if (c.rowRule && i){
+        ctx.save();
+        ctx.globalAlpha = .18;
+        ctx.fillStyle = ink;
+        ctx.fillRect(box.x, Math.round(y + gap * i), box.w, 1);
         ctx.restore();
       }
       ctx.globalAlpha = d.open ? 1 : .62;
