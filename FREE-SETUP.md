@@ -61,9 +61,11 @@
 
 1. **לבדוק אם זה כבר מאושר:** Cloud Console ← APIs & Services ← Quotas על
    `mybusinessbusinessinformation.googleapis.com`. **0 QPM** = לא אושר, **300 QPM** = אושר.
-2. אם לא: מפעילים ב-Library את `My Business Business Information API`,
-   `My Business Account Management API` ו-`Google My Business API`, וממלאים את
+2. אם לא: מפעילים ב-Library **שני** APIs — `My Business Business Information API`
+   (שעות) ו-`My Business Account Management API` (לזהות את הפרופיל) — וממלאים את
    [טופס הבקשה](https://support.google.com/business/workflow/16726127).
+   **אל תחפשו את `Google My Business API` הישן** (`mybusiness.googleapis.com`):
+   הוא נסגר באפריל 2022 ופורק ל-APIs ממוקדים. הדף שלו לא נטען, וזה לא תקלה.
    גוגל מצהירה על 7–10 ימי עסקים; בפועל 4 ימים עד 6 שבועות.
 3. כשיאושר, מוסיפים ב-Cloudflare ארבעה משתנים ואין מה לשנות בקוד:
 
