@@ -305,6 +305,46 @@ function modelOf(env){
   if (!asked) return CURRENT_MODEL;
   return RETIRED_MODELS[asked] || asked;
 }
+
+/* ---------- איזה מודל באמת קיים ----------
+   גוגל משנה שמות מודלים ומוציאה ישנים משימוש. כשהשם שכתוב בקוד נעלם,
+   כל פיצ'ר AI באפליקציה מת בבת אחת, והבעלים רואה "אף מודל לא נענה" בלי
+   שהוא שינה כלום. במקום לנחש שמות — שואלים את גוגל מה קיים היום. */
+let MODELS_CACHE = { at: 0, list: null };
+const MODELS_TTL = 30 * 60 * 1000;
+export const dropModelCache = () => { MODELS_CACHE = { at: 0, list: null }; };
+
+// דירוג: גרסה חדשה קודמת. flash לפני pro — מהיר, זול, ורואה תמונות באותה מידה.
+// שמות ניסיוניים אחרונים, כי הם נעלמים בלי הודעה.
+function modelScore(name){
+  const v = /gemini-(\d+)(?:\.(\d+))?/.exec(name);
+  let s = v ? Number(v[1]) * 100 + Number(v[2] || 0) : 0;
+  if (/flash/.test(name)) s += 40;
+  if (/lite/.test(name)) s -= 25;
+  if (/-preview|-exp\b|experimental/.test(name)) s -= 60;
+  if (/latest/.test(name)) s += 5;
+  return s;
+}
+
+// מודלים שלא מייצרים טקסט מתוך שיחה, ולכן לא רלוונטיים כאן.
+const NOT_CHAT = /embedding|aqa|image-generation|imagen|veo|tts|live|native-audio/i;
+
+async function listModels(env){
+  const now = Date.now();
+  if (MODELS_CACHE.list && now - MODELS_CACHE.at < MODELS_TTL) return MODELS_CACHE.list;
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${env.GEMINI_API_KEY}`);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !Array.isArray(data.models)) return MODELS_CACHE.list || [];
+    const list = data.models
+      .filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map(m => String(m.name || "").replace(/^models\//, ""))
+      .filter(n => /^gemini-/.test(n) && !NOT_CHAT.test(n))
+      .sort((a, b) => modelScore(b) - modelScore(a));
+    MODELS_CACHE = { at: now, list };
+    return list;
+  } catch { return MODELS_CACHE.list || []; }
+}
 const MODEL_GONE = /no longer available|not found|is not supported|NOT_FOUND|deprecated|does not have access/i;
 // עומס זמני אצל גוגל. לא שבור — פשוט צריך לנסות שוב.
 const MODEL_BUSY = /high demand|overloaded|UNAVAILABLE|try again later|temporarily/i;
@@ -333,8 +373,11 @@ async function gemini(env, prompt, { json: wantJson = false, images = [], temper
   //   "המודל לא קיים"  → לעבור למודל הבא בשרשרת
   //   "המודל עמוס"     → להמתין רגע ולנסות שוב, ורק אז לעבור הלאה
   //   כל השאר (מכסה, מפתח, בקשה שגויה) → לעצור מיד, אין טעם לנסות שוב
+  // מה שגוגל אומרת שקיים קודם; הרשימה שבקוד נשארת כרשת ביטחון אם הבירור נכשל.
+  const found = await listModels(env);
   const asked = modelOf(env);
-  const tries = [asked, ...MODEL_CHAIN.filter(m => m !== asked)];
+  const head = found.length && !found.includes(asked) ? [] : [asked];
+  const tries = [...new Set([...head, ...found, ...MODEL_CHAIN])].filter(Boolean).slice(0, 6);
   let r, data, model, stop = false;
   for (const m of tries){
     model = m;
@@ -354,6 +397,14 @@ async function gemini(env, prompt, { json: wantJson = false, images = [], temper
     const msg = String(data.error?.message || "");
     if (MODEL_BUSY.test(msg)) throw fail("ai_busy", "השרת של גוגל עמוס כרגע. נסי שוב בעוד דקה — מה שכתבת נשמר.", 503);
     if (MODEL_QUOTA.test(msg)) throw fail("ai_quota", hebrew(msg), 429);
+    if (MODEL_GONE.test(msg)){
+      // אולי הרשימה השמורה התיישנה. מנקים, כדי שהבקשה הבאה תברר מחדש.
+      dropModelCache();
+      throw fail("ai_error", found.length
+        ? `אף אחד מהמודלים שגוגל מציעה לא נענה (${tries.slice(0, 3).join(", ")}). נסה שוב בעוד רגע.`
+        : "לא הצלחתי לברר מול גוגל אילו מודלים זמינים. בדוק שמפתח ה-Gemini ב-Cloudflare תקין ושיש לו גישה ל-Generative Language API.",
+        502);
+    }
     throw fail("ai_error", hebrew(msg), 502);
   }
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
@@ -951,6 +1002,12 @@ async function setFacebookHours(env, b){
 }
 async function status(env){
   const out = { gemini: !!env.GEMINI_API_KEY, facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID };
+  if (out.gemini){
+    const found = await listModels(env);
+    out.models = found.slice(0, 5);
+    out.model = found[0] || modelOf(env);
+    if (!found.length) out.geminiError = "גוגל לא החזירה רשימת מודלים. כנראה המפתח לא תקין או שאין לו גישה ל-Generative Language API.";
+  }
   if (out.facebook){ try { const p = await graph(env, env.FB_PAGE_ID, { fields: "name" }, "GET"); out.pageName = p.name; } catch (e){ out.facebookError = e.message; } }
   return out;
 }
