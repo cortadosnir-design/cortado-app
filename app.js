@@ -219,10 +219,21 @@ if ("serviceWorker" in navigator){
     // חוזרים ללשונית אחרי יום — כדאי לבדוק שוב
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
 
+    /* "רענן" חייב לחכות שה-Service Worker החדש באמת ישתלט.
+       postMessage הוא אסינכרוני: רענון מיד אחריו מוגש עדיין ע"י הישן,
+       הדפדפן מקבל את אותם קבצים, והבאנר פשוט חוזר. controllerchange הוא
+       האירוע שאומר "החדש שולט מעכשיו" — ורק אז יש טעם לרענן.
+       המונה מונע לולאה אם האירוע יורה יותר מפעם אחת, והשנייתיים הם
+       רשת ביטחון למקרה שהוא לא יורה בכלל. */
     const btn = $("reloadNow");
     if (btn) btn.addEventListener("click", () => {
-      if (reg.waiting) reg.waiting.postMessage({ type: "skip" });
-      location.reload();
+      btn.disabled = true; btn.textContent = "מרענן…";
+      let reloaded = false;
+      const go = () => { if (!reloaded){ reloaded = true; location.reload(); } };
+      if (!reg.waiting){ go(); return; }
+      navigator.serviceWorker.addEventListener("controllerchange", go, { once: true });
+      reg.waiting.postMessage({ type: "skip" });
+      setTimeout(go, 2000);
     });
   }).catch(() => {});
 }

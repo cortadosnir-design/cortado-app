@@ -27,6 +27,16 @@ for (const f of ["app.js", ...shell])
 const missing = [...imported].filter(f => !shell.has(f)).sort();
 ok("כל מודול שמיובא נמצא ב-SHELL", missing.length === 0, missing.join(", "));
 ok("ה-Service Worker מקשיב להודעת skip", /addEventListener\("message"/.test(swSrc) && /skipWaiting/.test(swSrc));
+
+/* ללא skipWaiting אוטומטי, "רענן" חייב לחכות ל-controllerchange.
+   רענון מיד אחרי postMessage מוגש עדיין ע"י ה-SW הישן, והבאנר חוזר. */
+const appSrc = read("app.js");
+const reloadBlock = appSrc.slice(appSrc.indexOf('$("reloadNow")'));
+ok('"רענן" מחכה ל-controllerchange לפני הרענון',
+  reloadBlock.includes("controllerchange") && reloadBlock.includes("postMessage")
+  && reloadBlock.indexOf("controllerchange") < reloadBlock.indexOf("postMessage"));
+ok("ה-SW לא קורא ל-skipWaiting בהתקנה (זה מה שגרם לערבוב הגרסאות)",
+  !/install[\s\S]{0,200}?skipWaiting/.test(swSrc));
 ok("רק תשובה תקינה נכנסת למטמון", /res\.ok/.test(swSrc));
 
 /* לוח החגים נגמר בשקט. כשהתאריך האחרון עובר, חלונות הביקוש ב-season.js
