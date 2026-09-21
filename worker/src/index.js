@@ -27,6 +27,7 @@ export default {
         case "/ai/brief":    requireOwner(owner); return json(await aiBrief(env, body), cors);
         case "/ai/angle":    requireOwner(owner); return json(await aiAngle(env, body), cors);
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
+        case "/ai/analyze":  requireOwner(owner); return json(await aiAnalyze(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
@@ -302,18 +303,18 @@ const MODEL_BUSY = /high demand|overloaded|UNAVAILABLE|try again later|temporari
 const MODEL_QUOTA = /exceeded your current quota|RESOURCE_EXHAUSTED|rate ?limit/i;
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-async function callGemini(env, model, parts, wantJson){
+async function callGemini(env, model, parts, wantJson, temperature = 0.9){
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts }],
-      generationConfig: { temperature: 0.9, ...(wantJson ? { responseMimeType: "application/json" } : {}) }
+      generationConfig: { temperature, ...(wantJson ? { responseMimeType: "application/json" } : {}) }
     })
   });
   return { r, data: await r.json().catch(() => ({})) };
 }
 
-async function gemini(env, prompt, { json: wantJson = false, images = [] } = {}){
+async function gemini(env, prompt, { json: wantJson = false, images = [], temperature = 0.9 } = {}){
   if (!env.GEMINI_API_KEY) throw fail("not_configured", "חסר מפתח Gemini בשרת.", 500);
   const pics = images.length ? await imageParts(images) : [];
   const parts = [{ text: prompt }, ...pics];
@@ -328,7 +329,7 @@ async function gemini(env, prompt, { json: wantJson = false, images = [] } = {})
   for (const m of tries){
     model = m;
     for (let attempt = 0; attempt < 2; attempt++){
-      ({ r, data } = await callGemini(env, m, parts, wantJson));
+      ({ r, data } = await callGemini(env, m, parts, wantJson, temperature));
       if (r.ok) break;
       const msg = String(data.error?.message || "");
       if (MODEL_BUSY.test(msg) && attempt === 0){ await sleep(900); continue; }  // עומס: פעם אחת שוב
@@ -493,6 +494,49 @@ async function aiInsights(env, b){
   const r = await gemini(env, prompt, { json: true });
   const list = Array.isArray(r) ? r : (Array.isArray(r.insights) ? r.insights : []);
   return { insights: list.map(s => String(s)).slice(0, 8) };
+}
+
+/* ---------- סוכן ניתוח נתונים ----------
+   הבעלים מעלה טבלה (CSV מהקופה, ייצוא מאקסל, או יומן המשמרות מהאפליקציה)
+   ושואל בעברית. הדפדפן שולח כותרות, פרופיל של כל עמודה ודגימת שורות;
+   כאן המודל עונה עם מספרים מהנתונים בלבד, ובלי להמציא. */
+const ANALYST = `אתה אנליסט נתונים של "קפה קורטדו", עגלת קפה קטנה בקיבוץ שניר. אתה עונה לבעלים בעברית פשוטה וישירה.
+כללים קשיחים:
+- כל מספר שאתה מציין חייב להיגזר מהנתונים שקיבלת. אל תמציא ואל תעגל בלי לומר "בערך".
+- אם השאלה לא ניתנת למענה מהעמודות הקיימות, אמור מה חסר במקום לנחש.
+- אם קיבלת רק דגימה מהשורות, הסתמך על הפרופיל לסיכומים כלליים, וציין שהחישוב המדויק על דגימה.
+- תשובה קצרה: 2–5 משפטים. אם יש השוואה בין קטגוריות, החזר גם טבלה קטנה (עד 8 שורות, עד 4 עמודות).
+- סיים בהמלצה מעשית אחת לעגלה, רק אם היא נובעת מהנתונים.
+- בלי קו מפריד ארוך (—), בלי אימוג'י.`;
+
+async function aiAnalyze(env, b){
+  const columns = Array.isArray(b.columns) ? b.columns.map(String).slice(0, 60) : [];
+  const rows = Array.isArray(b.rows) ? b.rows : [];
+  const question = String(b.question || "").trim().slice(0, 600);
+  if (!columns.length || !rows.length) throw fail("bad_request", "אין נתונים לנתח. העלה קובץ CSV או השתמש ביומן המשמרות.");
+  if (!question) throw fail("bad_request", "מה לשאול על הנתונים?");
+  const rowsJson = JSON.stringify(rows).slice(0, 45000);
+  const history = Array.isArray(b.history) ? b.history.slice(-4) : [];
+  const prompt = [
+    ANALYST,
+    `שם הקובץ: ${String(b.name || "טבלה").slice(0, 80)}`,
+    `עמודות: ${JSON.stringify(columns)}`,
+    `סה"כ שורות בקובץ: ${Number(b.rowCount) || rows.length}${b.sampled ? ` (נשלחו ${rows.length} מהן כדגימה)` : ""}`,
+    b.profile ? `פרופיל העמודות (JSON): ${JSON.stringify(b.profile).slice(0, 8000)}` : "",
+    `השורות (JSON, לפי סדר העמודות): ${rowsJson}`,
+    history.length ? `שאלות קודמות ותשובותיהן: ${JSON.stringify(history).slice(0, 4000)}` : "",
+    `השאלה: ${question}`,
+    'החזר JSON בלבד: {"answer":"...", "table":{"columns":["..."],"rows":[["..."]]} או null, "followups":["שאלת המשך 1","שאלת המשך 2"]}',
+  ].filter(Boolean).join("\n\n");
+  const r = await gemini(env, prompt, { json: true, temperature: 0.2 });
+  const table = r && r.table && Array.isArray(r.table.columns) && Array.isArray(r.table.rows)
+    ? { columns: r.table.columns.map(String).slice(0, 4), rows: r.table.rows.slice(0, 8).map(row => (Array.isArray(row) ? row : [row]).map(String).slice(0, 4)) }
+    : null;
+  return {
+    answer: String(r?.answer || "").trim() || "לא הצלחתי להסיק תשובה מהנתונים.",
+    table,
+    followups: (Array.isArray(r?.followups) ? r.followups : []).map(String).filter(Boolean).slice(0, 3),
+  };
 }
 
 /* ---------- Meta: פייסבוק ואינסטגרם ---------- */

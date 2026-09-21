@@ -314,6 +314,38 @@ console.log("\n16. סימוני סטטוס שנעשים לבד");
   ok("'כולם תוזמנו ✓' מסמן את כל המוכנים", st.length === 1 && st[0] === "scheduled", st.join(","));
   await p.close();
 }
+/* ── 17. שאל את הנתונים ── */
+console.log("\n17. שאל את הנתונים");
+{
+  const p = await fresh();
+  await p.evaluate(() => { document.getElementById("p-log").hidden = false; });
+  await p.evaluate(() => { window.__api["/ai/analyze"] = { answer: "יום שישי הכי חזק: 55 לקוחות.", table: { columns: ["יום", "לקוחות"], rows: [["שישי", "55"], ["ראשון", "42"]] }, followups: ["ומה עם השעות?"] }; });
+  await p.setInputFiles("#anaFile", { name: "קופה.csv", mimeType: "text/csv",
+    buffer: Buffer.from("\uFEFFתאריך,יום,לקוחות\n2026-09-04,שישי,55\n2026-09-06,ראשון,42\n", "utf8") });
+  await p.waitForFunction(() => !document.getElementById("anaAsk").hidden);
+  const info = await p.textContent("#anaInfo");
+  ok("הקובץ נקרא ומוצג", /2 שורות/.test(info) && /3 עמודות/.test(info), info);
+  await p.fill("#anaQ", "איזה יום הכי חזק?");
+  await p.press("#anaQ", "Enter");
+  await p.waitForSelector(".ana-item");
+  const call = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/ai/analyze"));
+  ok("נשלחו כותרות, שורות ופרופיל", call && call.body.columns.length === 3 && call.body.rows.length === 2 && call.body.profile.length === 3 && call.body.question === "איזה יום הכי חזק?", JSON.stringify(call && Object.keys(call.body)));
+  ok("פרופיל מזהה עמודת מספרים", call && call.body.profile[2].type === "number" && call.body.profile[2].max === 55);
+  const a = await p.textContent(".ana-a");
+  ok("התשובה מוצגת", /55/.test(a), a);
+  ok("הטבלה מוצגת", await p.locator(".ana-table tbody tr").count() === 2);
+  ok("שאלת המשך היא כפתור", await p.locator(".ana-item .chip").count() === 1);
+  ok("שדה השאלה התרוקן", (await p.inputValue("#anaQ")) === "");
+  // כישלון ברשת: הודעה בעברית, לא קריסה
+  await p.evaluate(() => { window.__api["/ai/analyze"] = { fail: "הגעת למכסה החינמית של Gemini." }; });
+  await p.fill("#anaQ", "ומה עכשיו?"); await p.click("#anaGo");
+  await p.waitForFunction(() => document.getElementById("anaStatus").classList.contains("bad"));
+  ok("שגיאה מוצגת בעברית", /מכסה/.test(await p.textContent("#anaStatus")));
+  // יומן המשמרות ריק → הסבר, לא שליחה
+  await p.click("#anaLogs");
+  ok("יומן ריק מסביר מה לעשות", /דיווח/.test(await p.textContent("#anaStatus")));
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();

@@ -11,6 +11,7 @@ import * as People from "./people.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
 import * as Weather from "./weather.js";
+import * as Analyze from "./analyze.js";
 import { APP_VERSION } from "./config.js";
 
 const TABS = ["shifts","creative","reach","log","team"];
@@ -135,6 +136,7 @@ People.init();
 Launch.init();
 Now.init();
 Weather.init();
+Analyze.init();
 Shifts.render();
 Ops.renderLog();
 

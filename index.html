@@ -423,6 +423,24 @@
           <div class="reco" id="aiReco"></div>
         </div>
       </div>
+      <div class="card" id="analyzeCard" data-api hidden>
+        <h2>שאל את הנתונים</h2>
+        <p class="small">קובץ CSV מהקופה או מאקסל, או יומן המשמרות מכאן. שואלים בעברית, מקבלים תשובה עם מספרים מתוך הנתונים.</p>
+        <div class="actions">
+          <label class="btn-file"><input id="anaFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain">📄 העלה CSV</label>
+          <button id="anaLogs" type="button">📋 יומן המשמרות</button>
+        </div>
+        <p class="small" id="anaInfo"></p>
+        <div id="anaAsk" hidden>
+          <div class="chips" id="anaQuick"></div>
+          <div class="ask-row">
+            <input id="anaQ" type="text" placeholder="למשל: איזה יום הכי חזק ולמה?" autocomplete="off">
+            <button class="primary" id="anaGo" type="button">✨ שאל</button>
+          </div>
+        </div>
+        <div class="status" id="anaStatus" role="status"></div>
+        <div id="anaAnswers"></div>
+      </div>
       <div class="card" id="recentWrap" hidden>
         <h2>דיווחים אחרונים</h2>
         <div id="recent"></div>
