@@ -1,0 +1,5 @@
+# האפליקציה התפעולית (index.html, z.html) מסומנת noindex בעצמה.
+# מה שמיועד לגוגל הוא דף הנחיתה ודף השעות.
+User-agent: *
+Allow: /
+Sitemap: https://cortadosnir-design.github.io/cortado-app/sitemap.xml

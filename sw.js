@@ -1,6 +1,6 @@
 // מטמון בסיסי כדי שהאפליקציה תיפתח מהר, וגם כשאין רשת.
 // חייב להיות זהה ל-APP_VERSION ב-config.js. tests/version.mjs נופל אם לא.
-const VERSION = "2026-09-21.29";
+const VERSION = "2026-09-21.30";
 const CACHE = "cortado-shell-" + VERSION;
 // כל מודול ש-app.js מייבא חייב להיות כאן. weather/season/people נשכחו,
 // ולכן פתיחה קרה בלי רשת שברה את גרף המודולים — בדיוק המקרה שבשבילו
@@ -8,7 +8,7 @@ const CACHE = "cortado-shell-" + VERSION;
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./playbook.js", "./card.js", "./drive.js",
   "./shifts.js", "./creative.js", "./reach.js", "./ops.js", "./launch.js", "./now.js", "./analyze.js",
   "./table.js", "./xlsx.js", "./sales.js", "./sales-stats.js", "./weather.js", "./season.js", "./people.js",
-  "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html", "./hours.js",
+  "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html",
   "./icon-192.png", "./icon-512.png", "./logo.png"];
 // בכוונה בלי skipWaiting אוטומטי: החלפה באמצע חיים מגישה קבצים חדשים
 // ללשונית שכבר מריצה JS ישן — וזה בדיוק "HTML חדש עם JS ישן" שמתוקן

@@ -7,8 +7,9 @@
    ה-Firestore המזויף של הבדיקות לא אוכף את זה, ולכן הבדיקה כאן אוכפת
    בעצמה — על המסמך שהקוד האמיתי מייצר.
 
-   בנוסף, הכותב והקורא היו בשני פורמטים שונים: hours.js חיפש מפה בשם
-   `hours` שאיש לא כתב, ולכן גם שיגור שהיה מצליח היה מצייר "סגור" בכל יום. */
+   בנוסף, הכותב והקורא היו בשני פורמטים שונים: דף השעות הישן חיפש מפה
+   בשם `hours` שאיש לא כתב, ולכן גם שיגור שהיה מצליח היה מצייר "סגור"
+   בכל יום. היום הקורא הוא דף הנחיתה, cafe/cafe.js. */
 import { readFileSync, writeFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
 import { buildFullCore } from "./fullcore.mjs";
@@ -98,38 +99,56 @@ try {
      await page.evaluate(() => getComputedStyle(document.querySelector("#hours dd")).direction) === "ltr");
   await page.close();
 
-  /* והדף עצמו — זה שהלקוח מהרחוב פותח — מצייר את מה שנכתב.
-     hours.js מייבא את Firebase ישירות מ-gstatic, ולכן ה-importmap כאן
-     מכוון את שתי הכתובות לדמה מקומית. שאר הדף הוא המקור. */
-  writeFileSync(ROOT + "hourspage.html", readFileSync(ROOT + "hours.html", "utf8")
-    .replace("</head>", `<script type="importmap">{"imports":{
-      "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js":"/tests/stubs/fb-hours.js",
-      "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js":"/tests/stubs/fb-hours.js"}}</script></head>`));
-  const pub = await b.newPage({ viewport: { width: 390, height: 844 } });
-  await pub.addInitScript((d) => { window.__hoursDoc = d; }, res.doc);
-  await pub.goto(`http://127.0.0.1:${PORT}/hourspage.html`, { waitUntil: "domcontentloaded" });
-  await pub.waitForTimeout(600);
-  const shown = await pub.evaluate(() => ({
-    sub: document.getElementById("sub").textContent,
-    rows: [...document.querySelectorAll("#hours dt")].map((dt, i) =>
-      dt.textContent + ": " + document.querySelectorAll("#hours dd")[i].textContent),
+  /* דף הנחיתה (cafe/) — הדף שגוגל מאנדקסת. השעות בו מגיעות מאותו מסמך,
+     דרך REST של Firestore בלי SDK; כאן הבקשה נתפסת ומקבלת את המסמך שנכתב. */
+  const cafe = await b.newPage({ viewport: { width: 1280, height: 900 } });
+  const cafeErrors = [];
+  cafe.on("pageerror", e => cafeErrors.push(e.message));
+  cafe.on("console", m => { if (m.type() === "error" && !/Failed to load resource|ERR_/.test(m.text())) cafeErrors.push(m.text()); });
+  let restHit = "";
+  await cafe.route(/firestore\.googleapis\.com/, (route) => {
+    restHit = route.request().url();
+    const fields = { days: { arrayValue: { values: res.doc.days.map(s => ({ stringValue: s })) } }, range: { stringValue: res.doc.range } };
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fields }) });
+  });
+  await cafe.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+  await cafe.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
+  await cafe.waitForTimeout(900);
+  const cf = await cafe.evaluate(() => ({
+    rows: [...document.querySelectorAll("#hours tr")].map(tr => tr.children[0].textContent + ": " + tr.children[1].textContent),
+    today: document.querySelectorAll("#hours tr.today").length,
+    status: document.querySelector("#status span").textContent,
+    note: document.getElementById("hours-note").textContent,
+    inline: [...document.querySelectorAll("script")].filter(s => !s.src && s.type !== "application/ld+json").length,
+    ld: (() => { try { return JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent); } catch { return null; } })(),
+    imgs: [...document.images].map(i => i.getAttribute("src")),
+    over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   }));
-  ok("הדף הציבורי מצייר שבעה ימים", shown.rows.length === 7, shown.rows.join(" · "));
-  ok("היום הפתוח מוצג עם השעות", shown.rows[2] === "שלישי: 09:00–12:00, 16:00–19:00", shown.rows[2]);
-  ok('יום סגור מוצג כ"סגור"', shown.rows[0] === "ראשון: סגור", shown.rows[0]);
-  ok("טווח התאריכים בכותרת", shown.sub.includes("20.9") || /\d+\.\d+/.test(shown.sub), shown.sub);
-  // הטקסט הלוגי תקין תמיד; מה שמתהפך הוא הציור. הכיוון הנעול הוא מה שנבדק.
-  ok("טווחי השעות נעולים לכיוון שמאל-לימין",
-     await pub.evaluate(() => getComputedStyle(document.querySelector("#hours dd")).direction) === "ltr");
-  await pub.screenshot({ path: process.env.HOURS_SHOT || "/tmp/claude-0/hours-page.png" });
-  await pub.close();
-  try { unlinkSync(ROOT + "hourspage.html"); } catch {}
+  ok("דף הנחיתה מושך את השעות מ-public/hours דרך REST", restHit.includes("/documents/public/hours"), restHit);
+  ok("הטבלה בדף הנחיתה היא מה ש\"שגר\" כתב", cf.rows[2] === "שלישי: 09:00–12:00 · 16:00–19:00" && cf.rows[0] === "ראשון: סגור", cf.rows.join(" · "));
+  ok("היום מסומן בטבלה", cf.today === 1);
+  ok("תווית המצב מחושבת", /פתוח עכשיו|נפתח/.test(cf.status), cf.status);
+  ok("השבוע שהשעות שייכות לו כתוב ליד הטבלה", cf.note.startsWith("השעות לשבוע"), cf.note.slice(0, 40));
+  ok("בלי סקריפט inline (CSP, CLAUDE.md §5)", cf.inline === 0, String(cf.inline));
+  ok("JSON-LD של בית קפה עם שעות ומיקום", !!cf.ld && cf.ld["@type"] === "CafeOrCoffeeShop" && cf.ld.openingHoursSpecification.length >= 7 && !!cf.ld.geo);
+  ok("התמונות הן קבצים, לא data:", cf.imgs.length >= 10 && cf.imgs.every(x => x.startsWith("img/")), cf.imgs.join(","));
+  ok("בלי גלילה אופקית", cf.over <= 0, cf.over + "px");
+  ok("בלי שגיאות בקונסולה בדף הנחיתה", cafeErrors.length === 0, cafeErrors.slice(0, 2).join(" | "));
+  if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT, fullPage: true });
+  await cafe.setViewportSize({ width: 390, height: 844 });
+  await cafe.waitForTimeout(200);
+  ok("בלי גלילה אופקית בטלפון", await cafe.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0);
+  if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT.replace(".png", "-mobile.png"), fullPage: true });
+  await cafe.close();
+  const sitemap = readFileSync(ROOT + "sitemap.xml", "utf8");
+  ok("דף הנחיתה ב-sitemap", sitemap.includes("/cortado-app/cafe/"));
+  ok("robots.txt מצביע על ה-sitemap", /Sitemap:/.test(readFileSync(ROOT + "robots.txt", "utf8")));
 
   /* הכותב והקורא לא יכולים להיפרד שוב: זו בדיקה סטטית על הקוד עצמו. */
-  const reader = readFileSync(ROOT + "hours.js", "utf8");
-  ok("דף הנחיתה קורא את השדה days", /\bd\.days\b/.test(reader));
-  ok("דף הנחיתה קורא את הטווח לכותרת", /\bd\.range\b/.test(reader));
-  ok("דף הנחיתה כבר לא מחפש מפה בשם hours", !/d\.hours\b/.test(reader));
+  const reader = readFileSync(ROOT + "cafe/cafe.js", "utf8");
+  ok("דף הנחיתה קורא את השדה days", /fields\.days\b/.test(reader));
+  ok("דף הנחיתה קורא את הטווח לכותרת", /fields\.range\b/.test(reader));
+  ok("hours.html מפנה לדף הנחיתה", /http-equiv="refresh"[^>]*cafe\//.test(readFileSync(ROOT + "hours.html", "utf8")));
   const writers = ["shifts.js", "launch.js"].map(f => readFileSync(ROOT + f, "utf8"));
   ok("שני הכפתורים כותבים דרך hoursDoc אחד", writers.every(src => !/"public", "hours"\), \{\s*\n/.test(src)),
      "אין כתיבה ישירה עם גוף מסמך משלה");

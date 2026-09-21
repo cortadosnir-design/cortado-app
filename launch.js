@@ -53,6 +53,9 @@ function render(){
     if (key === "google" && googleMarked() && r.state !== "ok")
       r = { state: "ok", note: `עודכן ידנית${googleWhen() ? " ב-" + googleWhen() : ""}. עד שגוגל תאשר את ה-API זה הצעד היחיד שנעשה ביד.` };
     let actions = null;
+    if (key === "page")
+      actions = el("div", { class: "actions" },
+        el("a", { class: "btn", href: "cafe/#visit", target: "_blank", rel: "noopener", text: "פתח את דף הנחיתה" }));
     if (key === "google" && r.state === "manual"){
       actions = el("div", { class: "actions" },
         el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }),

@@ -2,29 +2,14 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- הכתובת הישנה של דף השעות. דף הנחיתה (cafe/) מציג את אותן שעות מאותו
+     מסמך, ולכן מי שהגיע לכאן מקישור ישן עובר לשם, לחלק "שעות והגעה". -->
+<meta http-equiv="refresh" content="0; url=cafe/#visit">
+<link rel="canonical" href="https://cortadosnir-design.github.io/cortado-app/cafe/">
 <title>שעות הפעילות – קפה קורטדו</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&display=swap">
-<style>
-body{margin:0;background:#F1F2EE;color:#1D1B18;font-family:"Assistant",system-ui,sans-serif;display:flex;justify-content:center;padding:24px 16px}
-.card{background:#fff;border:1px solid #D5D7CF;border-radius:16px;padding:20px 22px;max-width:420px;width:100%}
-h1{font-family:"Secular One",sans-serif;font-weight:400;font-size:24px;margin:0 0 4px}
-.sub{color:#66625B;font-size:14px;margin:0 0 14px}
-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:17px}
-dt{font-weight:700}
-/* "09:00–12:00" בפסקה RTL מתהפך ל-"12:00–09:00" — שעת הסגירה ראשונה.
-   זה לא ליקוי אסתטי: זה מה שהלקוח מהרחוב קורא. ltr+isolate נועלים. */
-dd{margin:0;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;text-align:right}
-dd.closed{color:#66625B}
-.foot{margin-top:14px;font-size:12px;color:#66625B}
-</style>
+<style>body{margin:0;font-family:system-ui,sans-serif;display:flex;justify-content:center;padding:40px 16px;color:#1D1B18;background:#F1F2EE}</style>
 </head>
 <body>
-<div class="card">
-  <h1>☕ קפה קורטדו</h1>
-  <p class="sub" id="sub">שעות הפעילות</p>
-  <dl id="hours"><dt>טוען…</dt><dd></dd></dl>
-  <p class="foot">קיבוץ שניר · מתעדכן אוטומטית מלוח המשמרות</p>
-</div>
-<script type="module" src="hours.js"></script>
+<p>שעות הפתיחה עברו לדף העגלה: <a href="cafe/#visit">קפה קורטדו · שעות והגעה</a></p>
 </body>
 </html>

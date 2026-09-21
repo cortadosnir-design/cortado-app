@@ -45,6 +45,8 @@
 | `worker/src/index.js`, `worker/wrangler.toml` | ה-Cloudflare Worker: AI, פרסום ועדכון שעות |
 | `.github/workflows/` | פריסה אוטומטית ל-Firebase ול-Cloudflare |
 | `manifest.webmanifest`, `sw.js`, `icon-*.png` | התקנה בטלפון ופתיחה מהירה |
+| `cafe/` | דף הנחיתה הציבורי (מה שגוגל מאנדקסת): `index.html`, `cafe.js`, ותמונות ב-`img/`. השעות בו מגיעות מ-`public/hours` |
+| `robots.txt`, `sitemap.xml` | מה שגוגל קוראת. האפליקציה עצמה `noindex` |
 
 ## הלשוניות
 
