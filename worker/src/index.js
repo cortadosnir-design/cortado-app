@@ -36,7 +36,9 @@ export default {
       }
     } catch (e) {
       const code = e.status || 500;
-      return json({ error: e.code || "error", message: e.message || String(e) }, cors, code);
+      // שום טקסט באנגלית לא יוצא מכאן. hebrew() מתרגם, ו-detail נשמר לניפוי בלבד.
+      const raw = e.message || String(e);
+      return json({ error: e.code || "error", message: hebrew(raw), detail: raw }, cors, code);
     }
   }
 };
@@ -55,6 +57,62 @@ function corsHeaders(request, env){
 }
 function fail(code, message, status = 400){ const e = new Error(message); e.code = code; e.status = status; return e; }
 function requireOwner(owner){ if (!owner) throw fail("forbidden", "רק המנהל יכול לבצע את הפעולה הזו.", 403); }
+
+/* ---------- תרגום שגיאות ----------
+   גוגל ומטא עונות באנגלית טכנית. המשתמש לא אמור לראות אותה לעולם.
+   כל הודעה שיוצאת מהשרת עוברת כאן. מה שכבר בעברית עובר כמו שהוא;
+   מה שמוכר מתורגם למשהו שאפשר לפעול לפיו; מה שלא מוכר מקבל נוסח כללי,
+   והטקסט המקורי נשמר בשדה detail שלא מוצג. */
+const HEBREW_RE = /[֐-׿]/;
+
+// כמה שניות להמתין, לפי מה שגוגל עצמה אומרת ("Please retry in 21.35s").
+function retrySeconds(msg){
+  const m = /retry in ([\d.]+)s/i.exec(msg) || /retryDelay[""\s:]+([\d.]+)s/i.exec(msg);
+  return m ? Math.max(1, Math.ceil(parseFloat(m[1]))) : 0;
+}
+
+const ERROR_MAP = [
+  // ── מכסה וקצב ──
+  [/quota exceeded|exceeded [^.]*quota|RESOURCE_EXHAUSTED|rate ?limit|too many requests/i, (msg) => {
+    const s = retrySeconds(msg);
+    const daily = /per day|daily|PerDay/i.test(msg);
+    if (daily) return "נגמרה המכסה היומית של Gemini. היא מתאפסת מחר, או שאפשר לשדרג את התוכנית בגוגל.";
+    return s
+      ? `הגעת למכסה החינמית של Gemini. נסה שוב בעוד ${s} שניות — מה שכתבת נשמר.`
+      : "הגעת למכסה החינמית של Gemini. נסה שוב בעוד דקה — מה שכתבת נשמר.";
+  }],
+  // ── מפתח ──
+  [/API[_ ]?key not valid|API_KEY_INVALID|invalid api key/i,
+    () => "מפתח ה-AI בשרת לא תקין. צריך להחליף אותו בהגדרות של Cloudflare."],
+  [/PERMISSION_DENIED|does not have access|caller does not have permission/i,
+    () => "למפתח ה-AI אין הרשאה למודל הזה. בדוק את המפתח ב-Google AI Studio."],
+  // ── סינון תוכן ──
+  [/SAFETY|blocked|content filter|PROHIBITED_CONTENT/i,
+    () => "גוגל חסמה את הבקשה בגלל מסנן התוכן. נסה לנסח אחרת."],
+  // ── מודל ──
+  [/no longer available|NOT_FOUND|not found|is not supported|deprecated/i,
+    () => "המודל שהוגדר בשרת כבר לא קיים. צריך לעדכן את GEMINI_MODEL בהגדרות של Cloudflare."],
+  // ── מטא ──
+  [/Session has expired|OAuthException|access token|code.*190/i,
+    () => "הטוקן של עמוד הפייסבוק פג. צריך לחבר את העמוד מחדש בלשונית הפצה."],
+  [/\(#200\)|requires .* permission|insufficient permission/i,
+    () => "לאפליקציית הפייסבוק חסרה הרשאה לפעולה הזו. צריך להוסיף אותה ב-Graph API Explorer ולחבר מחדש."],
+  [/\(#4\)|\(#17\)|too many calls|request limit reached/i,
+    () => "פייסבוק חסמה זמנית בגלל יותר מדי בקשות. נסה שוב בעוד כמה דקות."],
+  [/media|image.*(invalid|unsupported)|Unsupported post request/i,
+    () => "מטא דחתה את התמונה. נסה תמונה אחרת, רצוי JPG."],
+  // ── רשת ──
+  [/fetch failed|network|ETIMEDOUT|ECONNRESET|timeout/i,
+    () => "לא הצלחתי להגיע לשרת החיצוני. נסה שוב בעוד רגע."],
+];
+
+function hebrew(msg){
+  const s = String(msg || "");
+  if (!s) return "משהו השתבש. נסה שוב.";
+  if (HEBREW_RE.test(s)) return s;              // כבר בעברית — לא נוגעים
+  for (const [re, make] of ERROR_MAP) if (re.test(s)) return make(s);
+  return "משהו השתבש מול שירות חיצוני. נסה שוב, ואם זה חוזר — ספר לי מה עשית.";
+}
 
 /* ---------- אימות Firebase (בלי ספריות) ---------- */
 let jwkCache = { at: 0, keys: null };
@@ -192,6 +250,9 @@ function modelOf(env){
 const MODEL_GONE = /no longer available|not found|is not supported|NOT_FOUND|deprecated|does not have access/i;
 // עומס זמני אצל גוגל. לא שבור — פשוט צריך לנסות שוב.
 const MODEL_BUSY = /high demand|overloaded|UNAVAILABLE|try again later|temporarily/i;
+// מכסה שנגמרה. המגבלה החינמית היא לכל מודל בנפרד, ולכן שווה לנסות את הבא בשרשרת
+// לפני שמוותרים — לא "שגיאה אמיתית" שצריך לעצור בגללה.
+const MODEL_QUOTA = /exceeded your current quota|RESOURCE_EXHAUSTED|rate ?limit/i;
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 async function callGemini(env, model, parts, wantJson){
@@ -224,7 +285,8 @@ async function gemini(env, prompt, { json: wantJson = false, images = [] } = {})
       if (r.ok) break;
       const msg = String(data.error?.message || "");
       if (MODEL_BUSY.test(msg) && attempt === 0){ await sleep(900); continue; }  // עומס: פעם אחת שוב
-      if (!MODEL_GONE.test(msg) && !MODEL_BUSY.test(msg)) stop = true;           // שגיאה אמיתית
+      // מודל שנעלם או מכסה שנגמרה → לנסות את הבא בשרשרת. רק השאר הוא שגיאה אמיתית.
+      if (!MODEL_GONE.test(msg) && !MODEL_BUSY.test(msg) && !MODEL_QUOTA.test(msg)) stop = true;
       break;
     }
     if (r.ok || stop) break;
@@ -233,7 +295,8 @@ async function gemini(env, prompt, { json: wantJson = false, images = [] } = {})
     // הודעה שאפשר להבין ממנה מה לעשות, במקום טקסט טכני באנגלית.
     const msg = String(data.error?.message || "");
     if (MODEL_BUSY.test(msg)) throw fail("ai_busy", "השרת של גוגל עמוס כרגע. נסי שוב בעוד דקה — מה שכתבת נשמר.", 503);
-    throw fail("ai_error", msg || "Gemini לא ענה.", 502);
+    if (MODEL_QUOTA.test(msg)) throw fail("ai_quota", hebrew(msg), 429);
+    throw fail("ai_error", hebrew(msg), 502);
   }
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
   if (!text) throw fail("ai_empty", "לא התקבל טקסט.", 502);
