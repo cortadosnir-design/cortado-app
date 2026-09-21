@@ -10,7 +10,10 @@ body{margin:0;background:#F1F2EE;color:#1D1B18;font-family:"Assistant",system-ui
 h1{font-family:"Secular One",sans-serif;font-weight:400;font-size:24px;margin:0 0 4px}
 .sub{color:#66625B;font-size:14px;margin:0 0 14px}
 dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:17px}
-dt{font-weight:700}dd{margin:0;font-variant-numeric:tabular-nums}
+dt{font-weight:700}
+/* "09:00–12:00" בפסקה RTL מתהפך ל-"12:00–09:00" — שעת הסגירה ראשונה.
+   זה לא ליקוי אסתטי: זה מה שהלקוח מהרחוב קורא. ltr+isolate נועלים. */
+dd{margin:0;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;text-align:right}
 dd.closed{color:#66625B}
 .foot{margin-top:14px;font-size:12px;color:#66625B}
 </style>

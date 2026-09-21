@@ -8,7 +8,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
-const DAYS = { sun:"ראשון", mon:"שני", tue:"שלישי", wed:"רביעי", thu:"חמישי", fri:"שישי", sat:"שבת" };
+const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const db = getFirestore(initializeApp(firebaseConfig));
 
 // הודעה במקום הטבלה. textContent ולא innerHTML — אין סיבה לבנות HTML כאן.
@@ -25,10 +25,13 @@ onSnapshot(doc(db, "public", "hours"), snap => {
   dl.replaceChildren();
   const d = snap.data();
   if (d.range) document.getElementById("sub").textContent = `שעות הפעילות · ${d.range}`;
-  const h = d.hours || {};
-  for (const k of Object.keys(DAYS)){
-    const r = (h[k] || []).map(x => x.join("–")).join(", ");
-    const dt = document.createElement("dt"); dt.textContent = DAYS[k];
+  // days הוא שורה אחת ליום, לפי הסדר ראשון→שבת, ומחרוזת ריקה = סגור.
+  // מערך מתקבל גם הוא, כדי שגרסה ישנה של המסמך לא תרוקן את הדף.
+  const days = Array.isArray(d.days) ? d.days : [];
+  for (let i = 0; i < 7; i++){
+    const v = days[i];
+    const r = (Array.isArray(v) ? v.join(", ") : String(v || "")).trim();
+    const dt = document.createElement("dt"); dt.textContent = DAYS[i];
     const dd = document.createElement("dd"); dd.textContent = r || "סגור";
     if (!r) dd.className = "closed";
     dl.append(dt, dd);

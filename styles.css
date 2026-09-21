@@ -91,7 +91,12 @@ select.slot:hover{color:var(--ink);border-color:var(--accent)}
 .status{font-size:14px;min-height:1.3em}
 .status.ok{color:var(--ok)} .status.bad{color:var(--bad)} .status.warn{color:var(--warn)}
 .hours{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;margin:8px 0}
-.hours dt{font-weight:700} .hours dd{margin:0}
+.hours dt{font-weight:700}
+/* טווח שעות בשורה עברית: "09:00–12:00" הוא שני מספרים עם מקף ביניהם, והמקף
+   הוא תו ניטרלי. בפסקה RTL הוא מקבל את כיוון הפסקה, והאלגוריתם הדו-כיווני
+   מציג "12:00–09:00" — כלומר שעת הסגירה ראשונה. ltr+isolate נועלים את
+   הכיוון, ו-text-align מחזיר את השורה לצד של שם היום. */
+.hours dd{margin:0;direction:ltr;unicode-bidi:isolate;text-align:right}
 .hours dd.closed{color:var(--muted)}
 details summary{cursor:pointer;color:var(--muted);font-size:14px}
 .foot{margin-top:auto;display:flex;justify-content:space-between;gap:8px;padding-top:12px;border-top:1px solid var(--line)}

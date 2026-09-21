@@ -1,8 +1,8 @@
 // "שגר" — עדכון שעות הפתיחה בכל מקום בלחיצה אחת.
 // מה שאפשר אוטומטית נעשה אוטומטית; מה שלא — מוגש מוכן להדבקה, בלי לעגל פינות.
-import { S, db, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
+import { S, db, $, el, clear, ymd, dm, status, copyText, withBusy, api, WORKER_URL, on,
   doc, setDoc, serverTimestamp } from "./core.js";
-import { hoursByDay, hoursPairs, hoursText, phase } from "./shifts.js";
+import { hoursByDay, hoursPairs, hoursText, hoursDoc, phase } from "./shifts.js";
 
 const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const GBP_URL = "https://business.google.com/";
@@ -79,15 +79,14 @@ async function launch(btn){
 
     // 1. דף הנחיתה — מיידי
     try {
-      await setDoc(doc(db, "public", "hours"), {
-        week: "w" + ymd(S.weekStart), from: ymd(S.weekStart), to: ymd(addDays(S.weekStart, 6)),
-        days: h, text: hoursText(), at: serverTimestamp(),
-      });
+      await setDoc(doc(db, "public", "hours"), hoursDoc());
       results.page = { state: "ok", note: "עודכן. הדף הציבורי כבר מציג את השעות החדשות." };
       // מסמן על השבוע שהשעות שוגרו, כדי שהצעד הבא יידע להתקדם.
       setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)), { launchedAt: serverTimestamp() }, { merge: true }).catch(() => {});
-    } catch {
-      results.page = { state: "fail", note: "העדכון נכשל. נסה שוב." };
+    } catch (e){
+      // "נסה שוב" על תקלה שחוזרת בכל פעם הוא מבוי סתום. הסיבה נכתבת כאן.
+      results.page = { state: "fail", note: e.code === "permission-denied"
+        ? "רק המנהל יכול לעדכן את דף השעות." : "העדכון נכשל: " + String(e.message || e.code || "").slice(0, 140) };
     }
     render();
 

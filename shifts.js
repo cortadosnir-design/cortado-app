@@ -583,16 +583,34 @@ export const hoursText = () => {
     `\n\nקפה קורטדו · קיבוץ שניר`;
 };
 
+/* מסמך השעות הציבורי — מקור אחד לשני הכפתורים ("שגר" ו"עדכן את דף השעות"),
+   וגם הפורמט שדף הנחיתה קורא.
+
+   days הוא שורה אחת ליום, ולא מערך של טווחים: Firestore לא מקבל מערך בתוך
+   מערך, וכל כתיבה כזו נפלה כאן על "Nested arrays are not supported" עוד
+   לפני שיצאה לרשת. זה היה "העדכון נכשל" שאין לו שום קשר להרשאות או לחיבור,
+   והוא הופיע בכל שיגור מאז שהדף נולד. מחרוזת ריקה = סגור. */
+export function hoursDoc(){
+  const to = addDays(S.weekStart, 6);
+  return {
+    week: wid(), from: ymd(S.weekStart), to: ymd(to),
+    range: `${dm(S.weekStart)} – ${dm(to)}`,
+    days: hoursByDay().map(x => x.join(", ")),
+    text: hoursText(),
+    at: serverTimestamp(),
+  };
+}
+
 async function publishHours(btn){
-  const h = hoursByDay();
   return withBusy(btn, async () => {
     try {
-      await setDoc(doc(db, "public", "hours"), {
-        week: wid(), from: ymd(S.weekStart), to: ymd(addDays(S.weekStart, 6)),
-        days: h, text: hoursText(), at: serverTimestamp(),
-      });
+      await setDoc(doc(db, "public", "hours"), hoursDoc());
       status("hoursStatus", "ok", "דף השעות הציבורי עודכן.");
-    } catch { status("hoursStatus", "bad", "העדכון נכשל."); }
+    } catch (e){
+      // הודעה שלא אומרת מה נשבר שולחת את המנהל לחפש בהרשאות ובחיבור.
+      status("hoursStatus", "bad", e.code === "permission-denied"
+        ? "רק המנהל יכול לעדכן את דף השעות." : "העדכון נכשל: " + String(e.message || e.code || ""));
+    }
   });
 }
 

@@ -83,7 +83,8 @@
 - `availability/<week>_<token|uid>` — `{ week, token|uid, name, days, note, at }`
 - `signups/<week>_<shift>_<token|uid>` — `{ week, shift, token|uid, name, at }`. שיבוץ ידני של המנהל נכתב בדיוק באותו מזהה ובאותם שדות, כדי שהעובד יראה אותו בדף שלו ושהתזכורת והסטטיסטיקה ימצאו אותו
 - `log/<date>_<…>` — `{ date, shift, customers, peak, weather, promo, notes, missing, at }`
-- `public/hours` — שעות הפתיחה לדף הציבורי. קריאה לכולם, כתיבה למנהל
+- `public/hours` — `{ week, from, to, range, days: [7 מחרוזות], text, at }`. שעות הפתיחה לדף הציבורי: קריאה לכולם, כתיבה למנהל.
+  `days` הוא שורה אחת ליום (ריקה = סגור) ולא מערך של טווחים — Firestore דוחה מערך בתוך מערך, וכל כתיבה כזו נכשלת לפני שהיא יוצאת לרשת
 - `creative/w<date>`, `posts/<id>`, `brand/{memory,timing,rhythm,clips}` — תוכן וזיכרון המותג. מנהל בלבד
 - `users/<uid>`, `members/<uid>`, `joinRequests/<uid>` — כניסה והצטרפות עם גוגל
 

@@ -79,5 +79,52 @@ for (const f of files){
 }
 ok("אין ייבוא מת", unused.length === 0, unused.join(" · "));
 
+/* 4. הדמה של ה-harness חייבת לייצא את מה שהמודולים שהוא טוען מבקשים.
+
+   ui.mjs מריץ את index.html האמיתי עם importmap שמחליף כמה מודולים בדמה.
+   שם שהמודול האמיתי מייצא והדמה לא — נכשל בייבוא, window.__ready לא נקבע,
+   וכל ui.mjs נופל על timeout של 30 שניות בלי לרמוז מה חסר. זה קרה פעמיים:
+   DAYS_SHORT ב-core, ו-hoursDoc ב-shifts. כאן זה נתפס בשנייה, עם שם. */
+const harness = read("tests/harness.mjs");
+const STUBS = {};
+for (const m of harness.matchAll(/"\/([a-z-]+\.js)"\s*:\s*"\/(tests\/stubs\/[a-z-]+\.js)"/g)) STUBS[m[1]] = m[2];
+// נקודות הכניסה שה-harness טוען במקום app.js, והסגור הטרנזיטיבי שלהן.
+const loaded = new Set();
+(function walk(f){
+  if (!f || loaded.has(f) || STUBS[f] || !exp[f]) return;
+  loaded.add(f);
+  for (const m of read(f).matchAll(/from\s*"\.\/([a-z-]+\.js)"/g)) walk(m[1]);
+})();
+[...harness.matchAll(/from "\.\/([a-z-]+\.js)"/g)].forEach(m => {
+  const f = m[1];
+  if (loaded.has(f) || STUBS[f] || !exp[f]) return;
+  loaded.add(f);
+  for (const x of read(f).matchAll(/from\s*"\.\/([a-z-]+\.js)"/g)){
+    if (!loaded.has(x[1]) && !STUBS[x[1]] && exp[x[1]]) loaded.add(x[1]);
+  }
+});
+// סבב שני, כדי לתפוס גם ייבוא בעומק שני
+for (const f of [...loaded])
+  for (const x of read(f).matchAll(/from\s*"\.\/([a-z-]+\.js)"/g))
+    if (!STUBS[x[1]] && exp[x[1]]) loaded.add(x[1]);
+
+let stubBad = [];
+for (const [mod, stubPath] of Object.entries(STUBS)){
+  const has = exportsOf(read(stubPath));
+  const esc = mod.replace(".", "\\.");
+  for (const f of loaded){
+    const src = read(f);
+    for (const m of src.matchAll(new RegExp('import\\s*\\{([^}]*)\\}\\s*from\\s*"\\./' + esc + '"', "gs")))
+      for (const part of m[1].split(",")){
+        const n = part.trim().split(/\s+as\s+/)[0].trim();
+        if (n && !has.has(n)) stubBad.push(`${stubPath}: חסר ${n} (${f} מייבא אותו)`);
+      }
+    for (const m of src.matchAll(new RegExp('import\\s+\\*\\s+as\\s+([A-Za-z_$][\\w$]*)\\s+from\\s*"\\./' + esc + '"', "g")))
+      for (const u of src.matchAll(new RegExp("\\b" + m[1] + "\\.([A-Za-z_$][\\w$]*)", "g")))
+        if (!has.has(u[1])) stubBad.push(`${stubPath}: חסר ${u[1]} (${f} מייבא אותו)`);
+  }
+}
+ok("הדמות של ה-harness מייצאות כל מה שנטען מבקש", stubBad.length === 0, [...new Set(stubBad)].join(" · "));
+
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 process.exit(fail ? 1 : 0);
