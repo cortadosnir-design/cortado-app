@@ -430,17 +430,24 @@ export async function thumbOf(dataUrl, px = 240){
 /* ===== המלאי: שמירה ===== */
 /* הוספה לספרייה. סמל ומדבקה נשמרים כ-PNG כדי שהשקיפות תישרד; צילום
    כ-JPEG, שהוא קטן בהרבה. כל פריט במסמך משלו, אז אין תקרה מעשית. */
-export async function addAsset(file, kind = "photo", name = ""){
+export async function addAsset(file, kind = "photo", name = "", pillar = ""){
   const isMark = kind === "logo" || kind === "sticker";
   const url = await shrink(file, isMark ? MARK_MAX_PX : ASSET_MAX_PX, ASSET_QUALITY, isMark);
   if (url.length > 900000) throw new Error("התמונה כבדה מדי אחרי ההקטנה. נסה קובץ קטן יותר.");
   const id = "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   await setDoc(doc(db, "assets", id), {
     name: name || file.name.replace(/\.[^.]+$/, "").slice(0, 40) || KINDS[kind],
-    kind, url, at: serverTimestamp(),
+    kind, pillar: pillar || "", url, at: serverTimestamp(),
   });
   return id;
 }
+export const setPillar = (id, pillar) => setDoc(doc(db, "assets", id), { pillar: pillar || "" }, { merge: true });
+// צילומים של נושא מסוים. זה מה שמאפשר לתבנית לבחור תמונה לבד.
+export const shotsFor = (pillar) => {
+  const all = assets("photo");
+  const hit = pillar ? all.filter(a => a.pillar === pillar) : [];
+  return hit.length ? hit : all;
+};
 export const dropAsset = (id) => deleteDoc(doc(db, "assets", id));
 export const renameAsset = (id, name) => setDoc(doc(db, "assets", id), { name: String(name).slice(0, 40) }, { merge: true });
 export const saveCfg = (patch) => setDoc(doc(db, "brand", "card"), patch, { merge: true });
@@ -449,15 +456,28 @@ export const saveCfg = (patch) => setDoc(doc(db, "brand", "card"), patch, { merg
 let onPick = null;
 export const onPickShot = (fn) => { onPick = fn; };
 
+/* הנושא של הצילום. בלי זה "תמונה מהספרייה" היא ערימה אחת, ותבנית
+   לא יכולה לבחור ממנה כלום. */
+let pillarList = [];
+export const setPillars = (obj) => { pillarList = Object.entries(obj || {}).map(([k, v]) => [k, v.label || k]); render(); };
+function pillarPicker(a){
+  if (!pillarList.length) return el("span", { class: "kindtag", text: "" });
+  const sel = el("select", { class: "apillar", onchange: (e) => setPillar(a.id, e.target.value) });
+  sel.append(el("option", { value: "", text: "בלי נושא", selected: !a.pillar }));
+  for (const [k, label] of pillarList)
+    sel.append(el("option", { value: k, text: label, selected: a.pillar === k }));
+  return sel;
+}
+
 function assetCard(a){
   return el("figure", { class: "asset" },
     el("img", { src: a.url, alt: a.name, title: a.name,
       class: a.kind === "photo" ? "" : "trans",
       onclick: () => onPick && onPick(a) }),
     el("figcaption", { class: "small" },
-      el("span", { class: "kindtag", text: KINDS[a.kind] || "" }),
       el("input", { class: "aname", type: "text", value: a.name,
         onchange: (e) => renameAsset(a.id, e.target.value) }),
+      a.kind === "photo" ? pillarPicker(a) : el("span", { class: "kindtag", text: KINDS[a.kind] || "" }),
       el("button", { class: "link", text: "מחק", onclick: () => {
         if (confirm(`למחוק את "${a.name}"?`)) dropAsset(a.id);
       } })));

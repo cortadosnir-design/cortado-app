@@ -5,6 +5,7 @@ import { S, auth, db, provider, $, addDays, weekId, defaultWeekStart, emit, on, 
   doc, getDoc, getDocs, setDoc, collection, serverTimestamp } from "./core.js";
 import * as Shifts from "./shifts.js";
 import * as Creative from "./creative.js";
+import * as Drive from "./drive.js";
 import * as Reach from "./reach.js";
 import * as Ops from "./ops.js";
 import * as People from "./people.js";
@@ -169,6 +170,7 @@ onAuthStateChanged(auth, async (user) => {
 /* ===== אתחול מודולים ===== */
 Shifts.init();
 Creative.init();
+Drive.bind();
 Reach.init();
 Ops.init();
 People.init();

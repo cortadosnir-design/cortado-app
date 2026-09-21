@@ -992,7 +992,9 @@ async function buildCard(btn){
   await withBusy(btn, async () => {
     try {
       const t = currentTemplate();
-      const base = composerPhoto || (Card.shots()[0] || {}).url || "";
+      // אין צילום שנבחר? נלקח צילום מהספרייה לפי הנושא של התבנית,
+      // ורק אם אין כזה — הראשון שיש. זה מה שהופך את התיוג למשהו שעובד.
+      const base = composerPhoto || (Card.shotsFor(t ? t.pillar : "")[0] || {}).url || "";
       const picked = chosenTargets();
       const built = await Card.buildAll(picked, {
         photo: base,
@@ -1458,6 +1460,7 @@ export function init(){
     renderComposerMeta();
   });
   renderTargets();
+  Card.setPillars(PILLAR3);
   Card.bind();
   Card.bindDesigner();
   // בחירת צילום מלאי: נכנס כבסיס לכרטיס, בלי להעלות שום דבר לאחסון.

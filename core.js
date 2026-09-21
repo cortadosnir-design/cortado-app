@@ -1,6 +1,7 @@
 // תשתית משותפת: Firebase, עזרים, מצב גלובלי.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
+  reauthenticateWithPopup }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId, writeBatch }
@@ -10,6 +11,7 @@ import { HOLIDAYS } from "./playbook.js";
 
 export { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId, writeBatch,
   GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
+  reauthenticateWithPopup,
   OWNER_EMAILS, FOUNDER_EMAILS, WORKER_URL };
 
 /* ===== Firebase ===== */

@@ -69,6 +69,9 @@ export const auth = { currentUser: USER };
 export const provider = {};
 export const GoogleAuthProvider = function(){};
 export const signInWithPopup = async () => ({ user: USER });
+// drive.js מבקש הרשאת קריאה לדרייב דרך התחברות מצטברת. בלי הייצוא הזה
+// הייבוא של drive.js נכשל, ואיתו app.js כולו.
+export const reauthenticateWithPopup = async () => ({ user: USER });
 export const signInWithRedirect = async () => {};
 export const getRedirectResult = async () => null;
 export const signOut = async () => {};
