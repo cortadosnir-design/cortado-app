@@ -62,7 +62,7 @@ let unsubCreative = null;
 function subscribeCreative(){
   if (unsubCreative) { try { unsubCreative(); } catch {} }
   S.creative = {};
-  brief = { text: "", photos: [], answers: [] };
+  brief = { text: "", photos: [], answers: [] }; briefFull = [];
   unsubCreative = onSnapshot(doc(db, "creative", wid()),
     (snap) => { S.creative = snap.exists() ? snap.data() : {}; loadBrief(); render(); },
     () => {});
@@ -483,7 +483,7 @@ async function skeleton(btn){
         slots: req,
         clips: clips.filter(c => c.state === "shot").map(c => c.title).slice(0, 10),
         // החומר מהשיחה. זה ההבדל בין כיוון שמתאים לקורטדו לכיוון שמתאים לכל בית קפה.
-        brief: brief.text, photos: brief.photos, answers: brief.answers,
+        brief: brief.text, photos: aiPhotos(), answers: brief.answers,
       });
       const got = Array.isArray(r.slots) ? r.slots : [];
       const cur = { ...((S.creative && S.creative.slots) || {}) };
@@ -504,22 +504,40 @@ async function skeleton(btn){
    אני שואל שתיים-שלוש שאלות קצרות, ורק אז נבנות המשבצות. הכיוון הגנרי
    שיצא עד היום נבע מכך שלמודל לא היה שום מידע על השבוע הזה. */
 const MAX_Q = 4;
+const MAX_PHOTOS = 6;
 let brief = { text: "", photos: [], answers: [] };
 let askedQ = null;          // השאלה שעל המסך כרגע
 let briefPending = [];      // קבצים שנבחרו וטרם הועלו
 
+/* התמונות בשני גדלים, בכוונה.
+   מסמך ב-Firestore מוגבל ל-1MiB. שש תמונות של 1280 פיקסל כ-data URL הן
+   0.8-2MB, כלומר המסמך נדחה — וביחד איתו נעלמות גם התשובות שנשמרות בו.
+   לכן: המקור המלא נשאר בזיכרון ונשלח ל-AI, ומה שנשמר הוא ממוזערת של 240
+   פיקסל (~8KB) — מספיק כדי שהתצוגה תשרוד רענון. */
+let briefFull = [];         // data URL במלוא הרזולוציה, לזיכרון בלבד
+const aiPhotos = () => (briefFull.length ? briefFull : brief.photos);
+
 function loadBrief(){
   const c = (S.creative && S.creative.brief) || null;
   if (!c) return;
-  brief = { text: c.text || "", photos: Array.isArray(c.photos) ? c.photos : [], answers: Array.isArray(c.answers) ? c.answers : [] };
+  brief = { text: c.text || "", photos: (Array.isArray(c.photos) ? c.photos : []).slice(0, MAX_PHOTOS),
+            answers: Array.isArray(c.answers) ? c.answers : [] };
   const box = $("briefText");
   if (box && document.activeElement !== box && !box.value) box.value = brief.text;
   renderBrief();
 }
 
 async function saveBrief(){
-  try { await setDoc(doc(db, "creative", wid()), { week: wid(), brief, at: serverTimestamp() }, { merge: true }); }
-  catch {}
+  try {
+    await setDoc(doc(db, "creative", wid()), { week: wid(), brief, at: serverTimestamp() }, { merge: true });
+    return true;
+  } catch (e){
+    // בליעה שקטה כאן עלתה בכל חומר השבוע. עדיף להגיד שזה לא נשמר.
+    status("briefStatus", "bad", e.code === "permission-denied"
+      ? "רק המנהל יכול לשמור את התחקיר."
+      : "החומר לא נשמר. בדוק חיבור ונסה שוב.");
+    return false;
+  }
 }
 
 function renderBrief(){
@@ -537,7 +555,11 @@ function renderBrief(){
     brief.photos.forEach((u, i) => thumbs.append(el("div", { class: "thumb" },
       el("img", { src: u, alt: "" }),
       el("button", { class: "icon", title: "הסר", text: "✕",
-        onclick: () => { brief.photos = brief.photos.filter((_, j) => j !== i); saveBrief(); renderBrief(); } }))));
+        onclick: () => {
+          brief.photos = brief.photos.filter((_, j) => j !== i);
+          briefFull = briefFull.filter((_, j) => j !== i);   // שתי הרשימות באותו סדר
+          saveBrief(); renderBrief();
+        } }))));
   }
 }
 
@@ -591,8 +613,14 @@ function shrinkToDataUrl(file, maxPx = PHOTO_MAX_PX, quality = PHOTO_QUALITY){
 async function uploadBriefPhotos(){
   if (!briefPending.length) return;
   status("briefStatus", "", `מכין ${briefPending.length} תמונות…`);
-  for (const f of briefPending.slice(0, 6 - brief.photos.length)){
-    try { brief.photos.push(await shrinkToDataUrl(f)); }
+  // Math.max: אם המסמך הגיע מגרסה ישנה עם יותר מהמכסה, 6-7 הוא -1
+  // ו-slice(0,-1) היה מחזיר את *כל* הקבצים פרט לאחרון — ההפך מהכוונה.
+  const room = Math.max(0, MAX_PHOTOS - brief.photos.length);
+  for (const f of briefPending.slice(0, room)){
+    try {
+      brief.photos.push(await shrinkToDataUrl(f, THUMB_PX, THUMB_QUALITY));
+      briefFull.push(await shrinkToDataUrl(f));
+    }
     catch { status("briefStatus", "bad", "תמונה אחת לא נקראה."); }
   }
   briefPending = [];
@@ -600,7 +628,7 @@ async function uploadBriefPhotos(){
 }
 
 async function nextQuestion(){
-  const r = await api("/ai/brief", { ...aiContext(), brief: brief.text, photos: brief.photos, answers: brief.answers, max: MAX_Q });
+  const r = await api("/ai/brief", { ...aiContext(), brief: brief.text, photos: aiPhotos(), answers: brief.answers, max: MAX_Q });
   if (r.done || !r.question || brief.answers.length >= MAX_Q){ await buildWeek(); return; }
   showQuestion(r);
   status("briefStatus", "", "");
@@ -1200,7 +1228,7 @@ export function init(){
   $("briefSkip").addEventListener("click", () => { if (askedQ) answer("לא רלוונטי"); });
   $("briefStop").addEventListener("click", () => buildWeek());
   $("briefRestart").addEventListener("click", () => {
-    brief = { text: "", photos: [], answers: [] };
+    brief = { text: "", photos: [], answers: [] }; briefFull = [];
     briefPending = []; askedQ = null;
     $("briefText").value = "";
     $("briefDone").hidden = true; $("briefQuestion").hidden = true; $("briefIntake").hidden = false;

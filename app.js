@@ -1,5 +1,5 @@
 // קורטדו אופרציה — נקודת הכניסה: זיהוי, ניווט, וחיבור המודולים.
-import { S, auth, db, provider, $, el, addDays, weekId, emit, on, dropSubs, track,
+import { S, auth, db, provider, $, addDays, weekId, defaultWeekStart, emit, on, dropSubs,
   OWNER_EMAILS, WORKER_URL,
   signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
   doc, getDoc, getDocs, setDoc, collection, serverTimestamp } from "./core.js";
@@ -44,13 +44,32 @@ on("weekchange", (delta) => {
   emit("weekchanged");
 });
 
+/* S.weekStart נקבע פעם אחת בטעינת המודול. האפליקציה מותקנת כ-PWA ונשארת
+   פתוחה על הטלפון ימים, ולכן אחרי חצות שישי היא המשיכה להציג את השבוע
+   הישן בלי שום סימן. כאן מתקנים כשחוזרים ללשונית — אבל רק אם המשתמש
+   יושב על השבוע שהאפליקציה בחרה לבד, כדי לא לחטוף לו את המסך מתחת לידיים. */
+let autoWeek = weekId(S.weekStart);
+function refreshWeekIfStale(){
+  const fresh = defaultWeekStart();
+  if (weekId(fresh) === autoWeek) return;               // עדיין אותו שבוע
+  const onAuto = weekId(S.weekStart) === autoWeek;      // המשתמש לא ניווט בעצמו
+  autoWeek = weekId(fresh);
+  if (!onAuto) return;                                  // הוא בחר שבוע — משאירים אותו שם
+  S.weekStart = fresh;
+  Shifts.resubscribe();
+  emit("weekchanged");
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshWeekIfStale(); });
+
 /* ===== כניסה ===== */
 $("signInBtn").addEventListener("click", async () => {
   $("signInBtn").disabled = true;
   try { await signInWithPopup(auth, provider); }
   catch (e){
     if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment"){
-      try { await signInWithRedirect(auth, provider); return; } catch {}
+      // נפילה שקטה כאן השאירה את המשתמש מול מסך שלא מגיב, בלי שום הסבר.
+      try { await signInWithRedirect(auth, provider); return; }
+      catch { $("authNote").textContent = "הדפדפן חסם את חלון הכניסה. אפשר לאשר חלונות קופצים ולנסות שוב."; return; }
     }
     $("authNote").textContent =
       e.code === "auth/popup-closed-by-user" ? "הכניסה בוטלה." :
@@ -76,13 +95,20 @@ async function loadMemberNames(){
   } catch {}
 }
 
+/* הקולבק הזה הוא async ועושה await לפני שהוא נוגע במנויים, ו-Firebase לא
+   מסדר קולבקים אסינכרוניים בתור. בלי מונה הדורות, כניסה שמיד אחריה יציאה
+   מריצה את הסוף של הקולבק הישן *אחרי* שהחדש כבר ניקה — ומנויים חיים
+   נפתחים בשם משתמש מנותק, נכשלים ב-permission-denied, ו"אין חיבור לנתונים"
+   נתקע על המסך. gen !== authGen פירושו: אירוע חדש יותר כבר עקף אותי. */
+let authGen = 0;
 onAuthStateChanged(auth, async (user) => {
+  const gen = ++authGen;
   S.me = user;
   S.isOwner = !!user && OWNER_EMAILS.map(e => e.toLowerCase()).includes((user.email || "").toLowerCase());
   S.isMember = S.isOwner;
   if (user && !S.isOwner){
-    try { const m = await getDoc(doc(db, "members", user.uid)); S.isMember = m.exists(); }
-    catch { S.isMember = false; }
+    try { const m = await getDoc(doc(db, "members", user.uid)); if (gen !== authGen) return; S.isMember = m.exists(); }
+    catch { if (gen !== authGen) return; S.isMember = false; }
   }
 
   $("signin").hidden = !!user;
@@ -94,7 +120,8 @@ onAuthStateChanged(auth, async (user) => {
 
   if (user){
     $("myName").textContent = user.displayName || user.email || "";
-    if (user.photoURL) $("avatar").src = user.photoURL;
+    // בלי ה-else התמונה של המשתמש הקודם נשארת על המסך למי שאין לו תמונה.
+    if (user.photoURL) $("avatar").src = user.photoURL; else $("avatar").removeAttribute("src");
   }
 
   if (!user || !S.isMember){
@@ -125,6 +152,7 @@ onAuthStateChanged(auth, async (user) => {
   selectTab(tab);
 
   await loadMemberNames();
+  if (gen !== authGen) return;        // אירוע אימות חדש יותר כבר טיפל במצב
   dropSubs();
   startSubs();
 });

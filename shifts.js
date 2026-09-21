@@ -1,6 +1,6 @@
 // משמרות: זמינות → המנהל בונה את השבוע → אישור → שיבוץ עצמי → נעילה.
 import { S, db, DAYS, sundayOf, DAYS_SHORT, $, el, clear, ymd, dm, addDays, fromYmd, toMin, fromMin, weekId, holidayOn,
-  status, copyText, withBusy, nameOf, whoOf, keyOf, track, emit,
+  status, copyText, withBusy, whoOf, keyOf, track, emit, on,
   doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
 
 const PHASES = {
@@ -53,14 +53,13 @@ const myAvail = () => S.availability.find(a => a.uid === (S.me && S.me.uid));
 
 /* ===== האזנה ===== */
 let weekSubs = [];
-export function resubscribe(){
-  weekSubs.forEach(u => { try { u(); } catch {} });
-  weekSubs = [];
-  subscribe();
-}
+export function resubscribe(){ subscribe(); }   // subscribe מנקה את המאזינים הישנים בעצמו
 export function subscribe(){
   const id = wid();
   loaded = false;
+  // בלי הניקוי הזה weekSubs גדל בכל מחזור כניסה־יציאה ואוסף סגירות מתות.
+  weekSubs.forEach(u => { try { u(); } catch {} });
+  weekSubs = [];
   S.week = null; S.availability = []; S.signups = [];
   render();
   weekSubs.push(track(onSnapshot(doc(db, "weeks", id),
@@ -76,11 +75,13 @@ export function subscribe(){
       render(); emit("week");
     },
     () => $("conn").textContent = "אין חיבור לנתונים")));
+  // autoAdvance נקראת מכל שלושת המאזינים: כשהשבוע נוחת הרשימות עוד ריקות,
+  // והשער האמיתי נפתח רק כשהזמינות וההרשמות הגיעו.
   weekSubs.push(track(onSnapshot(query(collection(db, "availability"), where("week", "==", id)),
-    (snap) => { S.availability = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
+    (snap) => { S.availability = snap.docs.map(d => ({ id: d.id, ...d.data() })); autoAdvance().catch(() => {}); render(); },
     () => {})));
   weekSubs.push(track(onSnapshot(query(collection(db, "signups"), where("week", "==", id)),
-    (snap) => { S.signups = snap.docs.map(d => ({ id: d.id, ...d.data() })); $("conn").textContent = ""; render(); },
+    (snap) => { S.signups = snap.docs.map(d => ({ id: d.id, ...d.data() })); $("conn").textContent = ""; autoAdvance().catch(() => {}); render(); },
     () => $("conn").textContent = "אין חיבור לנתונים")));
 }
 
@@ -254,20 +255,23 @@ async function purgeSignups(ids){
    ביום חמישי כדי שהשעות יצאו לפני הסופ״ש. שניהם הפיכים, שניהם מדווחים,
    ושניהם לא קורים אם חסר משהו: לא נפתח בלי כיסוי, לא ננעל בלי אף שיבוץ. */
 let autoTried = "";
+// שים לב: הנעילה (autoTried) חייבת לקרות **אחרי** שערי הנתונים ולא לפניהם.
+// autoAdvance נקראת מכל שלושת המאזינים, והראשון שנוחת (weeks) מגיע כשהרשימות
+// עוד ריקות. נעילה מוקדמת הייתה שורפת את הניסיון היחיד ומשביתה את הקידום לגמרי.
 async function autoAdvance(){
   if (!S.isOwner || !S.week) return;
   const id = wid();
   if (autoTried === id + phase()) return;
-  autoTried = id + phase();
   const ph = phase();
 
   if (ph === "availability" || ph === "review"){
     const active = S.roster.filter(r => r.active !== false);
-    if (!active.length || !shiftsOf().length) return;
-    const sent = new Set(S.availability.map(a => a.token).filter(Boolean));
-    if (active.some(r => !sent.has(r.token))) return;         // עוד לא כולם
+    if (!active.length || !shiftsOf().length || !S.availability.length) return;
+    const sent = sentKeys();
+    if (active.some(r => !hasSent(r, sent))) return;          // עוד לא כולם
     const { perDay } = coverage();
     if (openDays().some(d => perDay[d].yes + perDay[d].maybe < perDay[d].need)) return;  // אין כיסוי
+    autoTried = id + ph;
     await saveWeek({ phase: "open", approvedAt: serverTimestamp(), approvedBy: S.me.uid, openedAuto: true });
     status("mgrStatus", "ok", "כל הצוות ענה ויש כיסוי — נפתח לשיבוץ לבד. אפשר להחזיר לאיסוף זמינות.");
     return;
@@ -277,14 +281,31 @@ async function autoAdvance(){
     const now = new Date();
     if (now.getDay() < 4 || ymd(S.weekStart) !== ymd(sundayOf(addDays(now, now.getDay() >= 5 ? 7 : 0)))) return;
     if (!S.signups.length) return;                            // אף אחד לא נרשם — לא נועלים
+    autoTried = id + ph;
     await saveWeek({ phase: "locked", lockedAt: serverTimestamp(), lockedAuto: true });
     status("mgrStatus", "ok", "יום חמישי והשיבוץ מלא — השבוע ננעל לבד. אפשר לפתוח מחדש.");
     emit("locked");
   }
 }
 
+// מסמך זמינות מגיע משני מסלולים: קוד אישי (שדה token) או כניסה עם גוגל (שדה uid).
+// ספירה שמסתכלת רק על אחד מהם סותרת את עצמה — "3 מתוך 3 שלחו" לצד צ'יפ
+// "עוד לא שלחו" על אותו אדם. keyOf מחזיר את מה שקיים, ומאחד את שתי הרשימות.
+const sentKeys = () => new Set(S.availability.map(keyOf).filter(Boolean));
+
+// אותו אדם יכול להיות גם ברשימת העובדים (לפי קוד) וגם חבר צוות שנכנס עם גוגל
+// (לפי uid). המייל הוא מה שמקשר ביניהם, ובלעדיו הוא נספר פעמיים.
+function rosterUid(r){
+  const mail = String(r && r.email || "").trim().toLowerCase();
+  if (!mail) return "";
+  const m = S.members.find(x => String(x.email || "").trim().toLowerCase() === mail);
+  return m ? m.uid : "";
+}
+export const hasSent = (r, sent) => sent.has(r.token) || (!!rosterUid(r) && sent.has(rosterUid(r)));
+
 function coverage(){
-  const subs = S.availability.length;
+  // סופרים רק מסמכים שמשויכים למישהו — מסמך בלי token ובלי uid הוא רעש.
+  const subs = S.availability.filter(a => keyOf(a)).length;
   const perDay = {};
   for (const d of openDays()){
     const yes = S.availability.filter(a => a.days && a.days[d] === "yes").length;
@@ -302,9 +323,10 @@ function renderApproval(){
 
   const { subs, perDay } = coverage();
   const active = S.roster.filter(r => r.active !== false);
-  const sent = new Set(S.availability.map(a => a.token).filter(Boolean));
-  const missing = active.filter(r => !sent.has(r.token));
-  box.append(el("p", { class: "small", text: `${subs} מתוך ${active.length || subs} עובדים שלחו זמינות.` }));
+  const sent = sentKeys();
+  const missing = active.filter(r => !hasSent(r, sent));
+  const answered = active.length - missing.length;
+  box.append(el("p", { class: "small", text: `${active.length ? answered : subs} מתוך ${active.length || subs} עובדים שלחו זמינות.` }));
   if (missing.length){
     const chips = el("div", { class: "summary" });
     missing.forEach(r => chips.append(el("span", { class: "chip warn", text: r.name || "ללא שם" })));
@@ -524,6 +546,8 @@ function renderPhaseButtons(){
 
 /* ===== חיווט ===== */
 export function init(){
+  // רשימת העובדים היא הקלט השלישי של autoAdvance, והיא מגיעה ממאזין נפרד ב-ops.
+  on("state", () => autoAdvance().catch(() => {}));
   $("prevWeek").addEventListener("click", () => { emit("weekchange", -7); });
   $("nextWeek").addEventListener("click", () => { emit("weekchange", 7); });
   $("copyHours").addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק טקסט"));

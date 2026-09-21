@@ -103,9 +103,18 @@ export async function api(path, body){
 }
 
 /* ===== מצב משותף ===== */
+// השבוע שהאפליקציה נפתחת עליו: השבוע הנוכחי, ומיום שישי כבר השבוע הבא.
+// מיוצא כפונקציה ולא כערך, כדי ש-app.js יוכל לחשב אותו מחדש כשחוזרים
+// ללשונית אחרי שעברה חצות — ולא להיתקע על השבוע שהיה בזמן הטעינה.
+export function defaultWeekStart(){
+  const t = new Date(); const s = sundayOf(t);
+  if (t.getDay() >= 5) s.setDate(s.getDate() + 7);
+  return s;
+}
+
 export const S = {
   me: null, isOwner: false, isMember: false,
-  weekStart: (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })(),
+  weekStart: defaultWeekStart(),
   week: null, availability: [], signups: [],
   posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [], sales: [],
   memory: null, timing: null, reach: null, creative: {},
