@@ -1093,8 +1093,8 @@ function renderExport(){
   });
 }
 async function markScheduled(id){
-  try { await setDoc(doc(db, "posts", id), { status: "scheduled" }, { merge: true }); }
-  catch { status("exportStatus", "bad", "העדכון נכשל."); }
+  try { await setDoc(doc(db, "posts", id), { status: "scheduled" }, { merge: true }); return true; }
+  catch { status("exportStatus", "bad", "העדכון נכשל."); return false; }
 }
 /* ===== שיגור כל המוכנים =====
    עד עכשיו היו שתי דרכים לאותו דבר: "תזמן ופרסם" בקומפוזר, ולידו כרטיס
@@ -1134,8 +1134,13 @@ async function markAllScheduled(btn){
   const rows = exportRows();
   if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לסמן."); return; }
   await withBusy(btn, async () => {
-    for (const p of rows) await markScheduled(p.id);
-    status("exportStatus", "ok", `${rows.length} סומנו כמתוזמנים. "פורסם" יסומן לבד כשהזמן יעבור.`);
+    // סופרים הצלחות. קודם הלולאה דרסה את הודעת הכישלון ב-"ok" עם המספר
+    // המלא, והבעלים קיבל "4 סומנו" בזמן שאף אחד מהם לא נשמר.
+    let done = 0;
+    for (const p of rows) if (await markScheduled(p.id)) done++;
+    if (!done) status("exportStatus", "bad", "אף פוסט לא סומן. בדוק חיבור ונסה שוב.");
+    else if (done < rows.length) status("exportStatus", "warn", `${done} מתוך ${rows.length} סומנו. נסה שוב את השאר.`);
+    else status("exportStatus", "ok", `${done} סומנו כמתוזמנים. "פורסם" יסומן לבד כשהזמן יעבור.`);
   });
 }
 

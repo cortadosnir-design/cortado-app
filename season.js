@@ -7,7 +7,15 @@
 import { ymd, addDays, fromYmd } from "./core.js";
 import { HOLIDAYS } from "./playbook.js";
 
-const find = (name) => HOLIDAYS.find(h => h[1].startsWith(name));
+/* הרשימה מחזיקה כמה שנים, ולכן "סוכות" מופיע יותר מפעם אחת. find פשוט
+   היה מחזיר תמיד את המופע הראשון — כלומר את זה שכבר עבר, וחלון הביקוש
+   היה נתקע בעבר. נבחר המופע הקרוב שעוד לא הסתיים, ואם כולם עברו — האחרון. */
+function find(name){
+  const all = HOLIDAYS.filter(h => h[1].startsWith(name));
+  if (!all.length) return null;
+  const today = ymd(new Date());
+  return all.find(h => h[0] >= today) || all[all.length - 1];
+}
 const dateOf = (name) => { const h = find(name); return h ? h[0] : null; };
 const shift = (iso, n) => iso ? ymd(addDays(fromYmd(iso), n)) : null;
 
@@ -99,6 +107,9 @@ export function weekLine(weekStart){
   if (now) return `${now.label} · ${now.note}`;
   const next = upcoming(14);
   if (!next) return "";
-  const days = Math.round((fromYmd(next.from) - new Date()) / 86400000);
-  return `בעוד ${days} ימים: ${next.label}`;
+  // חצות מול חצות. השוואה מול new Date() נתנה "בעוד 2 ימים" בחמישי בערב
+  // לחג שמתחיל בראשון — כי 2 ימים ו-4 שעות מתעגלים למטה. כל אחר הצהריים
+  // הפסיד יום שלם, וכל מה שקרוב מ-12 שעות הפך ל"בעוד 0 ימים".
+  const days = Math.round((fromYmd(next.from) - fromYmd(ymd(new Date()))) / 86400000);
+  return days <= 0 ? next.label : days === 1 ? `מחר: ${next.label}` : `בעוד ${days} ימים: ${next.label}`;
 }

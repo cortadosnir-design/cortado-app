@@ -4,13 +4,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
+// playbook.js הוא העוגן היחיד לחגים, והוא חסר תלויות — אפשר לייבא אותו
+// כאן בלי לגרור את core.js (שמאתחל אימות ו-Firestore עם התמדה, ודף
+// העובד לא צריך אותם). הרשימה שהייתה כאן כבר סטתה: חסרו בה שלושה חגים,
+// והעובד ראה תגי חג אחרים מאלה שבלוח של המנהלת.
+import { HOLIDAYS } from "./playbook.js";
 
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
-const HOLIDAYS = [
-  ["2026-09-21","יום כיפור"],["2026-09-26","סוכות"],["2026-10-03","שמחת תורה"],
-  ["2026-12-04","חנוכה"],["2027-01-23","ט״ו בשבט"],["2027-03-23","פורים"],
-  ["2027-04-22","פסח"],["2027-05-12","יום העצמאות"],["2027-06-11","שבועות"],
-];
 
 const db = getFirestore(initializeApp(firebaseConfig));
 const $ = (id) => document.getElementById(id);

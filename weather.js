@@ -35,6 +35,7 @@ function adjust(day){
 }
 
 let cache = null;
+let cacheAt = 0;               // העותק בזיכרון מזדקן בדיוק כמו זה שב-sessionStorage
 let lastFail = 0;              // אין רשת? לא מנסים שוב בכל רינדור.
 const RETRY_MS = 60 * 1000;
 
@@ -52,9 +53,12 @@ function writeCache(days){
 
 /** התחזית לשבעה ימים, מהיום. מחזיר [] אם אין רשת — התחזית היא בונוס, לא תלות. */
 export async function load(){
-  if (cache) return cache;
+  /* בלי בדיקת הגיל כאן, העותק בזיכרון חי לנצח: האפליקציה מותקנת כ-PWA
+     ונשארת פתוחה, וברביעי היא עדיין הציגה את התחזית של ראשון — כלומר
+     ימים שכבר עברו, ו-prefillWeather מילא את היומן בתחזית מתה. */
+  if (cache && Date.now() - cacheAt < CACHE_MS) return cache;
   const cached = readCache();
-  if (cached){ cache = cached; emit("weather", cache); return cache; }
+  if (cached){ cache = cached; cacheAt = Date.now(); emit("weather", cache); return cache; }
   if (Date.now() - lastFail < RETRY_MS) return [];
 
   const p = new URLSearchParams({
@@ -75,6 +79,7 @@ export async function load(){
       rain: d.precipitation_probability_max[i] ?? 0,
       wind: Math.round(d.wind_speed_10m_max[i] ?? 0),
     }));
+    cacheAt = Date.now();
     writeCache(cache);
     emit("weather", cache);
     return cache;
@@ -179,6 +184,10 @@ function render(){
 
 export function init(){
   load().then(render);
-  on("state", () => { if (!cache) load().then(render); else render(); });
+  // load מחזיר את המטמון מיד כשהוא טרי, ומרענן לבד כשהוא התיישן —
+  // ולכן אין צורך לשמור כאן על "כבר טענו".
+  on("state", () => load().then(render));
   on("weather", render);
+  on("weekchanged", render);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load().then(render); });
 }

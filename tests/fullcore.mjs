@@ -23,10 +23,21 @@ export const collection = (_db, c) => ({ col: c, wheres: [] });
 export const where = (field, op, val) => ({ field, op, val });
 export const orderBy = () => null;
 export const limit = () => null;
+export const documentId = () => "__name__";
 export const query = (ref, ...cl) => ({ col: ref.col, wheres: [...(ref.wheres || []), ...cl.filter(c => c && c.field)] });
-const matches = (d, w) => w.every(x => x.op === "==" ? d[x.field] === x.val : true);
+// __name__ הוא מזהה המסמך, כמו ב-Firestore האמיתי.
+const fieldOf = (id, d, f) => f === "__name__" ? id : d[f];
+const matchOne = (id, d, x) => {
+  const v = fieldOf(id, d, x.field);
+  if (x.op === "==") return v === x.val;
+  if (x.op === "in") return Array.isArray(x.val) && x.val.includes(v);
+  if (x.op === ">=") return v >= x.val;
+  if (x.op === "<=") return v <= x.val;
+  return true;
+};
+const matches = (id, d, w) => w.every(x => matchOne(id, d, x));
 const snapDoc = (id, data) => ({ id, exists: () => !!data, data: () => data || {} });
-const snapQuery = (q) => { const docs = Object.entries(col(q.col)).filter(([, d]) => matches(d, q.wheres || [])).map(([id, d]) => snapDoc(id, d));
+const snapQuery = (q) => { const docs = Object.entries(col(q.col)).filter(([id, d]) => matches(id, d, q.wheres || [])).map(([id, d]) => snapDoc(id, d));
   return { docs, size: docs.length, empty: !docs.length, forEach: (f) => docs.forEach(f) }; };
 export async function getDoc(ref){ return snapDoc(ref.id, col(ref.col)[ref.id]); }
 export async function getDocs(q){ return snapQuery(q); }

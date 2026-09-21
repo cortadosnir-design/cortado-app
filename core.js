@@ -3,13 +3,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp }
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import { firebaseConfig, OWNER_EMAILS, WORKER_URL } from "./config.js";
 import { HOLIDAYS } from "./playbook.js";
 
-export { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp,
+export { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId,
   sRef, uploadBytes, getDownloadURL, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
   OWNER_EMAILS, WORKER_URL };
 
@@ -122,8 +122,20 @@ export const S = {
   subs: [],
 };
 
-export function track(unsub){ if (unsub) S.subs.push(unsub); return unsub; }
-export function dropSubs(){ S.subs.forEach(u => { try { u(); } catch {} }); S.subs = []; }
+/* track מחזיר עוטף שמוציא את עצמו מהרשימה. בלעדיו כל ניווט בין שבועות
+   וכל מחזור כניסה־יציאה הוסיף סגירה מתה ל-S.subs, שלא נוקתה לעולם —
+   ואחרי חמישים ניווטים dropSubs רץ על מאות סגירות שכבר בוטלו. */
+export function track(unsub){
+  if (typeof unsub !== "function") return unsub;
+  const wrapped = () => {
+    const i = S.subs.indexOf(wrapped);
+    if (i >= 0) S.subs.splice(i, 1);
+    try { unsub(); } catch {}
+  };
+  S.subs.push(wrapped);
+  return wrapped;
+}
+export function dropSubs(){ const all = S.subs.slice(); S.subs = []; all.forEach(u => { try { u(); } catch {} }); }
 
 export const nameOf = (uid) => (S.me && uid === S.me.uid) ? "אתה" : (S.memberNames[uid] || "חבר צוות");
 

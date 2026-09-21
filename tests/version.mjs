@@ -29,5 +29,17 @@ ok("כל מודול שמיובא נמצא ב-SHELL", missing.length === 0, missi
 ok("ה-Service Worker מקשיב להודעת skip", /addEventListener\("message"/.test(swSrc) && /skipWaiting/.test(swSrc));
 ok("רק תשובה תקינה נכנסת למטמון", /res\.ok/.test(swSrc));
 
+/* לוח החגים נגמר בשקט. כשהתאריך האחרון עובר, חלונות הביקוש ב-season.js
+   מתרוקנים ואין שום סימן — רק שהאפליקציה מפסיקה להזכיר את סוכות. */
+const holidays = [...read("playbook.js").matchAll(/\["(\d{4}-\d{2}-\d{2})","([^"]+)"/g)];
+const last = holidays.map(m => m[1]).sort().pop();
+const monthsLeft = last ? (new Date(last) - Date.now()) / (30 * 864e5) : -1;
+ok("לוח החגים מכסה לפחות 3 חודשים קדימה", monthsLeft >= 3,
+  last ? `אחרון: ${last} (${monthsLeft.toFixed(1)} חודשים)` : "אין חגים כלל");
+ok("ראש השנה קיים בלוח (season.js מסתמך עליו)", holidays.some(m => m[2].startsWith("ראש השנה")));
+
+// z.js חייב לקרוא את החגים מ-playbook ולא להחזיק רשימה משלו.
+ok("z.js לא מחזיק רשימת חגים משלו", !/^const HOLIDAYS = \[/m.test(read("z.js")));
+
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 process.exit(fail ? 1 : 0);

@@ -4,7 +4,7 @@
 // נטען לפי דרישה (כשנכנסים ללשונית צוות), לא במאזין חי: זו טבלה שמסתכלים
 // עליה פעם בשבוע, ואין סיבה להחזיק בשבילה חיבור פתוח.
 import { db, $, el, clear, ymd, addDays, fromYmd, toMin, sundayOf, weekId,
-  fmt1, status, withBusy, whoOf, keyOf, getDocs, collection } from "./core.js";
+  fmt1, status, withBusy, whoOf, keyOf, getDocs, collection, query, where, documentId } from "./core.js";
 
 const WEEKS_BACK = 8;          // שמונה שבועות. מספיק כדי לראות מגמה, קצר מספיק כדי להיות רלוונטי.
 
@@ -32,13 +32,18 @@ export async function load(btn){
     const ids = new Set(weekIds());
     let weeks = [], signups = [], logs = [];
     try {
+      // החלון הוא שמונה שבועות, וקודם הוא הופעל *אחרי* הקריאה: שלוש
+      // קולקציות שלמות ירדו בכל לחיצה, וגדלו בלי סוף. 'in' מוגבל ל-30
+      // ערכים, ושמונה מזהי שבוע נכנסים בבקשה אחת. היומן מסונן לפי תאריך.
+      const idList = [...ids];
+      const since = ymd(addDays(sundayOf(new Date()), -7 * (WEEKS_BACK - 1)));
       const [wSnap, sSnap, lSnap] = await Promise.all([
-        getDocs(collection(db, "weeks")),
-        getDocs(collection(db, "signups")),
-        getDocs(collection(db, "log")),
+        getDocs(query(collection(db, "weeks"), where(documentId(), "in", idList))),
+        getDocs(query(collection(db, "signups"), where("week", "in", idList))),
+        getDocs(query(collection(db, "log"), where("date", ">=", since))),
       ]);
-      weeks = wSnap.docs.filter(d => ids.has(d.id)).map(d => ({ id: d.id, ...d.data() }));
-      signups = sSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => ids.has(x.week));
+      weeks = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      signups = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       logs = lSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (e){
       status("peopleStatus", "bad", e.code === "permission-denied" ? "רק המנהל רואה את הטבלה הזו." : "הטעינה נכשלה.");
