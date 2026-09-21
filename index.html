@@ -340,7 +340,7 @@
               <option value="3">3</option>
             </select>
           </label>
-          <button id="copyWeekBlurb">העתק את טקסט השבוע</button>
+          <button class="primary" id="copyWeekBlurb">העתק את טקסט השבוע</button>
           <button id="copyHoursReach">העתק שעות</button>
         </div>
         <div id="groupList" class="grouplist"></div>
@@ -361,33 +361,34 @@
       <div class="card">
         <h2>מדידת ביצועים</h2>
         <p class="small">המספרים של כל פוסט שפורסם. אחרי 8 מדידות המערכת לומדת את השעות שלכם.</p>
+        <div class="autorow" id="perfAuto"></div>
         <div id="perfSummary"></div>
         <div id="perfList" class="perflist"></div>
         <div class="status" id="perfStatus" role="status"></div>
       </div>
 
       <div class="two">
-        <div class="card">
-          <h2>איפה אנחנו מול האזור</h2>
+        <details class="card fold">
+          <summary>איפה אנחנו מול האזור</summary>
           <div id="compList"></div>
-        </div>
-        <div class="card">
-          <h2>יעדים</h2>
+        </details>
+        <details class="card fold">
+          <summary>יעדים וספירת עוקבים</summary>
           <div id="milestones"></div>
           <div class="status" id="growthStatus" role="status"></div>
-        </div>
+        </details>
       </div>
 
       <div class="two">
-        <div class="card">
-          <h2>האשטגים</h2>
+        <details class="card fold">
+          <summary>האשטגים</summary>
           <div id="tagBox"></div>
-        </div>
-        <div class="card">
-          <h2>חשבונות לתייג</h2>
+        </details>
+        <details class="card fold">
+          <summary>חשבונות לתייג</summary>
           <p class="small">לתייג בכל פוסט. ככה הם מוצאים תוכן לשתף.</p>
           <div id="ampBox" class="grouplist"></div>
-        </div>
+        </details>
       </div>
     </section>
 

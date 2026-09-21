@@ -8,6 +8,7 @@ export const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n);
 export const fromYmd = (s) => { const [y,m,d]=String(s).split("-").map(Number); return new Date(y,m-1,d); };
 export const toMin = (t) => { const [h,m]=String(t).split(":").map(Number); return h*60+(m||0); };
 export const weekId = (ws) => "w" + ymd(ws);
+export const fmt1 = (n) => (Math.round(n*10)/10).toString();
 export const holidayOn = () => null;
 export function el(tag, attrs = {}, ...kids){
   const e = document.createElement(tag);

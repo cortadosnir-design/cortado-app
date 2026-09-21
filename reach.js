@@ -51,7 +51,7 @@ function renderGroups(){
         g.members !== "—" ? el("span", { class: "small mono", text: " " + g.members + (g.verified ? " ✓" : " (לא מאומת)") }) : null),
       el("div", { class: "small", text: g.play }));
     row.append(main);
-    row.append(el("button", { text: "העתק טקסט", onclick: (e) => copyText(weekBlurb(), e.currentTarget, "העתק טקסט") }));
+    // הטקסט זהה לכל הקבוצות, ולכן כפתור העתקה אחד למעלה — לא אחד לכל שורה.
     box.append(row);
   });
 
@@ -151,12 +151,76 @@ function renderTiming(){
   box.append(el("p", { class: "small", text: TIMING.dead + " המערכת תחליף את הבנצ׳מרק בנתונים שלכם אחרי 8 מדידות ביצועים לרשת." }));
 }
 
+/* ===== משיכת המספרים ממטא =====
+   הקלדה של חשיפה, לייקים ושמירות לכל פוסט הייתה המטלה הכי כבדה כאן,
+   והיא גם הדלק של כל הלמידה. מאז שהפרסום עובר דרך השרת יש לנו את מזהי
+   הפוסטים, ומטא מחזירה את המספרים. ההקלדה נשארת רק למי שפרסם ידנית. */
+const pullable = () => S.posts.filter(p => (p.fbPostId || p.igPostId) && p.date && fromYmd(p.date) <= new Date());
+let pulledAt = 0;
+
+async function pullNumbers(btn, quiet){
+  const rows = pullable();
+  if (!rows.length){
+    if (!quiet) status("perfStatus", "warn", "אין עדיין פוסטים שפורסמו דרך האפליקציה. מה שפורסם ידנית — מקלידים למטה.");
+    return;
+  }
+  const run = async () => {
+    try {
+      if (!quiet) status("perfStatus", "", "מושך מפייסבוק ומאינסטגרם…");
+      const r = await api("/insights/posts", {
+        posts: rows.slice(0, 30).map(p => ({ id: p.id, fbPostId: p.fbPostId || "", igPostId: p.igPostId || "" })),
+      });
+      let n = 0, failed = 0;
+      for (const x of (r.posts || [])){
+        if (x.error){ failed++; continue; }
+        const was = S.posts.find(p => p.id === x.id);
+        const old = (was && was.performance) || {};
+        // לא דורסים מספר גבוה יותר שכבר נשמר: מטא מעדכנת באיחור, וירידה
+        // פתאומית לאפס הייתה מרעילה את הלמידה.
+        const v = { reach: Math.max(old.reach || 0, x.reach || 0),
+                    likes: Math.max(old.likes || 0, x.likes || 0),
+                    saves: Math.max(old.saves || 0, x.saves || 0), auto: true };
+        if (v.reach === (old.reach || 0) && v.likes === (old.likes || 0) && v.saves === (old.saves || 0)) continue;
+        await setDoc(doc(db, "posts", x.id), { performance: v }, { merge: true });
+        n++;
+      }
+      pulledAt = Date.now();
+      // המנוי של הלשונית הוא על brand/reach, לא על הפוסטים — בלי הציור
+      // הזה המספרים החדשים היו מופיעים רק אחרי מעבר לשונית וחזרה.
+      if (n){ await relearnTiming(); renderPerformance(); }
+      if (!quiet || n)
+        status("perfStatus", failed && !n ? "warn" : "ok",
+          n ? `${n} פוסטים עודכנו מהמספרים האמיתיים.` : failed ? "מטא לא החזירה מספרים. ייתכן שהפוסט חדש מדי." : "הכל כבר מעודכן.");
+    } catch (e){ if (!quiet) status("perfStatus", "bad", e.message); }
+  };
+  return btn ? withBusy(btn, run) : run();
+}
+
+// בפתיחת הלשונית, פעם בשעה, בשקט. אף אחד לא צריך לזכור ללחוץ.
+function autoPull(){
+  if (!S.isOwner || !WORKER_URL) return;
+  if (Date.now() - pulledAt < 3600e3) return;
+  if (!pullable().length) return;
+  pullNumbers(null, true);
+}
+
 /* ===== מדידת ביצועים — הדלק של הלמידה ===== */
 function renderPerformance(){
   const box = clear($("perfList"));
   const done = S.posts.filter(p => p.status === "done" || p.status === "scheduled")
     .sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0, 12);
-  if (!done.length){ box.append(el("p", { class: "small", text: "אחרי שתסמן פוסטים כפורסמו, תזין כאן את המספרים שלהם והמערכת תלמד מה עובד." })); return; }
+
+  const auto = pullable().length;
+  const head = $("perfAuto");
+  if (head){
+    clear(head);
+    if (auto) head.append(
+      el("span", { class: "small", text: `${auto} פוסטים פורסמו דרך האפליקציה — המספרים נמשכים לבד.` }),
+      el("button", { text: "משוך עכשיו", onclick: (e) => pullNumbers(e.currentTarget) }));
+    else head.append(el("span", { class: "small", text: "פוסט שיפורסם דרך 'תזמן ופרסם' — המספרים שלו יגיעו לבד." }));
+  }
+
+  if (!done.length){ box.append(el("p", { class: "small", text: "כשיהיו פוסטים שפורסמו, המספרים שלהם יופיעו כאן." })); return; }
 
   done.forEach(p => {
     const perf = p.performance || {};
@@ -167,6 +231,15 @@ function renderPerformance(){
         el("span", { class: "mono small", text: p.time || "" }), " ",
         el("span", { class: "pill", text: (p.network||[]).length > 1 ? "FB + IG" : (p.network||["instagram"])[0] === "facebook" ? "פייסבוק" : "אינסטגרם" })),
       el("div", { class: "small clip", text: (p.text || "").slice(0, 70) })));
+    // נמשך אוטומטית → תצוגה בלבד. ארבעה פקדים לכל פוסט הם מה שהעמיס את הלשונית.
+    if (perf.auto){
+      row.append(el("div", { class: "perfnums" },
+        el("span", {}, el("b", { class: "mono", text: String(perf.reach || 0) }), el("span", { class: "small", text: " חשיפה" })),
+        el("span", {}, el("b", { class: "mono", text: String(perf.likes || 0) }), el("span", { class: "small", text: " לייקים" })),
+        el("span", {}, el("b", { class: "mono", text: String(perf.saves || 0) }), el("span", { class: "small", text: " שמירות" }))));
+      box.append(row);
+      return;
+    }
     const mk = (k, ph) => el("input", { type: "number", min: "0", class: "tiny", placeholder: ph, value: perf[k] != null ? perf[k] : "", "aria-label": ph });
     const reach_ = mk("reach", "חשיפה"), likes = mk("likes", "לייקים"), saves = mk("saves", "שמירות");
     row.append(reach_, likes, saves);
@@ -256,6 +329,7 @@ export function render(){
   if ($("p-reach").hidden) return;
   renderGroups(); renderDirectories(); renderTiming();
   renderCompetitors(); renderMilestones(); renderBigMoves(); renderPerformance();
+  autoPull();
 }
 
 export function init(){

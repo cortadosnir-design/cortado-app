@@ -32,6 +32,7 @@ export default {
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
         case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(env, body), cors);
         case "/publish/state":     requireOwner(owner); return json(await publishState(env), cors);
+        case "/insights/posts":    requireOwner(owner); return json(await postInsights(env, body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
         case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
         case "/status":            requireOwner(owner); return json(await status(env), cors);
@@ -686,6 +687,55 @@ async function publishDue(env){
 
 async function publishState(env){
   return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID, queue: !!env.FIREBASE_SA };
+}
+
+/* ===== מספרים אמיתיים במקום הקלדה =====
+   עד היום הבעלים הקליד חשיפה, לייקים ושמירות לכל פוסט — 4 שדות כפול 12
+   פוסטים, כל שבוע — וזה הדלק של כל הלמידה (שעות טובות, מה עבד). מאז
+   שהפרסום עובר דרכנו יש לנו את מזהי הפוסטים, ומטא מחזירה את המספרים.
+
+   שני הערוצים נספרים יחד: חשיפה מתחברת, לייקים ושמירות מתחברים. פוסט
+   שאחד הערוצים שלו נכשל עדיין מחזיר את מה שיש. */
+const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const metricOf = (data, name) => {
+  const row = (data.data || []).find(m => m.name === name);
+  return row ? num((row.values && row.values[0] && row.values[0].value) ?? row.value) : 0;
+};
+
+async function fbPostNumbers(env, postId){
+  const [ins, eng] = await Promise.all([
+    graph(env, `${postId}/insights`, { metric: "post_impressions_unique" }, "GET").catch(() => ({})),
+    graph(env, postId, { fields: "likes.summary(true),comments.summary(true),shares" }, "GET").catch(() => ({})),
+  ]);
+  return {
+    reach: metricOf(ins, "post_impressions_unique"),
+    likes: num(eng.likes && eng.likes.summary && eng.likes.summary.total_count),
+    saves: num(eng.shares && eng.shares.count),      // לפייסבוק אין "שמירות"; שיתוף הוא המקבילה
+  };
+}
+async function igPostNumbers(env, mediaId){
+  const ins = await graph(env, `${mediaId}/insights`, { metric: "reach,likes,saved" }, "GET").catch(() => ({}));
+  return { reach: metricOf(ins, "reach"), likes: metricOf(ins, "likes"), saves: metricOf(ins, "saved") };
+}
+
+async function postInsights(env, b){
+  const posts = Array.isArray(b.posts) ? b.posts.slice(0, 30) : [];
+  if (!posts.length) throw fail("bad_request", "לא נשלחו פוסטים.");
+  if (!env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+
+  const out = [];
+  for (const p of posts){
+    const id = String(p.id || "").slice(0, 60);
+    if (!id) continue;
+    const parts = [];
+    if (p.fbPostId) parts.push(await fbPostNumbers(env, String(p.fbPostId)).catch(() => null));
+    if (p.igPostId) parts.push(await igPostNumbers(env, String(p.igPostId)).catch(() => null));
+    const got = parts.filter(Boolean);
+    if (!got.length){ out.push({ id, error: "לא התקבלו מספרים" }); continue; }
+    const sum = (k) => got.reduce((n, x) => n + num(x[k]), 0);
+    out.push({ id, reach: sum("reach"), likes: sum("likes"), saves: sum("saves"), sources: got.length });
+  }
+  return { posts: out, at: Date.now() };
 }
 
 /* ===== Firestore מהשרת =====

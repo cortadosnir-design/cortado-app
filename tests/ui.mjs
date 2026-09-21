@@ -418,10 +418,44 @@ console.log("\n18. תזמון ופרסום מהקומפוזר");
   ok("ממתין לאינסטגרם לא נסגר כ'פורסם'", after === "scheduled", after);
   await p.close();
 }
+/* ── 21. הפצה: מספרים שנמשכים לבד ── */
+console.log("\n21. משיכת מספרים ממטא");
+{
+  const p = await fresh();
+  await p.evaluate(() => { document.getElementById("p-reach").hidden = false; });
+  // שני פוסטים שפורסמו דרך האפליקציה, אחד ישן עם מספר גבוה שכבר נשמר
+  await p.evaluate(() => {
+    window.__api["/insights/posts"] = (b) => ({ posts: b.posts.map(x => ({ id: x.id, reach: 120, likes: 9, saves: 3 })) });
+    window.__store.posts = {
+      a: { week: "wtest", date: "2026-09-01", time: "10:00", status: "done", text: "פוסט א", fbPostId: "fb_a", igPostId: "ig_a", network: ["facebook","instagram"] },
+      b: { week: "wtest", date: "2026-09-02", time: "10:00", status: "done", text: "פוסט ב", fbPostId: "fb_b", performance: { reach: 500, likes: 40, saves: 5, auto: true }, network: ["facebook"] },
+      c: { week: "wtest", date: "2026-09-03", time: "10:00", status: "done", text: "ידני", network: ["facebook"] },
+    };
+    window.S.posts = Object.entries(window.__store.posts).map(([id, x]) => ({ id, ...x }));
+    window.R.render();
+  });
+  await p.waitForTimeout(600);
+  const call = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/insights/posts"));
+  ok("נשלחו רק פוסטים עם מזהה פרסום", !!call && call.body.posts.length === 2, call && call.body.posts.map(x => x.id).join(","));
+  const after = await p.evaluate(() => ({ a: window.__store.posts.a.performance, b: window.__store.posts.b.performance }));
+  ok("פוסט בלי מספרים התמלא", after.a && after.a.reach === 120 && after.a.auto === true, JSON.stringify(after.a));
+  ok("מספר גבוה שכבר נשמר לא נדרס", after.b.reach === 500, String(after.b.reach));
+  // שורה אוטומטית היא תצוגה, שורה ידנית היא שדות
+  await p.waitForTimeout(300);
+  const shape = await p.evaluate(() => ({ nums: document.querySelectorAll(".perfnums").length,
+    inputs: document.querySelectorAll("#perfList input").length }));
+  ok("פוסט אוטומטי מוצג בלי שדות", shape.nums === 2, String(shape.nums));
+  ok("פוסט ידני שומר על ההקלדה", shape.inputs === 3, String(shape.inputs));
+  // כפתור העתקה אחד, לא אחד לכל קבוצה
+  const copies = await p.evaluate(() => [...document.querySelectorAll("#p-reach button")].filter(b => /העתק את טקסט השבוע/.test(b.textContent)).length);
+  ok("כפתור העתקה אחד לכל הקבוצות", copies === 1, String(copies));
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();
 process.exit(fail ? 1 : 0);
+
 
 
 
