@@ -35,11 +35,14 @@ export function cfg(over = {}){
 export const targets = () => TARGETS;
 export const assets = (kind) => kind ? library.filter(a => a.kind === kind) : library;
 export const assetOf = (id) => library.find(a => a.id === id) || null;
-// הסמל הקבוע: מה שנבחר בעיצוב, אחרת הסמל הראשון בספרייה.
-export const markUrl = () => {
-  const c = cfg();
+/* הסמל הקבוע. סדר העדיפות: מה שנבחר בעיצוב ← הסמל הראשון בספרייה ←
+   הקובץ שבמאגר. האחרון הוא הסבתא, והוא הסיבה שכרטיס יוצא עם סמל גם
+   כשהספרייה עוד ריקה לגמרי. */
+export const markUrl = (over = {}) => {
+  const c = cfg(over);
+  if (c.markId === "none") return "";
   const a = (c.markId && assetOf(c.markId)) || assets("logo")[0];
-  return a ? a.url : "";
+  return a ? a.url : (c.markFile || "");
 };
 export const shots = () => assets("photo");
 
@@ -198,7 +201,7 @@ export async function build(opts = {}){
   await loadFonts(c);
 
   /* 1. רקע */
-  const [img, badge] = await Promise.all([loadImage(photo), loadImage(mark || markUrl())]);
+  const [img, badge] = await Promise.all([loadImage(photo), loadImage(mark || markUrl(c))]);
   ctx.fillStyle = c.bg || "#22303c";
   ctx.fillRect(0, 0, W, H);
   if (img){
@@ -537,7 +540,8 @@ const CONTROLS = [
   { k: "ink",         t: "color",  label: "צבע טקסט" },
   { k: "accent",      t: "color",  label: "צבע מותג" },
   { k: "bg",          t: "color",  label: "רקע בלי צילום" },
-  { k: "markId",      t: "select", label: "הסמל הקבוע",  opts: () => [["", "הראשון בספרייה"], ...assets("logo").map(a => [a.id, a.name])] },
+  { k: "markId",      t: "select", label: "הסמל הקבוע",
+    opts: () => [["", "הסבתא (ברירת מחדל)"], ...assets("logo").map(a => [a.id, a.name]), ["none", "בלי סמל"]] },
   { k: "logoCorner",  t: "select", label: "פינת הסמל",   opts: () => [["bottom-left", "שמאל למטה"], ["bottom-right", "ימין למטה"], ["bottom-center", "מרכז למטה"], ["top-left", "שמאל למעלה"], ["top-right", "ימין למעלה"], ["top-center", "מרכז למעלה"]] },
   { k: "logoSize",    t: "range",  label: "גודל הסמל",   min: .06, max: .34, step: .01 },
   { k: "scrimStyle",  t: "select", label: "הכהיה",       opts: () => [["gradient", "מעבר"], ["uniform", "אחידה"], ["band", "פס תחתון"], ["none", "בלי"]] },

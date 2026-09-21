@@ -401,6 +401,7 @@ function renderEntry(){
 
 function renderBoard(){
   renderLeaderboard();
+  renderMeta();
   const box = clear($("slotList"));
   const ph = phase(), open = openDays();
   const list = slots();
@@ -1366,6 +1367,48 @@ async function markScheduled(id){
 // הצלחה נזכרת; כישלון ייבדק שוב בפתיחה הבאה, כך שתקלת רשת חולפת לא
 // נועלת את הכרטיס על מסלול ה-CSV.
 let publishOk = false;
+/* ===== מצב החיבור לרשתות =====
+   הפרסום בפועל תלוי בשלושה משתנים בשרת: FB_PAGE_TOKEN, FB_PAGE_ID
+   ו-IG_USER_ID. עד היום מה שקרה כשהם חסרים היה שקט: כפתור השיגור
+   ההמוני נעלם, ו"תזמן ופרסם" נכשל רק בלחיצה. עכשיו זה כתוב למעלה,
+   עם הדרך לתקן. */
+let metaState = null;
+async function renderMeta(){
+  const box = $("metaState");
+  if (!box) return;
+  if (!S.isOwner || !WORKER_URL){ box.hidden = true; return; }
+  if (!metaState){
+    try { metaState = await api("/status", {}); }
+    catch (e){ metaState = { error: e.message }; }
+  }
+  const r = metaState;
+  clear(box);
+  box.hidden = false;
+  if (r.error){
+    box.className = "notice warn";
+    box.append(el("b", { text: "אין קשר לשרת. " }), el("span", { text: r.error }));
+    return;
+  }
+  const missing = [];
+  if (!r.facebook) missing.push("פייסבוק");
+  if (!r.instagram) missing.push("אינסטגרם");
+  if (!missing.length){
+    box.className = "notice ok";
+    box.append(el("b", { text: "מחובר: " }),
+      el("span", { text: `פייסבוק${r.pageName ? " — " + r.pageName : ""} · אינסטגרם` }));
+    if (r.facebookError) box.append(el("div", { class: "small", text: "אזהרה: " + r.facebookError }));
+    return;
+  }
+  box.className = "notice warn";
+  box.append(el("b", { text: missing.join(" ו") + " לא מחובר" + (missing.length > 1 ? "ים" : "") + ". " }),
+    el("span", { text: "אפשר לכתוב ולבנות כרטיסים, אבל שיגור אוטומטי לא יעבוד." }),
+    el("button", { class: "link", text: "חבר עכשיו", onclick: () => {
+      emit("tab", "shifts");
+      const c = $("launchCard");
+      if (c) setTimeout(() => c.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    } }));
+}
+
 async function checkPublish(){
   if (publishOk) return true;
   if (!WORKER_URL || !S.isOwner) return false;

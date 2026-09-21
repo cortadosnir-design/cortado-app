@@ -343,8 +343,13 @@ export const CARD = {
   headlinePos: "top",            // top | center | bottom | none
   headlineSize: .078,            // יחסית לרוחב
   headlineMax: 3,
+  // הסמל של העגלה — הסבתא. יושב במאגר ולא בספרייה, כדי שכל כרטיס ייצא
+  // איתו מהרגע הראשון, גם לפני שמישהו העלה משהו. סמל שמועלה לספרייה
+  // ונבחר בעיצוב גובר עליו.
+  markFile: "./logo.png",
   logoCorner: "bottom-left",     // top/bottom × right/center/left
-  logoSize: .16,
+  logoSize: .2,                  // הסבתא היא איור עם פרטים, לא סימן פשוט —
+                                 // מתחת לזה היא נקראת ככתם ולא כפנים.
   scrimStyle: "gradient",        // gradient | uniform | band | none
   scrim: .55,
   tint: "",                      // גוון צבעוני מעל הצילום, ריק = בלי
