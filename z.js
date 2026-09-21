@@ -177,30 +177,40 @@ function fatal(msg){
   $("zbar").hidden = true;
 }
 
+/* מונה דורות. בחיבור איטי שתי הקשות מהירות על "שבוע הבא" מחזירות את
+   התשובות לא בסדר: week ו-taken של שבוע אחד לצד כותרת ותאריכים של אחר,
+   והעובד לוקח "שלישי" שלא קיים בשבוע שעל המסך. טעינה שנעקפה פשוט יוצאת. */
+let loadGen = 0;
 async function load(){
+  const gen = ++loadGen;
   dirty = false;
   clear($("zmain")).append(el("p", { class: "zloading", text: "טוען…" }));
   $("zbar").hidden = true;
   const id = wid();
+  let wk = null, av = null, mark = new Set();
   try {
     const [wSnap, aSnap] = await Promise.all([
       getDoc(doc(db, "weeks", id)),
       getDoc(doc(db, "availability", `${id}_${token}`)),
     ]);
-    week = wSnap.exists() ? wSnap.data() : null;
-    mine = aSnap.exists() ? aSnap.data() : null;
+    if (gen !== loadGen) return;
+    wk = wSnap.exists() ? wSnap.data() : null;
+    av = aSnap.exists() ? aSnap.data() : null;
     // השיבוצים של אחרים סגורים בפני עובדים; קוראים רק את שלנו, לפי מזהה ידוע.
-    taken = new Set();
-    const ss = shiftsOf();
+    const ss = (wk && Array.isArray(wk.shifts) ? wk.shifts : []);
     const got = await Promise.all(ss.map(sh =>
       getDoc(doc(db, "signups", `${id}_${sh.id}_${token}`)).then(d => d.exists() ? sh.id : null).catch(() => null)));
-    got.forEach(x => { if (x) taken.add(x); });
+    if (gen !== loadGen) return;
+    got.forEach(x => { if (x) mark.add(x); });
   } catch (e){
+    if (gen !== loadGen) return;
     clear($("zmain")).append(el("div", { class: "card center" },
       el("p", { text: "לא הצלחתי לטעון. בדוק חיבור." }),
       el("button", { class: "primary", text: "נסה שוב", onclick: () => load() })));
     return;
   }
+  // הכתיבה למצב הגלובלי קורית רק אחרי שכל ההמתנות עברו את הבדיקה.
+  week = wk; mine = av; taken = mark;
   draft = { ...(mine && mine.days || {}) };
   note = (mine && mine.note) || "";
   render();

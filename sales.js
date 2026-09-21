@@ -2,7 +2,7 @@
 // הקריאה מהצילום נעשית בשרת (Gemini). מה שחוזר מוצג לאישור לפני שמירה,
 // כי OCR על נייר תרמי הוא הערכה, והמספרים האלה הולכים לרואה החשבון.
 import { S, db, $, el, clear, status, withBusy, api, track, DAYS, fromYmd, dm, ymd,
-  doc, setDoc, deleteDoc, collection, onSnapshot, serverTimestamp } from "./core.js";
+  doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
 import { derive, totals, byCategory, byWeekday, trend, findings, asTable, round } from "./sales-stats.js";
 
 const MAX_PX = 1600, QUALITY = 0.86;   // דוח Z הוא טקסט צפוף: מקטינים, אבל לא עד כדי טשטוש
@@ -10,7 +10,10 @@ let draft = null;                       // מה שחזר מהצילום, לפנ�
 
 /* ===== נתונים ===== */
 export function subscribe(){
-  track(onSnapshot(collection(db, "sales"),
+  // מאזין חי בלי גבול על קולקציה שגדלה בכל משמרת: אחרי שנתיים זו קריאה
+  // של אלפי מסמכים בכל פתיחה, על תוכנית חינמית של 50K קריאות ליום.
+  // 400 דוחות הם יותר משנה של פעילות — יותר מזה לא נכנס ממילא לפילוח.
+  track(onSnapshot(query(collection(db, "sales"), orderBy("date", "desc"), limit(400)),
     (snap) => {
       S.sales = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
@@ -18,7 +21,14 @@ export function subscribe(){
     }, () => {}));
 }
 
-const idOf = (r) => `${r.date || "unknown"}-${r.reportNo ?? "x"}`;
+/* מזהה הדוח. reportNo מגיע מקריאת צילום ולא תמיד נקרא — וכששני דוחות
+   של אותו יום (בוקר וערב שלישי) חוזרים בלי מספר, שניהם קיבלו את אותו
+   מזהה והשני דרס את הראשון עם merge, כלומר הכנסות הבוקר נעלמו והשדות
+   שלא נקראו בדוח השני שמרו את הערכים של הראשון. השעה היא ההפרדה השנייה. */
+const idOf = (r) => `${r.date || "unknown"}-${
+  r.reportNo != null && r.reportNo !== "" ? r.reportNo
+  : r.time ? "t" + String(r.time).replace(/[^0-9]/g, "")
+  : "x"}`;
 
 /* ===== צילום ===== */
 function shrink(file){
@@ -106,8 +116,20 @@ async function save(){
     const rec = { ...draft };
     delete rec.warn;
     rec.categories = (rec.categories || []).filter(c => c.name && c.amount != null);
+    const id = idOf(rec);
     try {
-      await setDoc(doc(db, "sales", idOf(rec)), { ...rec, by: (S.me && S.me.displayName) || "", at: serverTimestamp() }, { merge: true });
+      // דריסה שקטה של דוח קיים היא אובדן כסף. שואלים לפני, ואז כותבים
+      // בלי merge כדי שלא יישארו שדות של הדוח הקודם.
+      const prev = await getDoc(doc(db, "sales", id));
+      if (prev.exists()){
+        const p = prev.data();
+        const when = [p.date, p.time].filter(Boolean).join(" ");
+        if (!confirm(`כבר קיים דוח במזהה הזה (${when || id}, ${round(p.total || 0)} ₪). להחליף אותו?`)) {
+          status("zStatus", "warn", "לא נשמר. הוסף מספר דוח או שעה כדי להפריד בין השניים.");
+          return;
+        }
+      }
+      await setDoc(doc(db, "sales", id), { ...rec, by: (S.me && S.me.displayName) || "", at: serverTimestamp() });
       draft = null; renderDraft();
       status("zStatus", "ok", "נשמר. הפילוח למטה מתעדכן לבד.");
     } catch { status("zStatus", "bad", "השמירה נכשלה. רק המנהל יכול לשמור דוחות."); }

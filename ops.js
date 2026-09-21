@@ -1,12 +1,13 @@
 // תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
 import { S, emit, on, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
   status, copyText, waLink, withBusy, api, WORKER_URL, nameOf, whoOf, track, makeToken, zLink,
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
 import * as Weather from "./weather.js";
+import * as Shifts from "./shifts.js";
 
 const MIN_ENTRIES = 5;
 const WEATHER = ["","נעים","חם","שרב","גשום","קר","רוח"];
-let editingMember = null, remState = null, remWeek = null, unsubRem = null;
+let editingMember = null, remState = null, remWeek = null, unsubRem = null, remGen = 0;
 
 export function subscribe(){
   track(onSnapshot(collection(db, "roster"),
@@ -42,7 +43,9 @@ function renderRoster(){
     $("teamAdd").open = true;
     return;
   }
-  const sentSet = new Set(S.availability.map(a => a.token).filter(Boolean));
+  // דרך Shifts כדי שגם מי שמילא זמינות אחרי כניסה עם גוגל ייספר כאן,
+  // ולא יסומן "עוד לא שלח" בזמן שהמסך השני אומר שכולם שלחו.
+  const sentSet = Shifts.sentKeys();
   const collecting = !S.week || !S.week.phase || S.week.phase === "availability" || S.week.phase === "review";
   const list = [...S.roster].sort((a,b) =>
     (b.active === false ? -1 : 0) - (a.active === false ? -1 : 0) || (a.name||"").localeCompare(b.name||"", "he"));
@@ -55,7 +58,7 @@ function renderRoster(){
       el("div", {}, el("b", { text: r.name || "ללא שם" }),
         r.role ? el("span", { class: "small", text: " · " + r.role }) : null, " ",
         r.active === false ? el("span", { class: "pill bad", text: "מושבת" }) :
-        collecting ? el("span", { class: "pill " + (sentSet.has(r.token) ? "ok" : "warn"), text: sentSet.has(r.token) ? "שלח זמינות ✓" : "עוד לא שלח" }) : null),
+        collecting ? el("span", { class: "pill " + (Shifts.hasSent(r, sentSet) ? "ok" : "warn"), text: Shifts.hasSent(r, sentSet) ? "שלח זמינות ✓" : "עוד לא שלח" }) : null),
       r.phone ? el("div", { class: "small mono", dir: "ltr", text: r.phone }) : null));
     const acts = el("div", { class: "actions" });
     if (wa) acts.append(el("a", { class: "btn wa", href: wa, target: "_blank", rel: "noopener", text: "שלח בוואטסאפ" }));
@@ -71,7 +74,7 @@ function renderRoster(){
       onclick: () => updateDoc(doc(db, "roster", r.token), { active: r.active === false })
         .catch(() => status("teamStatus", "bad", "העדכון נכשל.")) }));
     acts.append(el("button", { class: "link", text: "קישור חדש", title: "מבטל את הקישור הישן",
-      onclick: () => resetToken(r) }));
+      onclick: (e) => resetToken(r, e.currentTarget) }));
     row.append(acts);
     t.append(row);
   });
@@ -84,15 +87,43 @@ async function shareInvite(r){
   status("teamStatus", "ok", "ההודעה הועתקה. הדבק בוואטסאפ.");
 }
 
-// מחליף את הקוד: הקישור הישן מפסיק לעבוד מיד.
-async function resetToken(r){
-  if (!confirm(`להנפיק ל${r.name} קישור חדש? הקישור הישן יפסיק לעבוד.`)) return;
-  const token = makeToken();
-  try {
-    await setDoc(doc(db, "roster", token), { name: r.name || "", phone: r.phone || "", email: r.email || "", role: r.role || "", active: true, at: serverTimestamp() });
-    await deleteDoc(doc(db, "roster", r.token));
-    status("teamStatus", "ok", "הונפק קישור חדש. שלח אותו לעובד.");
-  } catch { status("teamStatus", "bad", "לא הצלחתי להנפיק קישור חדש."); }
+/* מחליף את הקוד: הקישור הישן מפסיק לעבוד מיד.
+
+   הקוד האישי הוא הזהות בכל האפליקציה — availability/<week>_<token>,
+   signups/<week>_<shift>_<token>. החלפה בלי העברה השאירה את העובדת עם
+   שלוש משמרות רשומות שהיא לא רואה יותר (ויכולה לקחת שוב), ואת הלוח עם
+   "חבר צוות" במקום השם. לכן מעבירים לפני שמוחקים.
+   היומן לא מועבר: הוא היסטוריה, והשם שמור בו בשדה by. */
+async function migrateToken(oldToken, newToken){
+  let moved = 0;
+  for (const col of ["availability", "signups"]){
+    const snap = await getDocs(query(collection(db, col), where("token", "==", oldToken)));
+    for (const d of snap.docs){
+      const data = d.data();
+      const id = col === "availability"
+        ? `${data.week}_${newToken}`
+        : `${data.week}_${data.shift}_${newToken}`;
+      await setDoc(doc(db, col, id), { ...data, token: newToken });
+      await deleteDoc(doc(db, col, d.id));
+      moved++;
+    }
+  }
+  return moved;
+}
+
+async function resetToken(r, btn){
+  if (!confirm(`להנפיק ל${r.name} קישור חדש? הקישור הישן יפסיק לעבוד. הזמינות והמשמרות שלו יעברו לקישור החדש.`)) return;
+  return withBusy(btn, async () => {
+    const token = makeToken();
+    try {
+      await setDoc(doc(db, "roster", token), { name: r.name || "", phone: r.phone || "", email: r.email || "", role: r.role || "", active: true, at: serverTimestamp() });
+      const moved = await migrateToken(r.token, token);
+      await deleteDoc(doc(db, "roster", r.token));
+      status("teamStatus", "ok", moved
+        ? `הונפק קישור חדש, ו-${moved} רשומות עברו אליו. שלח אותו לעובד.`
+        : "הונפק קישור חדש. שלח אותו לעובד.");
+    } catch { status("teamStatus", "bad", "לא הצלחתי להנפיק קישור חדש. שום דבר לא השתנה."); }
+  });
 }
 
 /* ===== הרשאות ===== */
@@ -130,16 +161,22 @@ export async function loadReminders(){
   const id = weekId(sundayOf(tomorrow));
   if (remWeek === id){ drawReminders(); return; }
   remWeek = id; remState = null;
+  const gen = ++remGen;                    // שתי קריאות חופפות: האחרונה מנצחת
   clear(box).append(el("p", { class: "small", text: "טוען…" }));
-  if (unsubRem){ try { unsubRem(); } catch {} }
+  if (unsubRem){ try { unsubRem(); } catch {} unsubRem = null; }
   try {
     const wSnap = await getDoc(doc(db, "weeks", id));
+    if (gen !== remGen) return;            // קריאה חדשה יותר כבר רצה
     const shifts = wSnap.exists() && Array.isArray(wSnap.data().shifts) ? wSnap.data().shifts : [];
     unsubRem = onSnapshot(query(collection(db, "signups"), where("week", "==", id)),
-      (snap) => { remState = { shifts, ups: snap.docs.map(d => ({ id: d.id, ...d.data() })) }; drawReminders(); },
+      (snap) => { if (gen !== remGen) return;
+        remState = { shifts, ups: snap.docs.map(d => ({ id: d.id, ...d.data() })) }; drawReminders(); },
       () => clear(box).append(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })));
     track(unsubRem);
-  } catch { clear(box).append(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })); }
+  } catch {
+    if (gen !== remGen) return;
+    clear(box).append(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." }));
+  }
 }
 
 function drawReminders(){
@@ -297,11 +334,21 @@ export function init(){
   $("lSave").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     const date = $("lDate").value;
     if (!date){ status("logStatus", "warn", "בחר תאריך."); return; }
-    const cust = $("lCustomers").value === "" ? null : Math.max(0, +$("lCustomers").value);
-    const data = { date, customers: cust, peak: $("lPeak").value || "", weather: $("lWeather").value || "",
-      promo: $("lPromo").value.trim(), notes: $("lNotes").value.trim().slice(0, 600),
+    // הכללים דורשים מספר שלם. 12.5 או הדבקה של "1,2" עברו כאן בשקט
+    // ונדחו בכתיבה, והמשתמש קיבל "השמירה נכשלה. נסה שוב." — שלא יעזור לעולם.
+    const rawCust = $("lCustomers").value.trim();
+    const numCust = Number(rawCust);
+    if (rawCust !== "" && !Number.isFinite(numCust)){
+      status("logStatus", "warn", "כמות הלקוחות צריכה להיות מספר."); return;
+    }
+    const cust = rawCust === "" ? null : Math.round(Math.max(0, Math.min(999, numCust)));
+    // כל שדה נחתך לפי אותן תקרות שבכללים — אחרת הכתיבה נדחית בלי הסבר.
+    const data = { date, customers: cust,
+      peak: ($("lPeak").value || "").slice(0, 10), weather: ($("lWeather").value || "").slice(0, 40),
+      promo: $("lPromo").value.trim().slice(0, 120), notes: $("lNotes").value.trim().slice(0, 600),
       missing: $("lMissing").value.trim().slice(0, 200),
-      uid: S.me ? S.me.uid : "", by: S.me ? (S.me.displayName || S.me.email || "") : "", at: serverTimestamp() };
+      uid: S.me ? S.me.uid : "",
+      by: (S.me ? (S.me.displayName || S.me.email || "") : "").slice(0, 80), at: serverTimestamp() };
     try {
       await setDoc(doc(db, "log", `${date}_${S.me.uid}`), data);
       status("logStatus", "ok", "הדיווח נשמר. תודה!");
