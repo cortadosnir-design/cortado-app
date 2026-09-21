@@ -27,9 +27,11 @@ export default {
         case "/ai/brief":    requireOwner(owner); return json(await aiBrief(env, body), cors);
         case "/ai/angle":    requireOwner(owner); return json(await aiAngle(env, body), cors);
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
+        case "/ai/poster":   requireOwner(owner); return json(await aiPoster(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
+        case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
         case "/status":            requireOwner(owner); return json(await status(env), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
         default: return json({ error: "not_found" }, cors, 404);
@@ -399,6 +401,48 @@ async function aiPost(env, b){
 }
 
 // זווית אחת ליום פעילות — מה מיוחד בו.
+// תמונת הפוסט, מתוך תיאור במילים. הבעלים לא צריך לבחור פריסה, ערכה וגודל —
+// הוא אומר מה הוא רוצה, והמודל מתרגם את זה למפרט שהמחולל יודע לצייר.
+const POSTER_LAYOUTS = ["photo", "plain", "hours"];
+const POSTER_THEMES  = ["cream", "night", "olive", "clay"];
+const POSTER_SIZES   = ["portrait", "square", "story"];
+
+async function aiPoster(env, b){
+  const want = String(b.want || "").trim().slice(0, 300);
+  if (!want) throw fail("bad_request", "כתוב במילים מה אתה רוצה שיהיה בתמונה.");
+  const prompt = [
+    BRAND,
+    "אתה מתרגם בקשה בעברית למפרט של תמונת פוסט. אתה לא כותב פוסט.",
+    `מה שהבעלים ביקש: ${want}`,
+    b.text ? `הטקסט של הפוסט, אם הוא עוזר להבין את ההקשר:\n${String(b.text).slice(0, 500)}` : "",
+    b.pillar ? `סוג הפוסט: ${b.pillar}.` : "",
+    b.holiday ? `מועד: ${b.holiday}.` : "",
+    b.hasPhoto ? "יש צילום שהועלה, אפשר להשתמש בפריסת תמונה." : "אין צילום, אל תבחר פריסת תמונה.",
+    [
+      "הכללים:",
+      `- layout: ${POSTER_LAYOUTS.join(" | ")}. photo = צילום עם טקסט מעליו. plain = טקסט על רקע צבעוני. hours = לוח שעות הפתיחה.`,
+      `- theme: ${POSTER_THEMES.join(" | ")}. cream בהיר ויומיומי, night כהה ודרמטי, olive רגוע, clay חמים לחגים.`,
+      `- size: ${POSTER_SIZES.join(" | ")}. portrait לפוסט, square לריבוע, story לסטורי.`,
+      "- head: הכותרת על התמונה. עד 60 תווים. קצר מנצח.",
+      "- sub: שורה שנייה, לא חובה. עד 110 תווים.",
+      "- badge: תווית קטנה בפינה, לא חובה. עד 18 תווים.",
+      "אל תכתוב מחירים, שעות שלא נמסרו לך, או הבטחות.",
+    ].join("\n"),
+    'החזר JSON בלבד: {"layout":"...","theme":"...","size":"...","head":"...","sub":"...","badge":"..."}.',
+  ].filter(Boolean).join("\n\n");
+
+  const r = await gemini(env, prompt, { json: true });
+  const pick = (v, list, dflt) => list.includes(String(v)) ? String(v) : dflt;
+  return {
+    layout: pick(r.layout, POSTER_LAYOUTS, b.hasPhoto ? "photo" : "plain"),
+    theme:  pick(r.theme,  POSTER_THEMES,  "cream"),
+    size:   pick(r.size,   POSTER_SIZES,   "portrait"),
+    head:  String(r.head  || "").slice(0, 60),
+    sub:   String(r.sub   || "").slice(0, 110),
+    badge: String(r.badge || "").slice(0, 18),
+  };
+}
+
 async function aiAngle(env, b){
   const prompt = [
     BRAND, memoryBlock(b),
@@ -519,6 +563,75 @@ async function publishInstagram(env, b){
   return { id: p.id };
 }
 // hours: {sun:[["06:30","15:00"]], mon:[], ...}  -> פורמט של פייסבוק
+/* ---------- שעות בגוגל ----------
+   Google Business Profile הוא הערוץ מספר 1 לחיפוש "קפה ליד": מי שנוסע לבניאס
+   רואה את הכרטיס בגוגל, לא את עמוד הפייסבוק. שעות שגויות שם שולחות אנשים לעגלה סגורה.
+
+   הנתיב מוכן, אבל דורש אישור ידני מגוגל ל-Business Profile API. עד שיאושר
+   הוא מחזיר not_configured והאפליקציה ממשיכה להציע הדבקה ידנית.
+
+   ביום שהאישור מגיע (הקוטה עולה מ-0 ל-300 QPM), צריך להגדיר ב-Cloudflare:
+     GB_LOCATION     — locations/12345678901234567890
+     GB_CLIENT_ID    — מ-OAuth client ב-Cloud Console
+     GB_CLIENT_SECRET
+     GB_REFRESH_TOKEN — נוצר פעם אחת בהסכמת הבעלים, לא פג
+   ואז זה עובד בלי שינוי קוד. */
+const GB_API = "https://mybusinessbusinessinformation.googleapis.com/v1";
+const GB_DAYS = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+
+// refresh token → access token. נשמר בזיכרון ה-Worker עד שפג.
+let gbToken = { value: "", exp: 0 };
+async function gbAccessToken(env){
+  if (gbToken.value && Date.now() < gbToken.exp - 60000) return gbToken.value;
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GB_CLIENT_ID, client_secret: env.GB_CLIENT_SECRET,
+      refresh_token: env.GB_REFRESH_TOKEN, grant_type: "refresh_token",
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.access_token)
+    throw fail("google_auth", "ההתחברות לגוגל נכשלה. צריך להנפיק refresh token חדש.", 502);
+  gbToken = { value: d.access_token, exp: Date.now() + (d.expires_in || 3600) * 1000 };
+  return gbToken.value;
+}
+
+// "08:30" → {hours:8, minutes:30}. גוגל משמיטה אפסים.
+function gbTime(hhmm){
+  const [h, m] = String(hhmm || "").split(":").map(Number);
+  const o = {};
+  if (h) o.hours = h;
+  if (m) o.minutes = m;
+  return o;
+}
+
+async function setGoogleHours(env, b){
+  for (const k of ["GB_LOCATION","GB_CLIENT_ID","GB_CLIENT_SECRET","GB_REFRESH_TOKEN"])
+    if (!env[k]) throw fail("not_configured",
+      "גוגל עוד לא מחוברת. ה-API של Business Profile דורש אישור מגוגל, ואחריו ארבעה משתנים בשרת.", 501);
+
+  // hours הוא מערך של 7 ימים, כל אחד עד שני טווחים: [["08:00","14:00"], ...]
+  const periods = [];
+  (Array.isArray(b.hours) ? b.hours : []).forEach((ranges, i) => {
+    (ranges || []).slice(0, 2).forEach(([open, close]) => {
+      if (!open || !close) return;
+      periods.push({ openDay: GB_DAYS[i], closeDay: GB_DAYS[i], openTime: gbTime(open), closeTime: gbTime(close) });
+    });
+  });
+  if (!periods.length) throw fail("bad_request", "אין אף יום פתוח לעדכן.");
+
+  const token = await gbAccessToken(env);
+  const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=regularHours`, {
+    method: "PATCH",
+    headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+    body: JSON.stringify({ regularHours: { periods } }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw fail("google_error", d.error?.message || "גוגל דחתה את העדכון.", 502);
+  return { ok: true, days: periods.length };
+}
+
 async function setFacebookHours(env, b){
   if (!env.FB_PAGE_ID) throw fail("not_configured", "חסר מזהה עמוד.", 500);
   const hours = {};

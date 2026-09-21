@@ -56,8 +56,25 @@
 
 ## 4. שעות בגוגל (בקשה חינמית, לוקחת זמן)
 
-עדכון שעות בפרופיל העסק בגוגל דורש אישור גישה ל-Business Profile API:
-**console.cloud.google.com ← APIs & Services ← Enable "My Business Business Information API"**, ואז ממלאים את טופס הבקשה שגוגל מציגה (שם העסק, אתר, למה צריך API). כשיאושר, נוסיף כפתור.
+עדכון שעות בפרופיל העסק בגוגל דורש אישור גישה ל-Business Profile API.
+**הקוד כבר בנוי** — הנתיב `/hours/google` ב-Worker ו-"שגר" קורא לו אוטומטית. חסר רק האישור.
+
+1. **לבדוק אם זה כבר מאושר:** Cloud Console ← APIs & Services ← Quotas על
+   `mybusinessbusinessinformation.googleapis.com`. **0 QPM** = לא אושר, **300 QPM** = אושר.
+2. אם לא: מפעילים ב-Library את `My Business Business Information API`,
+   `My Business Account Management API` ו-`Google My Business API`, וממלאים את
+   [טופס הבקשה](https://support.google.com/business/workflow/16726127).
+   גוגל מצהירה על 7–10 ימי עסקים; בפועל 4 ימים עד 6 שבועות.
+3. כשיאושר, מוסיפים ב-Cloudflare ארבעה משתנים ואין מה לשנות בקוד:
+
+   | Type | Name | מאיפה |
+   |---|---|---|
+   | Text | `GB_LOCATION` | `locations/<id>` מ-Account Management API |
+   | Secret | `GB_CLIENT_ID` | OAuth client ב-Cloud Console |
+   | Secret | `GB_CLIENT_SECRET` | שם |
+   | Secret | `GB_REFRESH_TOKEN` | מונפק פעם אחת בהסכמת הבעלים, לא פג |
+
+עד אז "שגר" מציג "הדבקה ידנית" ונותן את הטקסט מוכן. זו לא תקלה.
 
 ---
 

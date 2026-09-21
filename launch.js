@@ -107,8 +107,24 @@ async function launch(btn){
     }
     render();
 
-    // 3. גוגל — ה-API דורש אישור מראש מגוגל
-    results.google = { state: "manual", note: "ה-API של Google Business Profile דורש אישור מגוגל. עד שיאושר — הדבקה ידנית, 20 שניות." };
+    // 3. גוגל — הערוץ מספר 1 לחיפוש "קפה ליד".
+    // מנסים אוטומטית. כל עוד אין אישור מגוגל השרת מחזיר not_configured, וזה
+    // נופל בחזרה להדבקה ידנית בלי להיראות כמו תקלה. ביום שהאישור מגיע
+    // ומוגדרים המשתנים ב-Cloudflare — זה הופך לאוטומטי בלי שינוי קוד.
+    if (!WORKER_URL){
+      results.google = { state: "manual", note: "הדבקה ידנית, 20 שניות. הטקסט מוכן למטה." };
+    } else {
+      try {
+        await api("/hours/google", { hours: hoursPairs() });
+        results.google = { state: "ok", note: "שעות הפרופיל עודכנו בגוגל." };
+      } catch (e){
+        const msg = String(e.message || "");
+        results.google = { state: "manual",
+          note: /not_configured|עוד לא מחוברת/.test(msg)
+            ? "גוגל עוד לא מאושרת ל-API. עד אז — הדבקה ידנית, 20 שניות."
+            : msg };
+      }
+    }
     render();
 
     // 4. אינסטגרם — אין שדה שעות בכלל
