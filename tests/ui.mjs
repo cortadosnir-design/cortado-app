@@ -475,6 +475,22 @@ console.log("\n23. דוח Z ופילוח מכירות");
   await p.setInputFiles("#zGallery", PHOTO);
   await p.waitForSelector("#zDraft .zgrid");
   ok("צילום מהגלריה נקרא בשרת", (await p.evaluate(() => window.__apiCalls.filter(c => c.path === "/ai/zreport").length)) === 1);
+  // מהגלריה אפשר לבחור גם סרטון. זה נעצר כאן, לא בשרת.
+  await p.setInputFiles("#zGallery", { name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.from("x") });
+  ok("קובץ שאינו תמונה נעצר בהודעה ברורה", /לא קובץ תמונה/.test(await p.textContent("#zStatus")), await p.textContent("#zStatus"));
+  ok("ולא נשלח לשרת", (await p.evaluate(() => window.__apiCalls.filter(c => c.path === "/ai/zreport").length)) === 1);
+  // צילום מסך שקוף: ב-JPEG אין שקיפות, ובלי רקע לבן הפתק היה יוצא שחור
+  await p.setInputFiles("#zGallery", { name: "shot.png", mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAADUlEQVR4nGNgGAUgAAABCAABgukLHQAAAABJRU5ErkJggg==", "base64") });
+  await p.waitForFunction(() => window.__apiCalls.filter(c => c.path === "/ai/zreport").length === 2);
+  const px = await p.evaluate(async () => {
+    const call = window.__apiCalls.filter(c => c.path === "/ai/zreport").pop();
+    const img = new Image(); img.src = call.body.image; await img.decode();
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0);
+    return [...ctx.getImageData(0, 0, 1, 1).data];
+  });
+  ok("שקיפות יוצאת לבן, לא שחור", px[0] > 240 && px[1] > 240 && px[2] > 240, px.join(","));
   await p.evaluate(() => [...document.querySelectorAll("#zDraft button")].find(b => b.textContent.trim() === "בטל").click());
   await p.setInputFiles("#zPhoto", PHOTO);
   await p.waitForSelector("#zDraft .zgrid");

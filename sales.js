@@ -6,6 +6,7 @@ import { S, db, $, el, clear, status, withBusy, api, track, DAYS, fromYmd, dm,
 import { derive, totals, byCategory, byWeekday, trend, findings, asTable, round } from "./sales-stats.js";
 
 const MAX_PX = 1600, QUALITY = 0.86;   // דוח Z הוא טקסט צפוף: מקטינים, אבל לא עד כדי טשטוש
+const MIN_PX = 700;                    // מתחת לזה נייר תרמי כבר לא נקרא — שווה להגיד את זה
 let draft = null;                       // מה שחזר מהצילום, לפני אישור
 
 /* ===== נתונים ===== */
@@ -34,19 +35,29 @@ const idOf = (r) => `${r.date || "unknown"}-${
 // הזו הוא נוצר כמסמך שני, וההכנסות של אותו יום נספרות פעמיים.
 const legacyIdOf = (r) => `${r.date || "unknown"}-${r.reportNo ?? "x"}`;
 
-/* ===== צילום ===== */
+/* ===== צילום =====
+   מחזיר data URL, ולצידו האם המקור היה קטן מדי — כי צילום מהגלריה מגיע
+   לפעמים כתמונה שוואטסאפ כבר דחס, ואז הכישלון צריך להסביר את עצמו. */
 function shrink(file){
   return new Promise((resolve, reject) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const scale = Math.min(1, MAX_PX / Math.max(img.width, img.height));
+      const long = Math.max(img.width, img.height);
+      const scale = Math.min(1, MAX_PX / long);
       const c = document.createElement("canvas");
       c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL("image/jpeg", QUALITY));
+      const ctx = c.getContext("2d");
+      // מהגלריה מגיע גם PNG עם שקיפות (צילום מסך, תמונה ששותפה). ב-JPEG אין
+      // ערוץ שקיפות, וכל פיקסל שקוף היה יוצא שחור — כלומר פתק שחור על שחור.
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve({ image: c.toDataURL("image/jpeg", QUALITY), small: long < MIN_PX });
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("לא הצלחתי לפתוח את התמונה.")); };
+    // HEIC של אייפון לא נפתח בדפדפן. זה המקרה הנפוץ היחיד שבו הדפדפן פשוט
+    // לא יודע לקרוא קובץ שהמשתמש רואה בגלריה כתמונה רגילה.
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(
+      "לא הצלחתי לפתוח את התמונה. אם היא מאייפון בפורמט HEIC — שתף אותה כ-JPG ונסה שוב.")); };
     img.src = url;
   });
 }
@@ -233,16 +244,24 @@ export function init(){
   for (const f of inputs) f.addEventListener("change", async () => {
     const file = f.files && f.files[0]; f.value = "";
     if (!file) return;
+    // בבוחר התמונות אפשר להגיע גם לסרטון או למסמך. בלי הבדיקה הזו זה היה
+    // נוסע עד לשרת וחוזר כשגיאה סתומה.
+    if (!/^image\//.test(file.type || "")){
+      status("zStatus", "bad", "זה לא קובץ תמונה. בחר צילום של הפתק."); return;
+    }
     status("zStatus", "", "קורא את הדוח מהצילום…");
+    let small = false;
     try {
-      const image = await shrink(file);
-      const r = await api("/ai/zreport", { image });
+      const shrunk = await shrink(file);
+      small = shrunk.small;
+      const r = await api("/ai/zreport", { image: shrunk.image });
       draft = { ...r, categories: r.categories || [] };
       renderDraft();
       status("zStatus", "ok", "בדוק את המספרים מול הפתק, תקן מה שצריך, ושמור.");
     } catch (err){
       draft = null; renderDraft();
-      status("zStatus", "bad", err.message || "לא הצלחתי לקרוא את הדוח.");
+      status("zStatus", "bad", (err.message || "לא הצלחתי לקרוא את הדוח.")
+        + (small ? " התמונה קטנה — נסה את הצילום המקורי ולא גרסה שנדחסה בוואטסאפ." : ""));
     }
   });
   render();
