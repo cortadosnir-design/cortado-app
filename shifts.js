@@ -377,6 +377,97 @@ async function join(s){
 }
 const leave = async (id) => { try { await deleteDoc(doc(db, "signups", id)); } catch { alert("הביטול לא נשמר."); } };
 
+/* ===== שיבוץ ידני של המנהל =====
+   לא כל אחד תופס לעצמו. יש מי שאומר את הזמינות בטלפון, ויש שבוע שצריך
+   להיסגר היום. לכן כל "מקום פנוי" בלוח הוא אצל המנהל רשימת שמות: בוחרים,
+   והשיבוץ נכתב בדיוק כמו שיבוץ עצמי — אותו מזהה מסמך ואותם שדות. ככה
+   העובד רואה אותו בדף האישי שלו, התזכורת מוצאת את הטלפון שלו, וטבלת
+   "מי עשה כמה" סופרת אותו. שיבוץ ידני הוא לא סוג שני של נתון. */
+
+/** מי מותר לשבץ: רשימת העובדים, ועוד חברי צוות שנכנסו עם גוגל ואינם בה. */
+function assignable(){
+  const out = [], seen = new Set(), mails = new Set();
+  for (const r of S.roster){
+    if (r.active === false || !r.token) continue;
+    const mail = String(r.email || "").trim().toLowerCase();
+    if (mail) mails.add(mail);
+    // הקוד האישי מנצח את ה-uid: הוא מה שהתזכורת מחפשת כדי להגיע לטלפון,
+    // והוא מה שהעובד רואה בדף שלו גם בלי חשבון גוגל.
+    out.push({ key: r.token, field: "token", name: r.name || "ללא שם",
+      keys: [r.token, rosterUid(r)].filter(Boolean) });
+    seen.add(r.token);
+  }
+  for (const m of S.members){
+    const mail = String(m.email || "").trim().toLowerCase();
+    // אותו אדם יכול להיות גם ברשימת העובדים וגם חבר צוות עם גוגל.
+    // המייל הוא מה שמקשר, ובלעדיו הוא מופיע פעמיים בשני מזהים שונים.
+    if (seen.has(m.uid) || (mail && mails.has(mail))) continue;
+    out.push({ key: m.uid, field: "uid", name: m.name || "חבר צוות", keys: [m.uid] });
+    seen.add(m.uid);
+  }
+  return out.sort((a,b) => a.name.localeCompare(b.name, "he"));
+}
+
+const AVAIL_RANK = { yes: 0, maybe: 1, no: 3 };
+const AVAIL_MARK = { yes: "יכול", maybe: "אולי", no: "סימן שלא" };
+// הזמינות של אותו אדם יכולה להגיע בקוד אישי או ב-uid — בודקים את שניהם.
+const availOn = (c, day) => {
+  const a = S.availability.find(x => c.keys.includes(keyOf(x)));
+  return (a && a.days && a.days[day]) || "";
+};
+
+function assignSlot(s, cands){
+  const taken = new Set(inShift(s.id).map(keyOf).filter(Boolean));
+  const free = cands.filter(c => !c.keys.some(k => taken.has(k)));
+  if (!free.length) return el("div", { class: "slot", text: "מקום פנוי" });
+  // מי שסימן "יכול" למעלה, מי שסימן "לא" למטה. זה כל מה שהמנהל מחפש כאן.
+  free.sort((a,b) => (AVAIL_RANK[availOn(a, s.day)] ?? 2) - (AVAIL_RANK[availOn(b, s.day)] ?? 2)
+    || a.name.localeCompare(b.name, "he"));
+  const asked = S.availability.length > 0;
+  const sel = el("select", { class: "slot pick", title: "שבץ ידנית",
+    "aria-label": `שבץ מישהו ל${DAYS[s.day]} ${s.start}–${s.end}` });
+  sel.append(el("option", { value: "", text: "+ שבץ ידנית" }));
+  free.forEach(c => {
+    const note = asked ? " · " + (AVAIL_MARK[availOn(c, s.day)] || "לא ענה") : "";
+    sel.append(el("option", { value: c.key, text: c.name + note }));
+  });
+  sel.addEventListener("change", () => {
+    const c = free.find(x => x.key === sel.value);
+    if (c) assign(s, c);
+  });
+  return sel;
+}
+
+/* רשימת העובדים מגיעה ממאזין של ops, בדרך כלל אחרי שהלוח כבר צויר —
+   ובלי השורות האלה "מקום פנוי" נשאר טקסט מת עד שמשהו אחר יגרום לציור
+   מחדש. מציירים רק את הלוח (render המלא פולט "state" בעצמו וחוזר לכאן),
+   ורק כשהרשימה באמת השתנתה, כדי לא לסגור בחירה שפתוחה כרגע. */
+let candSig = "";
+function boardFollowsRoster(){
+  const sig = S.isOwner ? assignable().map(c => c.key + ":" + c.name).join("|") : "";
+  if (sig === candSig) return;
+  candSig = sig;
+  renderBoard();
+}
+
+async function assign(s, c){
+  // אותו אדם בשתי משמרות שחופפות בשעות — כמעט תמיד לחיצה בשורה הלא נכונה.
+  const clash = shiftsOf().find(x => x.day === s.day && x.id !== s.id
+    && toMin(x.start) < toMin(s.end) && toMin(s.start) < toMin(x.end)
+    && inShift(x.id).some(u => c.keys.includes(keyOf(u))));
+  if (clash && !confirm(`${c.name} כבר במשמרת ${clash.start}–${clash.end} באותו יום. לשבץ גם כאן?`)){ render(); return; }
+  try {
+    // אותו מזהה מסמך כמו בשיבוץ עצמי, ולכן שיבוץ כפול דורס את עצמו
+    // במקום ליצור שתי שורות לאותו אדם באותה משמרת.
+    await setDoc(doc(db, "signups", `${wid()}_${s.id}_${c.key}`), {
+      week: wid(), shift: s.id, [c.field]: c.key, name: (c.name || "").slice(0, 60), at: serverTimestamp(),
+    });
+  } catch (e){
+    alert(e.code === "permission-denied" ? "רק המנהל יכול לשבץ ידנית." : "השיבוץ לא נשמר.");
+    render();
+  }
+}
+
 function renderBoard(){
   const box = clear($("board"));
   const shifts = shiftsOf();
@@ -385,6 +476,8 @@ function renderBoard(){
     return;
   }
   const ph = phase(), canJoin = ph === "open";
+  // המנהל משבץ ידנית בכל שלב חוץ מנעול — אותו גבול בדיוק כמו ה-✕ שמסיר משובץ.
+  const cands = (S.isOwner && ph !== "locked") ? assignable() : [];
   for (let i = 0; i < 7; i++){
     const dayShifts = shifts.filter(s => s.day === i);
     if (!dayShifts.length) continue;
@@ -405,7 +498,8 @@ function renderBoard(){
           el("span", { class: "nm", text: whoOf(p) }),
           (mine || S.isOwner) && ph !== "locked" ? el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => leave(p.id) }) : null));
       });
-      for (let k = people.length; k < need; k++) list.append(el("div", { class: "slot", text: "מקום פנוי" }));
+      for (let k = people.length; k < need; k++)
+        list.append(cands.length ? assignSlot(s, cands) : el("div", { class: "slot", text: "מקום פנוי" }));
       card.append(list);
       if (canJoin && S.me){
         const mine = people.some(p => p.uid === S.me.uid);
@@ -547,7 +641,7 @@ function renderPhaseButtons(){
 /* ===== חיווט ===== */
 export function init(){
   // רשימת העובדים היא הקלט השלישי של autoAdvance, והיא מגיעה ממאזין נפרד ב-ops.
-  on("state", () => autoAdvance().catch(() => {}));
+  on("state", () => { autoAdvance().catch(() => {}); boardFollowsRoster(); });
   $("prevWeek").addEventListener("click", () => { emit("weekchange", -7); });
   $("nextWeek").addEventListener("click", () => { emit("weekchange", 7); });
   $("copyHours").addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק טקסט"));

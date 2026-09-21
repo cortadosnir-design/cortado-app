@@ -78,6 +78,11 @@ header.top h1{display:flex;align-items:center;gap:8px}
 .person .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .person button{border:none;background:none;color:var(--muted);padding:0 4px}
 .slot{font-size:14px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:2px 8px}
+/* "מקום פנוי" אצל המנהל הוא רשימה: בוחרים שם והאדם משובץ. אותה מסגרת
+   מקווקוות בדיוק, כדי שהלוח יישאר אותו לוח. */
+select.slot{width:100%;font-size:14px;color:var(--muted);border-style:dashed;border-radius:8px;
+  padding:6px 8px;min-height:40px;cursor:pointer}
+select.slot:hover{color:var(--ink);border-color:var(--accent)}
 .shift button.join{width:100%}
 .shift button.join.mine{background:var(--ok-soft);color:var(--ok);border-color:transparent}
 .form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
