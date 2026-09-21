@@ -12,10 +12,11 @@ import * as Launch from "./launch.js";
 import * as Now from "./now.js";
 import * as Weather from "./weather.js";
 import * as Analyze from "./analyze.js";
+import * as Sales from "./sales.js";
 import { APP_VERSION } from "./config.js";
 
-const TABS = ["shifts","creative","reach","log","team"];
-const OWNER_TABS = ["creative","reach","team"];
+const TABS = ["shifts","creative","reach","sales","log","team"];
+const OWNER_TABS = ["creative","reach","sales","team"];
 
 function selectTab(name){
   if (!TABS.includes(name)) name = "shifts";
@@ -29,6 +30,7 @@ function selectTab(name){
   if (name === "team"){ Ops.loadReminders(); People.render(); }
   if (name === "creative") Creative.render();
   if (name === "reach") Reach.render();
+  if (name === "sales") Sales.render();
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
@@ -61,7 +63,7 @@ getRedirectResult(auth).catch(() => {});
 
 function startSubs(){
   Shifts.subscribe();
-  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); }
+  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); }
   Ops.subscribe();
 }
 
@@ -97,7 +99,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!user || !S.isMember){
     dropSubs();
-    Object.assign(S, { week: null, availability: [], signups: [], posts: [], team: [], logs: [], members: [], joinReqs: [], creative: {} });
+    Object.assign(S, { week: null, availability: [], signups: [], posts: [], team: [], logs: [], members: [], joinReqs: [], creative: {}, sales: [] });
     TABS.forEach(t => { const p = $("p-" + t); if (p) p.hidden = true; });
     if (user && !S.isMember){
       try {
@@ -137,6 +139,7 @@ Launch.init();
 Now.init();
 Weather.init();
 Analyze.init();
+Sales.init();
 Shifts.render();
 Ops.renderLog();
 

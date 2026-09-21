@@ -557,3 +557,14 @@ body.sheeton{overflow:hidden}
 .autorow button{flex:none}
 .perfnums{display:flex;gap:14px;flex-wrap:wrap;align-items:baseline}
 .perfnums b{font-size:16px}
+
+/* ===== דוח Z ופילוח מכירות ===== */
+.zgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.zgrid label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.zgrid input.missing{border-color:var(--warn);background:var(--warn-soft)}
+.zcats{display:flex;flex-direction:column;gap:6px}
+.zcat{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto;gap:6px;align-items:center}
+.zcat input{min-width:0}
+#zCheck.ok{color:var(--ok)} #zCheck.warn{color:var(--warn)}
+#salesCats .pill{font-family:var(--mono);font-size:13px}
+#salesKpis{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}

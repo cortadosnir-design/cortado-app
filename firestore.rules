@@ -111,6 +111,8 @@ service cloud.firestore {
 
     // ── קריאייטיב, לוח התוכן וזיכרון המותג: המנהל בלבד ──
     match /creative/{wid} { allow read, write: if isOwner(); }
+    // דוחות סגירת קופה: מספרי הכנסות. רק הבעלים, קריאה וכתיבה.
+    match /sales/{id}    { allow read, write: if isOwner(); }
     match /posts/{id}    { allow read, write: if isOwner(); }
     match /brand/{doc}   { allow read, write: if isOwner(); }
 

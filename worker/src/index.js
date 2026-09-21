@@ -28,6 +28,7 @@ export default {
         case "/ai/angle":    requireOwner(owner); return json(await aiAngle(env, body), cors);
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
         case "/ai/analyze":  requireOwner(owner); return json(await aiAnalyze(env, body), cors);
+        case "/ai/zreport":  requireOwner(owner); return json(await aiZReport(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
         case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(env, body), cors);
@@ -515,6 +516,8 @@ const ANALYST = `אתה אנליסט נתונים של "קפה קורטדו", ע
 - אם השאלה לא ניתנת למענה מהעמודות הקיימות, אמור מה חסר במקום לנחש.
 - אם קיבלת רק דגימה מהשורות, הסתמך על הפרופיל לסיכומים כלליים, וציין שהחישוב המדויק על דגימה.
 - תשובה קצרה: 2–5 משפטים. אם יש השוואה בין קטגוריות, החזר גם טבלה קטנה (עד 8 שורות, עד 4 עמודות).
+- כשיש עמודת כסף: הפרד תמיד בין נתח ההכנסה לנתח היחידות. מוצר שנמכר הרבה ביחידות ומביא מעט כסף, ולהפך, זה בדיוק מה שמעניין.
+- כשיש עמודת מוצר או קטגוריה: אמור מה מושך תנועה ומה מייצר רווח, ומה כמעט לא זז.
 - סיים בהמלצה מעשית אחת לעגלה, רק אם היא נובעת מהנתונים.
 - בלי קו מפריד ארוך (—), בלי אימוג'י.`;
 
@@ -532,6 +535,7 @@ async function aiAnalyze(env, b){
     `עמודות: ${JSON.stringify(columns)}`,
     `סה"כ שורות בקובץ: ${Number(b.rowCount) || rows.length}${b.sampled ? ` (נשלחו ${rows.length} מהן כדגימה)` : ""}`,
     b.profile ? `פרופיל העמודות (JSON): ${JSON.stringify(b.profile).slice(0, 8000)}` : "",
+    b.roles && Object.keys(b.roles).length ? `מה כל עמודה כנראה מייצגת (הערכה לפי הכותרות): ${JSON.stringify(b.roles)}` : "",
     `השורות (JSON, לפי סדר העמודות): ${rowsJson}`,
     history.length ? `שאלות קודמות ותשובותיהן: ${JSON.stringify(history).slice(0, 4000)}` : "",
     `השאלה: ${question}`,
@@ -546,6 +550,59 @@ async function aiAnalyze(env, b){
     table,
     followups: (Array.isArray(r?.followups) ? r.followups : []).map(String).filter(Boolean).slice(0, 3),
   };
+}
+
+/* ---------- קריאת דוח Z מצילום ----------
+   דוח סגירת הקופה מודפס על נייר. במקום להקליד ממנו עשרים מספרים בסוף
+   משמרת, מצלמים אותו והמודל מוציא את השדות. הבעלים מאשר לפני שנשמר,
+   כי OCR על נייר תרמי מתפוגג הוא ניחוש מושכל, לא אמת. */
+const ZREPORT = `אתה קורא דוח סגירת קופה ("דוח Z") של עגלת קפה בישראל, מתוך צילום של הפתק המודפס.
+הוצא את השדות בדיוק כפי שהם מופיעים. אל תחשב ואל תשלים מה שלא כתוב.
+כללים:
+- מספרים בשקלים, כנקודה עשרונית, בלי סימן מטבע ובלי פסיקי אלפים.
+- שדה שלא מופיע בדוח או שלא הצלחת לקרוא בוודאות: null. עדיף null מאשר ניחוש.
+- "סה\"כ מכירות" או "סה\"כ תקבולים" הוא total. הוא כולל מע"מ.
+- categories הן השורות תחת "מכירות למחלקה" או "מכירות לפי קטגוריה": שם, סכום, כמות.
+  אל תכלול את שורת הסיכום ("סה\"כ") בתוך categories.
+- אם הצילום מטושטש או חתוך ולא ניתן לקרוא את עיקר הדוח, החזר needsRetake=true.`;
+
+async function aiZReport(env, b){
+  const image = typeof b.image === "string" ? b.image : "";
+  if (!image.startsWith("data:image/") && !image.startsWith("https://"))
+    throw fail("bad_request", "צריך לצלם את הדוח.");
+  const prompt = [
+    ZREPORT,
+    'החזר JSON בלבד, בדיוק במבנה הזה:',
+    `{"date":"yyyy-mm-dd","time":"HH:MM","reportNo":259,"till":"3729793","cashier":"",
+"total":0,"vat":0,"customers":0,"items":0,
+"card":0,"cash":0,"discounts":0,"cancels":0,"returns":0,
+"categories":[{"name":"קפה","amount":336,"qty":26}],
+"needsRetake":false,"note":"מה לא הצלחת לקרוא, בעברית, או מחרוזת ריקה"}`,
+  ].join("\n\n");
+  const r = await gemini(env, prompt, { json: true, temperature: 0, images: [image] });
+  if (r && r.needsRetake) throw fail("blurry", r.note || "הצילום לא קריא. נסה שוב, ישר מלמעלה ובאור טוב.", 422);
+
+  const num = (v) => { const n = Number(String(v ?? "").replace(/[^\d.-]/g, "")); return Number.isFinite(n) ? n : null; };
+  const cats = (Array.isArray(r?.categories) ? r.categories : [])
+    .map(c => ({ name: String(c?.name || "").trim().slice(0, 40), amount: num(c?.amount), qty: num(c?.qty) }))
+    .filter(c => c.name && c.amount != null && !/^סה[""״']?כ$/.test(c.name))
+    .slice(0, 20);
+  const out = {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(String(r?.date || "")) ? r.date : null,
+    time: /^\d{1,2}:\d{2}/.test(String(r?.time || "")) ? String(r.time).slice(0, 5) : null,
+    reportNo: num(r?.reportNo), till: String(r?.till || "").trim().slice(0, 20),
+    cashier: String(r?.cashier || "").trim().slice(0, 40),
+    total: num(r?.total), vat: num(r?.vat), customers: num(r?.customers), items: num(r?.items),
+    card: num(r?.card), cash: num(r?.cash),
+    discounts: num(r?.discounts), cancels: num(r?.cancels), returns: num(r?.returns),
+    categories: cats,
+    note: String(r?.note || "").slice(0, 200),
+  };
+  // בדיקת שפיות אחת: אם סכום המחלקות רחוק מהסך הכול, אומרים את זה במקום להעמיד פנים.
+  const sum = cats.reduce((a, c) => a + (c.amount || 0), 0);
+  if (out.total && cats.length && Math.abs(sum - out.total) > Math.max(1, out.total * 0.02))
+    out.warn = `סכום המחלקות (${sum.toFixed(2)}) לא מסתדר עם הסך הכול (${out.total.toFixed(2)}). בדוק את המספרים לפני שמירה.`;
+  return out;
 }
 
 /* ---------- Meta: פייסבוק ואינסטגרם ---------- */

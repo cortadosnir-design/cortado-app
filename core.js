@@ -107,7 +107,7 @@ export const S = {
   me: null, isOwner: false, isMember: false,
   weekStart: (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })(),
   week: null, availability: [], signups: [],
-  posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [],
+  posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [], sales: [],
   memory: null, timing: null, reach: null, creative: {},
   memberNames: {}, rosterNames: {},
   subs: [],

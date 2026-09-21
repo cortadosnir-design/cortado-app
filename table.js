@@ -69,6 +69,36 @@ export function profile(table){
 
 // מה נשלח לשרת: הכותרות, הפרופיל, ועד MAX_CHARS של שורות גולמיות.
 // מודל לא צריך 10,000 שורות כדי לענות "איזה יום הכי חזק" — הפרופיל מכסה את השאר.
+
+// מה כל עמודה מייצגת, לפי שם הכותרת והסוג. משמש לשתי מטרות: לבנות שאלות
+// מוכנות שמתאימות לקובץ שהועלה, ולומר למודל מה המשמעות של כל עמודה.
+// ייצוא של קופה נראה אחרת בכל מערכת, ולכן זו הערכה ולא ודאות.
+const ROLE_WORDS = [
+  ["money",   /סכום|מחיר|סה[\"״']?כ|הכנס|מכיר|תשלום|עלות|total|amount|price|sum|revenue|sales|net|gross|paid/i],
+  ["qty",     /כמות|יחיד|מספר פריט|qty|quantity|units|count/i],
+  ["item",    /מוצר|פריט|משקה|מנה|מאפה|תיאור|קטגור|item|product|sku|category|description|name/i],
+  ["payment", /אמצעי|מזומן|אשראי|ביט|העבר|payment|method|card|cash/i],
+  ["time",    /שעה|זמן|שעת|time|hour/i],
+  ["date",    /תאריך|יום|date|day/i],
+  ["order",   /הזמנה|חשבונית|קבלה|עסקה|order|receipt|invoice|transaction|bill/i],
+  ["people",  /לקוח|אנשים|סועד|customer|guest|people|covers/i],
+];
+
+export function roles(table){
+  const prof = profile(table);
+  const out = {};
+  table.columns.forEach((name, i) => {
+    const p = prof[i];
+    let role = ROLE_WORDS.find(([, re]) => re.test(name));
+    role = role && role[0];
+    // כותרת שאומרת "סכום" אבל העמודה טקסטואלית היא כנראה לא כסף.
+    if ((role === "money" || role === "qty") && p.type !== "number") role = null;
+    if (!role && p.type === "date") role = "date";
+    if (role) (out[role] ||= []).push(name);
+  });
+  return out;
+}
+
 export const MAX_CHARS = 40000;
 export function payload(table){
   const rows = [];
@@ -78,5 +108,5 @@ export function payload(table){
     if (size + line.length > MAX_CHARS) break;
     rows.push(r); size += line.length + 1;
   }
-  return { columns: table.columns, rows, rowCount: table.rows.length, sampled: rows.length < table.rows.length, profile: profile(table) };
+  return { columns: table.columns, rows, rowCount: table.rows.length, sampled: rows.length < table.rows.length, profile: profile(table), roles: roles(table) };
 }

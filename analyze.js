@@ -2,18 +2,42 @@
 // יומן המשמרות מהאפליקציה, ושואלים בעברית. הניתוח נעשה בשרת (Gemini),
 // הדפדפן רק קורא את הקובץ ושולח כותרות, פרופיל ודגימת שורות.
 import { S, $, el, clear, status, withBusy, api } from "./core.js";
-import { parseDelimited, payload } from "./table.js";
+import { parseDelimited, payload, roles } from "./table.js";
+import { table as salesTable } from "./sales.js";
 
 let table = null;          // { columns, rows }
 let name = "";
 const history = [];        // [{q, a}] — הקשר לשאלות המשך
 
-const QUICK = [
-  "מה היום הכי חזק ומה הכי חלש?",
-  "באיזו שעה מגיעים הכי הרבה לקוחות?",
-  "איך מזג האוויר משפיע על כמות הלקוחות?",
-  "מה ביקשו ולא היה לנו הכי הרבה פעמים?",
+// השאלות המוכנות נבנות לפי מה שבאמת יש בקובץ. ייצוא של קופה עם שורת כסף
+// ושורת מוצר שואל שאלות אחרות מיומן משמרות עם ספירת לקוחות.
+const QUICK_BY_ROLE = [
+  [["money"],          "כמה הכנסנו בסך הכול, ומה המגמה לאורך הזמן?"],
+  [["money", "item"],  "אילו מוצרים מביאים הכי הרבה כסף, ואילו כמעט לא זזים?"],
+  [["money", "order"], "מה הממוצע להזמנה, ואילו הזמנות חורגות ממנו?"],
+  [["money", "time"],  "באילו שעות נכנס הכי הרבה כסף?"],
+  [["money", "date"],  "מה היום הכי חזק כספית ומה הכי חלש?"],
+  [["item", "qty"],    "מה נמכר הכי הרבה ביחידות, ומה זה אומר על המלאי?"],
+  [["payment"],        "איך מתחלק התשלום בין מזומן לאשראי?"],
+  [["people", "date"], "מה היום הכי חזק ומה הכי חלש?"],
+  [["time"],           "באיזו שעה מגיעים הכי הרבה לקוחות?"],
 ];
+const QUICK_FALLBACK = [
+  "מה הדבר הכי חשוב שאפשר ללמוד מהנתונים האלה?",
+  "מה חריג כאן, ומה שגרתי?",
+  "איזו החלטה מעשית אחת הנתונים תומכים בה?",
+];
+
+function quickFor(t){
+  const r = roles(t);
+  const out = [];
+  for (const [need, q] of QUICK_BY_ROLE){
+    if (need.every(k => r[k] && r[k].length) && !out.includes(q)) out.push(q);
+    if (out.length === 4) break;
+  }
+  while (out.length < 3) out.push(QUICK_FALLBACK[out.length]);
+  return out.slice(0, 4);
+}
 
 // יומן המשמרות מהאפליקציה כטבלה, בלי להעלות כלום.
 function fromLogs(){
@@ -45,6 +69,7 @@ function setTable(t, label){
     $("anaAsk").hidden = true; return;
   }
   info.textContent = `${label} · ${t.rows.length} שורות · ${t.columns.length} עמודות: ${t.columns.slice(0, 6).join(", ")}${t.columns.length > 6 ? "…" : ""}`;
+  renderQuick();
   $("anaAsk").hidden = false;
   $("anaQ").focus();
 }
@@ -65,6 +90,13 @@ function renderAnswer(q, r){
       el("button", { class: "chip", type: "button", text: f, onclick: () => { $("anaQ").value = f; ask(); } }))));
   }
   box.prepend(card);
+}
+
+function renderQuick(){
+  const box = clear($("anaQuick"));
+  const list = table ? quickFor(table) : QUICK_FALLBACK;
+  list.forEach(q => box.append(el("button", { class: "chip", type: "button", text: q,
+    onclick: () => { $("anaQ").value = q; ask(); } })));
 }
 
 async function ask(){
@@ -97,6 +129,12 @@ export function init(){
       status("anaStatus", "bad", err.message || "לא הצלחתי לקרוא את הקובץ.");
     }
   });
+  $("anaSales").addEventListener("click", () => {
+    status("anaStatus", "", "");
+    const t = salesTable();
+    if (!t.rows.length){ status("anaStatus", "warn", "עוד לא נשמרו דוחות Z. צלם דוח בלשונית מכירות, ואז אפשר לשאול עליו."); return; }
+    setTable(t, "דוחות המכירות");
+  });
   $("anaLogs").addEventListener("click", () => {
     status("anaStatus", "", "");
     const t = fromLogs();
@@ -105,6 +143,5 @@ export function init(){
   });
   $("anaGo").addEventListener("click", ask);
   $("anaQ").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); ask(); } });
-  const quick = $("anaQuick");
-  QUICK.forEach(q => quick.append(el("button", { class: "chip", type: "button", text: q, onclick: () => { $("anaQ").value = q; ask(); } })));
+  renderQuick();
 }

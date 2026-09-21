@@ -451,6 +451,51 @@ console.log("\n21. משיכת מספרים ממטא");
   ok("כפתור העתקה אחד לכל הקבוצות", copies === 1, String(copies));
   await p.close();
 }
+/* ── 22. דוח Z: צילום, אישור, שמירה, פילוח ── */
+console.log("\n22. דוח Z ופילוח מכירות");
+{
+  const p = await fresh();
+  await p.evaluate(() => { document.getElementById("p-creative").hidden = true; document.getElementById("p-sales").hidden = false; });
+  ok("לפני דוחות: הסבר ולא טבלה ריקה", !(await p.locator("#salesEmpty").isHidden()) && await p.locator("#salesBody").isHidden());
+  // מה שהמודל מחזיר מהצילום
+  await p.evaluate(() => { window.__api["/ai/zreport"] = { date: "2026-09-20", time: "12:13", reportNo: 259,
+    total: 1206, vat: 183.97, customers: 23, items: 64, card: 1206, cash: 0, discounts: 0, cancels: 0, returns: 0,
+    categories: [{ name: "קפה", amount: 336, qty: 26 }, { name: "כריכים", amount: 402, qty: 11 },
+      { name: "שתיה קלה", amount: 270, qty: 14 }, { name: "מאפים מתוקים", amount: 80, qty: 4 },
+      { name: "עטופים", amount: 77, qty: 7 }, { name: "ללא קטגוריה", amount: 41, qty: 2 }], note: "" }; });
+  await p.setInputFiles("#zPhoto", PHOTO);
+  await p.waitForSelector("#zDraft .zgrid");
+  const sent = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/ai/zreport"));
+  ok("הצילום נשלח כ-data URL, לא כקובץ", !!sent && /^data:image\/jpeg/.test(sent.body.image), String(sent && sent.body.image || "").slice(0, 22));
+  ok("הטופס מלא במה שנקרא", (await p.inputValue("#z_total")) === "1206" && (await p.inputValue("#z_customers")) === "23");
+  ok("שש מחלקות לעריכה", await p.locator(".zcat").count() === 6);
+  ok("בדיקת שפיות: המחלקות מסתכמות", /תואם/.test(await p.textContent("#zCheck")), await p.textContent("#zCheck"));
+  // תיקון ידני שמפר את הסכום → אזהרה, לא שתיקה
+  await p.fill("#z_total", "1300");
+  ok("סכום שלא מסתדר מסומן", /הפרש/.test(await p.textContent("#zCheck")));
+  await p.fill("#z_total", "1206");
+  await p.click("#zSave");
+  await p.waitForTimeout(500);
+  const w = await p.evaluate(() => window.__writes.filter(x => x.col === "sales"));
+  ok("נשמר מסמך אחד באוסף sales", w.length === 1, JSON.stringify(w));
+  const id = await p.evaluate(() => Object.keys(window.__store.sales)[0]);
+  ok("המזהה מונע שמירה כפולה של אותו דוח", id === "2026-09-20-259", id);
+  // הפילוח מצטייר מה-snapshot, כמו באפליקציה
+  await p.waitForFunction(() => !document.getElementById("salesBody").hidden);
+  const kpis = await p.locator("#salesKpis .kpi .v").allTextContents();
+  ok("KPI: הכנסה וממוצע ללקוח", kpis.some(t => /1,?206/.test(t)) && kpis.some(t => /52/.test(t)), kpis.join(" | "));
+  const rows = await p.locator("#salesCats tbody tr").count();
+  ok("טבלת מחלקות", rows === 6, String(rows));
+  const first = await p.locator("#salesCats tbody tr").first().textContent();
+  ok("המחלקה המכניסה ביותר בראש", /כריכים/.test(first), first);
+  ok("תובנות מחושבות מופיעות", await p.locator("#salesFindings p").count() >= 2);
+  // הפילוח זמין לשאלות חופשיות
+  await p.evaluate(() => { document.getElementById("p-log").hidden = false; });
+  await p.click("#anaSales");
+  await p.waitForFunction(() => !document.getElementById("anaAsk").hidden);
+  ok("דוחות המכירות נטענים ל'שאל את הנתונים'", /דוחות המכירות/.test(await p.textContent("#anaInfo")));
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();

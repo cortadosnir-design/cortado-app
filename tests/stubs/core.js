@@ -83,4 +83,4 @@ export async function deleteDoc(ref){ delete (store[ref.col] || {})[ref.id]; lis
 export const track = () => {};
 const st = new Date(); st.setDate(st.getDate() - st.getDay());
 export const S = { isOwner: true, week: null, roster: [], availability: [], signups: [], weekStart: new Date(st.getFullYear(), st.getMonth(), st.getDate()),
-  posts: [], memory: null, timing: null, creative: {}, logs: [] };
+  posts: [], memory: null, timing: null, creative: {}, logs: [], sales: [] };

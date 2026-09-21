@@ -15,14 +15,15 @@ export function build(){
   import * as L from "./launch.js";
   import * as R from "./reach.js";
   import * as A from "./analyze.js";
+  import * as Z from "./sales.js";
   import { S } from "./core.js";
-  window.C = C; window.L = L; window.R = R; window.S = S;
+  window.C = C; window.L = L; window.R = R; window.S = S; window.Z = Z;
   window.__api = {};
   document.getElementById("p-creative").hidden = false;
   // מה ש-app.js עושה אחרי כניסה מוצלחת
   document.querySelectorAll("[data-owner]").forEach(n => n.hidden = !S.isOwner);
   document.querySelectorAll("[data-api]").forEach(n => n.hidden = !S.isOwner);
-  C.init(); L.init(); R.init(); A.init();
+  C.init(); L.init(); R.init(); A.init(); Z.init(); Z.subscribe();
   C.subscribe();
   window.__ready = true;
 </script>`);

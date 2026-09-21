@@ -27,6 +27,7 @@ node tests/run.mjs
 | `version.mjs` | ש-`APP_VERSION` ב-config.js ו-`VERSION` ב-sw.js זהים |
 | `table.mjs` | קריאת CSV/TSV והפרופיל שנשלח לסוכן הניתוח (`table.js`) |
 | `xlsx.mjs` | קריאת חוברת אקסל בלי ספריות: ZIP, מחרוזות משותפות, תאריכים (`xlsx.js`) |
+| `sales.mjs` | הפילוח של דוחות ה-Z: נטו, ממוצעים, מחלקות, ימים, מגמה (`sales-stats.js`) |
 
 ## סימולציה של שבוע שלם
 
