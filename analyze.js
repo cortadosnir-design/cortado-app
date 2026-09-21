@@ -22,6 +22,20 @@ function fromLogs(){
   return { columns: cols, rows };
 }
 
+// אקסל ישן (xls) הוא פורמט בינארי אחר לגמרי, ואותו באמת צריך להמיר.
+// xlsx נקרא כאן ישירות, ולכן הטעינה של xlsx.js היא לפי דרישה בלבד.
+async function readFile(f){
+  if (/\.xls$/i.test(f.name)) throw new Error("זה קובץ אקסל ישן (xls). פתח אותו באקסל ושמור כ-xlsx או כ-CSV.");
+  if (/\.xlsx$/i.test(f.name) || /sheet/.test(f.type || "")){
+    if (typeof DecompressionStream === "undefined") throw new Error("הדפדפן הזה לא יודע לפתוח xlsx. שמור כ-CSV, או פתח את האפליקציה בכרום.");
+    const { parseXlsx } = await import("./xlsx.js");
+    try { return await parseXlsx(await f.arrayBuffer()); }
+    catch { throw new Error("לא הצלחתי לקרוא את קובץ האקסל. אם הוא מוגן בסיסמה, הסר אותה ונסה שוב."); }
+  }
+  const text = await f.text();
+  return parseDelimited(text);
+}
+
 function setTable(t, label){
   table = t; name = label; history.length = 0;
   clear($("anaAnswers"));
@@ -71,19 +85,17 @@ async function ask(){
 export function init(){
   const file = $("anaFile");
   if (!file) return;
-  file.addEventListener("change", () => {
+  file.addEventListener("change", async () => {
     const f = file.files && file.files[0];
-    if (!f) return;
-    if (/\.xlsx?$/i.test(f.name)){
-      status("anaStatus", "warn", "קובץ אקסל: שמור אותו כ-CSV (קובץ ← שמירה בשם ← CSV UTF-8) והעלה שוב.");
-      file.value = ""; return;
-    }
-    status("anaStatus", "", "");
-    const reader = new FileReader();
-    reader.onload = () => { try { setTable(parseDelimited(reader.result), f.name); } catch { status("anaStatus", "bad", "לא הצלחתי לקרוא את הקובץ."); } };
-    reader.onerror = () => status("anaStatus", "bad", "לא הצלחתי לקרוא את הקובץ.");
-    reader.readAsText(f, "utf-8");
     file.value = "";
+    if (!f) return;
+    status("anaStatus", "", "קורא את הקובץ…");
+    try {
+      setTable(await readFile(f), f.name);
+      status("anaStatus", "", "");
+    } catch (err){
+      status("anaStatus", "bad", err.message || "לא הצלחתי לקרוא את הקובץ.");
+    }
   });
   $("anaLogs").addEventListener("click", () => {
     status("anaStatus", "", "");

@@ -8,6 +8,33 @@ const PHOTO = new URL("photo.jpg", import.meta.url).pathname;
 let pass = 0, fail = 0;
 const ok  = (n, c, extra="") => { c ? (pass++, console.log("  ✓ " + n + (extra?"  "+extra:""))) : (fail++, console.log("  ✗ " + n + "  " + extra)); };
 
+// חוברת אקסל מינימלית לבדיקת נתיב ה-xlsx בדפדפן אמיתי.
+const XLSX = await (async () => {
+  const { deflateRawSync } = await import("zlib");
+  const files = {
+    "xl/workbook.xml": '<workbook xmlns:r="r"><sheets><sheet name="s" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    "xl/_rels/workbook.xml.rels": '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+    "xl/sharedStrings.xml": '<sst><si><t>תאריך</t></si><si><t>לקוחות</t></si></sst>',
+    "xl/styles.xml": '<styleSheet><cellXfs><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>',
+    "xl/worksheets/sheet1.xml": '<worksheet><sheetData>' +
+      '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>' +
+      '<row r="2"><c r="A2" s="1"><v>46266</v></c><c r="B2"><v>55</v></c></row>' +
+      '<row r="3"><c r="A3" s="1"><v>46267</v></c><c r="B3"><v>42</v></c></row>' +
+      '</sheetData></worksheet>',
+  };
+  const enc = new TextEncoder(), parts = [], cd = []; let off = 0;
+  const u16 = (n) => [n & 255, (n >> 8) & 255], u32 = (n) => [...u16(n & 0xffff), ...u16(n >>> 16)];
+  for (const [name, text] of Object.entries(files)){
+    const nm = enc.encode(name), raw = enc.encode(text), data = deflateRawSync(raw);
+    const local = Uint8Array.from([...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(8), ...u16(0), ...u16(0), ...u32(0), ...u32(data.length), ...u32(raw.length), ...u16(nm.length), ...u16(0), ...nm]);
+    cd.push(Uint8Array.from([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(8), ...u16(0), ...u16(0), ...u32(0), ...u32(data.length), ...u32(raw.length), ...u16(nm.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off), ...nm]));
+    parts.push(local, data); off += local.length + data.length;
+  }
+  const cdBytes = Buffer.concat(cd.map(Buffer.from));
+  const eocd = Uint8Array.from([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(cd.length), ...u16(cd.length), ...u32(cdBytes.length), ...u32(off), ...u16(0)]);
+  return Buffer.concat([...parts.map(Buffer.from), cdBytes, Buffer.from(eocd)]);
+})();
+
 const b = await chromium.launch();
 const errors = [];
 async function fresh(opts = {}){
@@ -344,6 +371,16 @@ console.log("\n17. שאל את הנתונים");
   // יומן המשמרות ריק → הסבר, לא שליחה
   await p.click("#anaLogs");
   ok("יומן ריק מסביר מה לעשות", /דיווח/.test(await p.textContent("#anaStatus")));
+  // קובץ אקסל אמיתי, דרך שדה הקובץ, בדפדפן אמיתי
+  await p.setInputFiles("#anaFile", { name: "מכירות.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: XLSX });
+  await p.waitForFunction(() => /מכירות\.xlsx/.test(document.getElementById("anaInfo").textContent));
+  const xi = await p.textContent("#anaInfo");
+  ok("xlsx נקרא בדפדפן", /2 שורות/.test(xi) && /תאריך, לקוחות/.test(xi), xi);
+  // xls ישן: הסבר, לא ניסיון קריאה
+  await p.setInputFiles("#anaFile", { name: "ישן.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("old") });
+  await p.waitForFunction(() => document.getElementById("anaStatus").classList.contains("bad"));
+  ok("xls ישן מוסבר, לא נקרא", /xlsx|CSV/.test(await p.textContent("#anaStatus")));
   await p.close();
 }
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
