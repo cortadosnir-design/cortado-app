@@ -3,6 +3,7 @@ export const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי
 export const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, "0");
 export const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+export const DAYS_SHORT = ["א","ב","ג","ד","ה","ו","ש"];
 export const dm = (d) => `${d.getDate()}.${d.getMonth()+1}`;
 export const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
 export const fromYmd = (s) => { const [y,m,d]=String(s).split("-").map(Number); return new Date(y,m-1,d); };

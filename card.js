@@ -2,7 +2,7 @@
 // למה בדפדפן ולא בשרת: אין Firebase Storage (תוכנית Spark), והתמונה שמתפרסמת
 // ממילא נוסעת ל-Meta כ-data URL דרך /publish/schedule. קנבס מייצר בדיוק את זה.
 // העיקרון: מה שחוזר בכל פוסט לא נכתב מחדש בכל פוסט. הוא נצרב.
-import { S, db, DAYS, $, el, clear, ymd, fromYmd, addDays, doc, setDoc, deleteDoc, collection, query, orderBy,
+import { S, db, DAYS, DAYS_SHORT, $, el, clear, ymd, dm, fromYmd, addDays, doc, setDoc, deleteDoc, collection, query, orderBy,
   onSnapshot, serverTimestamp, track } from "./core.js";
 import { CARD, BRAND, THEMES, TARGETS, targetOf } from "./playbook.js";
 import { hoursByDay, phase } from "./shifts.js";
@@ -133,6 +133,24 @@ export function hoursAhead(dateStr){
   return out;
 }
 
+/* כל שבעת הימים, לפוסטר השעות. יום סגור נשאר ברשימה ואומר "סגור" —
+   זו בדיוק המידע שמונע נסיעת סרק. */
+export function weekHours(){
+  const all = hoursByDay();
+  return all.map((list, i) => ({
+    i, day: DAYS[i], short: DAYS_SHORT[i],
+    text: list.length ? list.join("  ") : "סגור", open: !!list.length,
+    date: ymd(addDays(S.weekStart, i)),
+  }));
+}
+export const weekRange = () => `${dm(S.weekStart)}–${dm(addDays(S.weekStart, 6))}`;
+// היום הפתוח הבא אחרי תאריך נתון. זה מה שאומרים כשסגור.
+export function nextOpen(dateStr){
+  const from = weekIndex(dateStr);
+  if (from < 0) return null;
+  return weekHours().slice(from + 1).find(d => d.open) || null;
+}
+
 /* ===== הציור ===== */
 // הגופנים נטענים מהרשת, ובעצלתיים: document.fonts.ready לבדו חוזר מיד
 // כשעוד לא ביקשו אותם, והקנבס מצייר בגופן ברירת המחדל. לכן מבקשים אותם
@@ -176,7 +194,11 @@ const LAYOUT_HINT = {
   photo: {},
   hours: { headlinePos: "top", hoursSize: .072, scrim: .66 },
   quote: { headlinePos: "center", align: "center", scrimStyle: "uniform", scrim: .42 },
+  // שני אלה לא מציירים צילום בכלל: הטקסט הוא התוכן, והרקע הוא צבע המותג.
+  week:  { headlinePos: "none", showHours: false, scrimStyle: "none", accentBar: false },
+  today: { headlinePos: "none", showHours: false, scrimStyle: "none", accentBar: false },
 };
+const IS_BOARD = (l) => l === "week" || l === "today";
 
 export async function build(opts = {}){
   const { photo = "", headline = "", date = "", layout = "photo", target = "", mark = "" } = opts;
@@ -228,6 +250,15 @@ export async function build(opts = {}){
 
   ctx.direction = "rtl";
   ctx.textBaseline = "alphabetic";
+
+  /* לוח השעות: שבוע שלם או יום אחד. כאן הטקסט הוא התוכן, לא כיתוב על
+     צילום — ולכן יש לו מסלול ציור משלו והוא מסיים את הכרטיס. */
+  if (IS_BOARD(layout)){
+    drawBoard(ctx, { W, H, box, c, layout, date, badge, logoW: Math.round(W * (c.logoSize || .2)) });
+    if (c.showGuides) drawGuides(ctx, W, H, box, t);
+    return cv.toDataURL("image/jpeg", .9);
+  }
+
   const alignX = { right: box.x + box.w, center: box.x + box.w / 2, left: box.x };
   ctx.textAlign = c.align === "center" ? "center" : c.align === "left" ? "left" : "right";
   const ax = alignX[c.align] ?? alignX.right;
@@ -336,17 +367,7 @@ export async function build(opts = {}){
   await paintLayers(ctx, layers.filter(o => o && !o.back), W, H, c);
 
   /* 9. קווי עזר — רק בכיוונון, אף פעם לא בפרסום */
-  if (c.showGuides){
-    shade(false);
-    ctx.strokeStyle = "rgba(255,80,80,.85)"; ctx.lineWidth = 3; ctx.setLineDash([14, 10]);
-    ctx.strokeRect(box.x, box.y, box.w, box.h);
-    if (t.grid){
-      const side = Math.min(W, H);
-      ctx.strokeStyle = "rgba(90,200,255,.85)";
-      ctx.strokeRect((W - side) / 2, (H - side) / 2, side, side);
-    }
-    ctx.setLineDash([]);
-  }
+  if (c.showGuides){ shade(false); drawGuides(ctx, W, H, box, t); }
 
   return cv.toDataURL("image/jpeg", .86);
 }
@@ -355,6 +376,168 @@ export async function build(opts = {}){
    המיקום והגודל הם שברים של המידה, לא פיקסלים — ככה אותה שכבה נוחתת
    באותו מקום יחסי גם בפיד 4:5 וגם בסטורי 9:16.
      { asset } או { text } · x,y (0–1, מרכז) · size · rot · opacity · back */
+function drawGuides(ctx, W, H, box, t){
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(255,80,80,.85)"; ctx.lineWidth = 3; ctx.setLineDash([14, 10]);
+  ctx.strokeRect(box.x, box.y, box.w, box.h);
+  if (t.grid){
+    const side = Math.min(W, H);
+    ctx.strokeStyle = "rgba(90,200,255,.85)";
+    ctx.strokeRect((W - side) / 2, (H - side) / 2, side, side);
+  }
+  ctx.restore();
+}
+
+/* ===== לוח השעות =====
+   זה הפורמט שרץ בעגלה: רשימת הימים, והיום של הפוסט מוקף.
+   המקור הוא weekHours() — כלומר המשמרות ששובצו. אין כאן שום מספר
+   שמישהו הקליד, ולכן הלוח לא יכול להתנתק מהשיבוץ.
+
+   week  — כל השבוע, היום של הפוסט מסומן.
+   today — אותו יום לבדו, גדול. "פתוח 09:00–12:00" או "סגור היום". */
+// מספרים ושעות נכתבים משמאל לימין. בלי זה טווח שעות מתהפך והכרטיס
+// מכריז שעת סגירה כשעת פתיחה.
+function ltr(ctx, text, x, y){
+  const d = ctx.direction;
+  ctx.direction = "ltr";
+  ctx.fillText(text, x, y);
+  ctx.direction = d;
+}
+
+function drawBoard(ctx, o){
+  const { W, H, box, c, layout, date, badge, logoW } = o;
+  const days = weekHours();
+  const today = weekIndex(date);
+  const ink = c.ink, accent = c.accent;
+
+  // רקע מלא בצבע הלוח. הצילום, אם היה, כבר צויר — כאן הוא מיותר.
+  ctx.save();
+  ctx.fillStyle = c.boardBg || "#596d92";
+  ctx.fillRect(0, 0, W, H);
+
+  const R = box.x + box.w, L = box.x;
+  const unit = W / 1080;
+  let y = box.y;
+
+  /* כותרת */
+  ctx.textAlign = "right"; ctx.fillStyle = ink;
+  const tSize = Math.round(W * (layout === "today" ? .078 : .072));
+  ctx.font = `400 ${tSize}px "${c.display}", system-ui, sans-serif`;
+  y += tSize;
+  ctx.fillText(layout === "today" ? "שעות הפעילות היום" : "שעות פעילות השבוע", R, y);
+  y += Math.round(tSize * .95);
+  ctx.font = `700 ${Math.round(tSize * .82)}px "${c.body}", system-ui, sans-serif`;
+  ltr(ctx, weekRange(), R, y);
+  y += Math.round(tSize * .8);
+
+  /* פס מפריד */
+  ctx.fillStyle = accent;
+  ctx.fillRect(R - Math.round(W * .2), y, Math.round(W * .2), Math.max(3, Math.round(W * .006)));
+  y += Math.round(tSize * .9);
+
+  if (layout === "today"){
+    const d = today >= 0 ? days[today] : null;
+    const big = Math.round(W * .13);
+    const mid = box.y + (box.h - box.y + box.h) / 2;     // מרכז אזור הגוף
+    let ty = box.y + box.h * .38;
+    ctx.textAlign = "center";
+    const cx = box.x + box.w / 2;
+
+    ctx.font = `400 ${Math.round(big * .62)}px "${c.display}", system-ui, sans-serif`;
+    ctx.fillStyle = ink;
+    ctx.fillText(d ? "יום " + d.day : "—", cx, ty);
+
+    ty += Math.round(big * .95);
+    if (d && d.open){
+      ctx.font = `700 ${big}px "${c.body}", system-ui, sans-serif`;
+      ctx.fillStyle = ink;
+      // כמה חלונות באותו יום — שורה לכל אחד
+      for (const part of d.text.split("  ")){
+        ltr(ctx, part, cx, ty);
+        ty += Math.round(big * 1.12);
+      }
+      pill(ctx, cx, ty + Math.round(big * .1), "פתוח", Math.round(big * .38), accent, c.boardBg || "#596d92");
+    } else {
+      ctx.font = `700 ${Math.round(big * .9)}px "${c.body}", system-ui, sans-serif`;
+      ctx.fillStyle = accent;
+      ctx.fillText("סגור היום", cx, ty);
+      const nx = d ? nextOpen(date) : null;
+      if (nx){
+        ty += Math.round(big * .8);
+        ctx.font = `600 ${Math.round(big * .4)}px "${c.body}", system-ui, sans-serif`;
+        ctx.fillStyle = ink;
+        ctx.fillText(`נתראה ביום ${nx.day}`, cx, ty);
+        ty += Math.round(big * .5);
+        ltr(ctx, nx.text, cx, ty);
+      }
+    }
+  } else {
+    /* טבלת השבוע */
+    const rows = days.length;
+    const bottom = box.y + box.h - (badge ? Math.round(logoW * 1.25) : 0);
+    const gap = Math.max(1, (bottom - y) / rows);
+    // הגופן גדל עם המקום שיש, במקום להישאר קטן ולהשאיר חצי כרטיס ריק
+    const fs = Math.max(Math.round(W * .042), Math.min(Math.round(W * .08), Math.round(gap * .62)));
+    for (let i = 0; i < rows; i++){
+      const d = days[i];
+      const ry = y + gap * i + gap * .72;
+      const on = i === today;
+
+      if (on){
+        // ההקפה: זה מה שאומר "היום". אליפסה, כמו סימון ביד.
+        ctx.save();
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = Math.max(3, Math.round(W * .007));
+        ctx.beginPath();
+        ctx.ellipse(box.x + box.w / 2, ry - fs * .32, box.w * .52, gap * .46, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.globalAlpha = d.open ? 1 : .62;
+      ctx.fillStyle = ink;
+      ctx.textAlign = "right";
+      ctx.font = `${on ? 700 : 400} ${fs}px "${c.display}", system-ui, sans-serif`;
+      ctx.fillText("יום " + d.short, R - Math.round(W * .02), ry);
+      ctx.textAlign = "left";
+      ctx.font = `${on ? 700 : 600} ${fs}px "${c.body}", system-ui, sans-serif`;
+      ctx.fillStyle = d.open ? ink : accent;
+      if (d.open) ltr(ctx, d.text, L + Math.round(W * .02), ry);
+      else ctx.fillText(d.text, L + Math.round(W * .02), ry);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* הסמל והמקום */
+  if (badge){
+    const lh = Math.round(logoW * (badge.height / badge.width || 1));
+    const lx = box.x, ly = box.y + box.h - lh;
+    ctx.drawImage(badge, lx, ly, logoW, lh);
+    ctx.textAlign = "right"; ctx.fillStyle = ink;
+    const ns = Math.round(W * .036);
+    ctx.font = `700 ${ns}px "${c.body}", system-ui, sans-serif`;
+    ctx.fillText(BRAND.name, R, ly + Math.round(lh * .45));
+    ctx.font = `600 ${Math.round(ns * .85)}px "${c.body}", system-ui, sans-serif`;
+    ctx.globalAlpha = .85;
+    ctx.fillText(`${BRAND.place} · ${c.waze || ""}`, R, ly + Math.round(lh * .45) + Math.round(ns * 1.15));
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+// תגית עגולה עם טקסט במרכזה
+function pill(ctx, cx, cy, text, size, bg, fg){
+  ctx.save();
+  ctx.font = `700 ${size}px system-ui, sans-serif`;
+  const w = ctx.measureText(text).width, px = size * .7, r = size * .95;
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.roundRect(cx - w / 2 - px, cy - r, w + px * 2, r * 2, r); ctx.fill();
+  ctx.fillStyle = fg; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, cx, cy);
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
+}
+
 async function paintLayers(ctx, list, W, H, c){
   for (const o of list){
     if (!o) continue;

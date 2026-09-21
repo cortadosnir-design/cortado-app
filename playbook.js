@@ -235,7 +235,7 @@ export const TEMPLATES = [
 
   /* 🕒 מתי ואיפה */
   { key: "weekend", name: "הסופ״ש", pillar: "when", format: "static", occasion: ["weekend"],
-    card: "hours", cta: "hours",
+    card: "week", cta: "hours",
     open: "משפט אחד: מתי פתוחים בסופ״ש. בלי 'שלום לכולם'.",
     body: "השעות הן התוכן. שתי שורות, לא פסקה.",
     shots: ["העגלה פתוחה, זווית רחבה"],
@@ -255,6 +255,20 @@ export const TEMPLATES = [
     shots: ["הכביש צפונה", "הפנייה אל הקיבוץ", "העגלה והנוף"],
     why: "פנייה לקהל ספציפי מכפילה את שיעור ההוק. 'מטייל בדרך צפונה' חד יותר מ'כולם'." },
 
+  { key: "daily", name: "מתי פתוח היום", pillar: "when", format: "static", occasion: [],
+    card: "today", cta: "waze",
+    open: "היום ומה השעות. שורה אחת, בלי הקדמה.",
+    body: "אם סגור — לומר מתי חוזרים. זה כל הפוסט.",
+    shots: ["לא צריך צילום — הלוח הוא התמונה"],
+    why: "הפוסט היומי שרץ בעגלה כבר היום. 'מתי פתוח' היא השאלה שהכי נשאלת, והתשובה חייבת להיות במבט אחד." },
+
+  { key: "weekboard", name: "לוח השבוע", pillar: "when", format: "static", occasion: ["weekend", "first"],
+    card: "week", cta: "hours",
+    open: "כל השבוע במבט אחד, היום של הפוסט מוקף.",
+    body: "הרשימה היא התוכן. יום סגור נשאר בה ואומר 'סגור' — זה מה שמונע נסיעת סרק.",
+    shots: ["לא צריך צילום"],
+    why: "הפורמט שכבר עובד בעגלה. רשימה מלאה עונה גם למי ששואל על יום אחר." },
+
   { key: "holiday", name: "מועד", pillar: "when", format: "static", occasion: ["holiday"],
     card: "hours", cta: "hours",
     open: "המועד בשם שלו, ומיד מה זה אומר לגבי השעות.",
@@ -263,7 +277,7 @@ export const TEMPLATES = [
     why: "בחגים החיפוש הוא 'מי פתוח'. תשובה ישירה מנצחת ברכה." },
 
   { key: "closed", name: "סגור היום", pillar: "when", format: "static", occasion: ["closed"],
-    card: "hours", cta: "hours",
+    card: "today", cta: "hours",
     open: "סגור — נאמר בשורה הראשונה, בלי התנצלות ארוכה.",
     body: "מתי חוזרים. זה כל הפוסט.",
     shots: ["העגלה סגורה, או ארכיון"],
@@ -322,6 +336,9 @@ export const THEMES = {
              headlinePos: "bottom", align: "right", accentBar: false, shadow: false },
   frame:   { label: "מסגרת",      scrimStyle: "uniform",  scrim: .38, block: false, frame: true,
              headlinePos: "center", align: "center", accentBar: false, shadow: true },
+  board:   { label: "לוח שעות",   scrimStyle: "none",     scrim: 0,   block: false, frame: false,
+             headlinePos: "none",   align: "right", accentBar: false, shadow: false,
+             ink: "#f7eaca", accent: "#a74218", boardBg: "#596d92" },
   minimal: { label: "מינימלי",    scrimStyle: "gradient", scrim: .40, block: false, frame: false,
              headlinePos: "none",   align: "right", accentBar: true,  shadow: true },
 };
@@ -336,6 +353,9 @@ export const CARD = {
   ink: "#ffffff",
   accent: "#2d5a87",
   bg: "#22303c",                 // כשאין צילום
+  // צבעי הלוח, מתוך הפוסטר שרץ בעגלה היום. הכחול הוא הרקע, השמנת היא
+  // הטקסט, והחלודה זהה לטבעת שבלוגו — אותו מותג בדיוק.
+  boardBg: "#596d92",
   display: "Secular One",
   body: "Assistant",
   pad: .074,                     // שוליים נוספים מעבר לאזור הבטוח
