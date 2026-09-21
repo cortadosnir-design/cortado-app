@@ -112,6 +112,9 @@ service cloud.firestore {
     // ── קריאייטיב, לוח התוכן וזיכרון המותג: המנהל בלבד ──
     match /creative/{wid} { allow read, write: if isOwner(); }
     match /posts/{id}    { allow read, write: if isOwner(); }
+    // הצילום המלא של פוסט שעוד לא פורסם, בנפרד ממסמך הפוסט כדי שהלוח
+    // (עד 150 פוסטים בכל טעינה) לא יגרור אותו. נמחק ברגע שהפוסט יוצא.
+    match /postmedia/{id} { allow read, write: if isOwner(); }
     match /brand/{doc}   { allow read, write: if isOwner(); }
 
     // ── יומן משמרת ──
