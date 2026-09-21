@@ -22,6 +22,7 @@ code |= await run("node", ["tests/table.mjs"]);
 code |= await run("node", ["tests/xlsx.mjs"]);
 code |= await run("node", ["tests/sales.mjs"]);
 code |= await run("node", ["tests/mixversion.mjs"]);
+code |= await run("node", ["tests/models.mjs"]);
 
 server.kill();
 clean();

@@ -159,7 +159,9 @@ async function fbStatus(btn){
     try {
       const r = await api("/status", {});
       $("fbSetupOut").textContent =
-        `Gemini: ${r.gemini ? "מחובר" : "לא מוגדר"}\n` +
+        `Gemini: ${r.gemini ? "מחובר" : "לא מוגדר"}${r.model ? " — " + r.model : ""}\n` +
+        (r.geminiError ? `שגיאת Gemini: ${r.geminiError}\n` : "") +
+        (r.models && r.models.length > 1 ? `מודלים זמינים: ${r.models.join(", ")}\n` : "") +
         `פייסבוק: ${r.facebook ? "מחובר" + (r.pageName ? " — " + r.pageName : "") : "לא מחובר"}\n` +
         `אינסטגרם: ${r.instagram ? "מחובר" : "לא מחובר"}` +
         (r.facebookError ? `\nשגיאה: ${r.facebookError}` : "");
