@@ -839,7 +839,10 @@ async function schedulePost(env, b){
     publishAt: (when || now) * 1000, igPending: false, igPostId: "", igSkipped: "", igError: "" };
 
   // 2. אינסטגרם — עכשיו, או בתור לקרון
-  if (!image) out.igSkipped = "אינסטגרם דורש תמונה";
+  // noIg: הלקוח ביקש פייסבוק בלבד. נבדק ראשון, לפני כל סיבה אחרת לדלג,
+  // כדי שהסיבה שתוצג תהיה הבחירה ולא "חסר חשבון".
+  if (b.noIg) out.igSkipped = "פייסבוק בלבד — לפי הבחירה באפליקציה";
+  else if (!image) out.igSkipped = "אינסטגרם דורש תמונה";
   else if (!env.IG_USER_ID) out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת";
   else if (!when){
     try { out.igPostId = await igPublishFromPhoto(env, out.fbPhotoId, text); }

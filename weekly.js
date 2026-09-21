@@ -55,15 +55,23 @@ export function plan(over = {}){
   const withClosed = over.withClosed !== false;
   const all = hoursByDay();
   const now = Date.now();
+  const today = ymd(new Date());
+  const open = (i) => !!(all[i] || []).length;
   return [0, 1, 2, 3, 4, 5, 6].map(i => {
     const date = ymd(addDays(S.weekStart, i));
     const at = new Date(`${date}T${time}`).getTime();
-    const open = !!(all[i] || []).length;
+    /* פוסטר של יום מתפרסם ביום שלו. אם שעת השיגור של היום כבר עברה —
+       מפרסמים מיד ולא מדלגים: פוסטר שעות שיוצא ב-11:00 במקום ב-08:00
+       עדיין נכון, ופוסטר שלא יצא בכלל הוא יום בלי הודעה. at=0 אומר
+       לשרת "עכשיו". */
+    const late = isFinite(at) && at < now + MIN_AHEAD_MS;
+    const nowish = late && date === today;
     const skip = !isFinite(at) ? "תאריך לא תקין"
-      : at < now + MIN_AHEAD_MS ? "השעה כבר עברה"
-      : (!open && !withClosed) ? "יום סגור"
+      : (late && !nowish) ? "היום כבר עבר"
+      : (!open(i) && !withClosed) ? "יום סגור"
       : "";
-    return { i, date, at, open, skip, day: DAY_LABEL[i], hours: (all[i] || []).join(" · ") };
+    return { i, date, at: nowish ? 0 : at, now: nowish, open: open(i), skip,
+      day: DAY_LABEL[i], hours: (all[i] || []).join(" · ") };
   });
 }
 
@@ -94,7 +102,7 @@ export async function scheduleWeek(over = {}, onStep){
       const image = await buildDay(d, over);
       const text = caption(d);
       const id = `poster-${week}-${d.i}`;
-      const r = await api("/publish/schedule", { postId: id, text, image, at: d.at });
+      const r = await api("/publish/schedule", { postId: id, text, image, at: d.at, noIg: over.noIg !== false });
       // טביעת האצבע נשמרת תמיד, גם כשהשרת כבר כתב את שאר השדות: היא
       // מה שיודע להגיד אחר כך שהפוסטר הזה מציג שעות ישנות.
       await setDoc(doc(db, "posts", id), {
@@ -134,7 +142,7 @@ export async function syncWeek(over = {}, onStep){
       const image = await buildDay(d, over);
       const text = caption(d);
       const id = `poster-${week}-${d.i}`;
-      const r = await api("/publish/schedule", { postId: id, text, image, at: d.at });
+      const r = await api("/publish/schedule", { postId: id, text, image, at: d.at, noIg: over.noIg !== false });
       await setDoc(doc(db, "posts", id), {
         kind: "poster", date: d.date, text, at: d.at, hoursKey: hoursKey(), week,
         status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
@@ -148,6 +156,44 @@ export async function syncWeek(over = {}, onStep){
   return { ok, failed };
 }
 
+/* ===== ההרצה האוטומטית =====
+   ברגע שהשבוע נעול — השיגור קורה לבד, בלי ללחוץ. זה מה שמבקשים כאן,
+   ולכן זה גם מה שצריך להיות מוגן היטב:
+
+   · רק אחרי שהתור נקרא מפיירסטור. לפני זה לא יודעים מה כבר שוגר,
+     ושיגור כפול הוא שני פוסטים לאותו יום באותו עמוד.
+   · רק אם אין ולו פוסטר אחד לשבוע הזה. הכפתור הידני נשאר למי שרוצה
+     לשגר מחדש ביודעין.
+   · דגל מקומי נגד הרצה כפולה באותה לשונית, כי "locked" יכול להישלח
+     יותר מפעם אחת.
+   כשכבר יש תור והשעות השתנו — מסנכרנים במקום לשגר. */
+let ready = false;      // התור נקרא לפחות פעם אחת
+let running = false;
+
+export const autoOn = () => Card.cfg().posterAuto !== false;
+export const queuedThisWeek = () => {
+  const week = wid();
+  return [...queued.values()].filter(q => q.week === week && q.status !== "cancelled");
+};
+
+export async function auto(){
+  if (!ready || running || !autoOn() || !S.isOwner || !locked()) return;
+  const has = queuedThisWeek().length;
+  const old = stale();
+  if (!has && !plan(opts()).some(d => !d.skip)) return;
+  if (has && !old.length) return;
+  running = true;
+  try {
+    const r = has ? await syncWeek(opts()) : await scheduleWeek(opts());
+    if (r.ok.length || r.failed.length){
+      status("wkStatus", r.failed.length ? "warn" : "ok",
+        (has ? `סנכרון אוטומטי: ${r.ok.length} פוסטרים עודכנו.` : `שיגור אוטומטי: ${r.ok.length} פוסטרים נכנסו לתור.`) +
+        (r.failed.length ? ` ${r.failed.length} נכשלו: ${r.failed[0]}` : ""));
+    }
+  } catch (e){ status("wkStatus", "bad", "השיגור האוטומטי נכשל: " + e.message); }
+  finally { running = false; renderPlan(); }
+}
+
 /* מה שבתור נקרא בזמן אמת: כך שורת הסנכרון מופיעה גם כשמישהו אחר
    שינה את השיבוץ ממכשיר אחר. */
 export function subscribe(){
@@ -155,7 +201,9 @@ export function subscribe(){
     (snap) => {
       queued = new Map();
       snap.forEach(d => queued.set(d.id, d.data()));
+      ready = true;
       renderPlan();
+      auto();
     }, () => {}));
 }
 
@@ -168,6 +216,7 @@ function opts(){
     withClosed: !($("wkClosed") && !$("wkClosed").checked),
     target: ($("wkTarget") && $("wkTarget").value) || "ig_feed",
     photo: ($("wkPhoto") && $("wkPhoto").value) || "",
+    noIg: !($("wkIg") && $("wkIg").checked),
   };
 }
 
@@ -185,7 +234,7 @@ function renderPlan(){
     list.append(el("div", { class: "wkrow" + (d.skip ? " off" : "") },
       el("b", { text: d.day }),
       el("span", { class: "small", text: d.open ? d.hours : "סגור" }),
-      el("span", { class: "small", text: d.skip || `משוגר ${dm(fromYmd(d.date))} ב-${opts().time}` })));
+      el("span", { class: "small", text: d.skip || (d.now ? "מתפרסם מיד" : `משוגר ${dm(fromYmd(d.date))} ב-${opts().time}`) })));
   }
   box.append(list);
 
@@ -194,7 +243,8 @@ function renderPlan(){
   const old = stale();
   if (old.length){
     box.append(el("div", { class: "notice warn" },
-      el("span", { text: `השעות השתנו מאז השיגור. ${old.length} פוסטרים בתור מציגים שעות ישנות.` }),
+      el("span", { text: `השעות השתנו מאז השיגור. ${old.length} פוסטרים בתור מציגים שעות ישנות.` +
+        (autoOn() ? " מתעדכן אוטומטית." : "") }),
       el("button", { class: "primary", text: "סנכרן עכשיו",
         onclick: (e) => withBusy(e.currentTarget, async () => {
           try {
@@ -277,10 +327,20 @@ export function bind(){
   }));
 
   // נעילת השבוע היא הרגע שבו התוכנית הופכת לאמיתית — מרעננים אותה מיד.
-  on("locked", renderPlan);
+  const autoBox = $("wkAuto");
+  if (autoBox){
+    autoBox.checked = autoOn();
+    autoBox.addEventListener("change", async () => {
+      await Card.saveCfg({ posterAuto: autoBox.checked });
+      renderPlan();
+      auto();
+    });
+  }
+
+  on("locked", () => { renderPlan(); auto(); });
   // כל שינוי במסמך השבוע — שיבוץ, נעילה, פתיחה מחדש — יכול לייתר
   // פוסטר שכבר בתור. זה בדיוק הרגע לבדוק.
-  on("week", renderPlan);
+  on("week", () => { renderPlan(); auto(); });
   on("weekchanged", renderPlan);
   subscribe();
   renderPlan();
