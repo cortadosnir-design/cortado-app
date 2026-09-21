@@ -241,8 +241,8 @@
         </div>
 
         <div class="side">
-          <div class="card">
-            <h2>בנק הקליפים <span class="pill" id="clipCount"></span></h2>
+          <details class="card fold" id="clipsCard">
+            <summary>בנק הקליפים <span class="pill" id="clipCount"></span></summary>
             <p class="small">20 דקות צילום מכסות שבועיים.</p>
             <div class="notice warn" id="clipWarn" hidden>פחות מ-3 קליפים מוכנים. תכנן צילום בשבוע הקרוב.</div>
             <p class="small" id="shootNext"></p>
@@ -253,7 +253,7 @@
             </div>
             <div class="actions"><button class="link" id="shotToday">צילמנו היום</button></div>
             <div class="status" id="clipStatus" role="status"></div>
-          </div>
+          </details>
 
           <div class="card" id="posterCard">
             <h2>תמונת הפוסט</h2>
@@ -281,8 +281,8 @@
             <div class="status" id="posterStatus" role="status"></div>
           </div>
 
-          <div class="card">
-            <h2>לתזמון השבוע</h2>
+          <details class="card fold" id="exportCard">
+            <summary>לתזמון השבוע</summary>
             <p class="small">מכאן למתזמן, לשתי הרשתות.</p>
             <div id="exportList" class="ideas"></div>
             <div class="actions">
@@ -290,10 +290,10 @@
               <button id="copyWeek">העתק הכל</button>
             </div>
             <div class="status" id="exportStatus" role="status"></div>
-          </div>
+          </details>
 
-          <div class="card">
-            <h2>הקול שלנו</h2>
+          <details class="card fold" id="voiceCard">
+            <summary>הקול שלנו</summary>
             <p class="small">מה שהמערכת למדה עליכם, גלוי. כל תיקון שלך נכנס לכאן.</p>
             <label for="memTone">הטון<textarea id="memTone" rows="2" placeholder="למשל: חם, קצר, בלי סימני קריאה, תמיד מזכירים את הנוף"></textarea></label>
             <label for="memSample">פוסט שכתבת בעצמך<textarea id="memSample" rows="3" placeholder="הדבק פוסט ישן שאהבת. זה המקור הכי חזק לקול."></textarea></label>
@@ -312,7 +312,7 @@
             </div>
             <div id="memBox"></div>
             <div class="status" id="memStatus" role="status"></div>
-          </div>
+          </details>
         </div>
       </div>
     </section>

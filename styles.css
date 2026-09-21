@@ -444,3 +444,17 @@ table.t tr.me a{color:var(--accent)}
 .wxt{font-weight:600;font-variant-numeric:tabular-nums}
 .wxnote{grid-column:1/-1;margin:2px 0 0;color:var(--muted)}
 .wxseason{font-weight:600;color:var(--accent)}
+
+/* ===== כרטיס מתקפל =====
+   תכנון והגדרות לא צריכים להיות פתוחים כשנכנסים. הכותרת נשארת נראית
+   כדי שיהיה ברור מה יש בפנים, והתוכן נפתח בהקשה. */
+.card.fold{padding-top:0;padding-bottom:0}
+.card.fold>summary{cursor:pointer;list-style:none;min-height:52px;
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--display);font-size:19px;font-weight:600;color:var(--ink)}
+.card.fold>summary::-webkit-details-marker{display:none}
+.card.fold>summary::after{content:"⌄";margin-inline-start:auto;font-size:18px;
+  color:var(--muted);transition:transform .15s}
+.card.fold[open]>summary::after{transform:rotate(180deg)}
+.card.fold[open]{padding-bottom:16px}
+.card.fold>summary+*{margin-top:0}

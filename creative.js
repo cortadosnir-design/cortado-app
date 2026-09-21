@@ -254,11 +254,18 @@ function renderSlots(){
   head.textContent = allDone ? "השבוע סגור ✓"
     : `${done}/${active.length} מוכנים` + (missed ? ` · ${missed} עברו` : "");
 
+  // הודעה על מצב השבוע. כשאי אפשר לתקן אותה כאן — נותנים כפתור למקום שבו כן.
   if (ph !== "locked"){
-    box.append(el("div", { class: "notice", text:
-      !open.length ? "עוד לא נקבעו ימי פעילות. משבצת 'מתי ואיפה' תתמלא בשעות ברגע שיהיו." :
-      ph === "open" ? "השיבוץ עדיין פתוח. אפשר לכתוב, אבל השעות עוד יכולות להשתנות." :
-      "השבוע עוד לא נפתח לשיבוץ. אפשר כבר לכתוב, השעות יתעדכנו בפוסט לבד." }));
+    const note = el("div", { class: "notice" + (open.length ? " info" : "") });
+    if (!open.length){
+      note.append(el("span", { text: "עוד לא נקבעו ימי פעילות. אפשר כבר לכתוב — השעות ייכנסו לבד. " }),
+        el("button", { class: "link", text: "לקבוע ימים", onclick: () => emit("tab", "shifts") }));
+    } else {
+      note.textContent = ph === "open"
+        ? "השיבוץ עדיין פתוח. אפשר לכתוב, אבל השעות עוד יכולות להשתנות."
+        : "השבוע עוד לא נפתח לשיבוץ. אפשר כבר לכתוב, השעות יתעדכנו בפוסט לבד.";
+    }
+    box.append(note);
   }
 
   const skel = (S.creative && S.creative.slots) || {};
