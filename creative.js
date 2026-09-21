@@ -66,7 +66,7 @@ function subscribeCreative(){
   unsubCreative = onSnapshot(doc(db, "creative", wid()),
     (snap) => { S.creative = snap.exists() ? snap.data() : {}; loadBrief(); render(); },
     () => {});
-  track(unsubCreative);
+  unsubCreative = track(unsubCreative);
 }
 
 /* ===== הקצב ===== */
@@ -514,14 +514,24 @@ let briefPending = [];      // קבצים שנבחרו וטרם הועלו
    0.8-2MB, כלומר המסמך נדחה — וביחד איתו נעלמות גם התשובות שנשמרות בו.
    לכן: המקור המלא נשאר בזיכרון ונשלח ל-AI, ומה שנשמר הוא ממוזערת של 240
    פיקסל (~8KB) — מספיק כדי שהתצוגה תשרוד רענון. */
-let briefFull = [];         // data URL במלוא הרזולוציה, לזיכרון בלבד
-const aiPhotos = () => (briefFull.length ? briefFull : brief.photos);
+/* briefFull מוצמד ל-brief.photos לפי אינדקס, ולכן הוא חייב להישאר באותו
+   אורך בדיוק. קודם הוא היה מערך נפרד שלא אותחל ב-loadBrief: אחרי רענון
+   עם 3 תמונות שמורות, הוספת תמונה רביעית נתנה briefFull=[full4] —
+   ו-aiPhotos החזיר תמונה אחת במקום ארבע, בשקט. גרוע מזה, מחיקת התמונה
+   הראשונה הסירה מ-briefFull את full4, כלומר את התמונה הלא נכונה.
+   עכשיו: null מסמן "אין מקור בזיכרון, יש רק ממוזערת", והאורך תמיד זהה. */
+let briefFull = [];
+const syncFull = () => { briefFull.length = brief.photos.length;
+  for (let i = 0; i < briefFull.length; i++) if (briefFull[i] === undefined) briefFull[i] = null; };
+// לכל משבצת: המקור אם הוא בזיכרון, אחרת הממוזערת ששרדה את הרענון.
+const aiPhotos = () => brief.photos.map((t, i) => briefFull[i] || t);
 
 function loadBrief(){
   const c = (S.creative && S.creative.brief) || null;
   if (!c) return;
   brief = { text: c.text || "", photos: (Array.isArray(c.photos) ? c.photos : []).slice(0, MAX_PHOTOS),
             answers: Array.isArray(c.answers) ? c.answers : [] };
+  syncFull();                 // מיישר את briefFull לאורך החדש
   const box = $("briefText");
   if (box && document.activeElement !== box && !box.value) box.value = brief.text;
   renderBrief();
@@ -618,8 +628,14 @@ async function uploadBriefPhotos(){
   const room = Math.max(0, MAX_PHOTOS - brief.photos.length);
   for (const f of briefPending.slice(0, room)){
     try {
-      brief.photos.push(await shrinkToDataUrl(f, THUMB_PX, THUMB_QUALITY));
-      briefFull.push(await shrinkToDataUrl(f));
+      // שתי ההקטנות ביחד: דחיפה אחת אחרי השנייה אפשרה מצב שבו הממוזערת
+      // נכנסה והמקור נכשל, ומאותו רגע כל האינדקסים זזו לצמיתות.
+      const [thumb, full] = await Promise.all([
+        shrinkToDataUrl(f, THUMB_PX, THUMB_QUALITY),
+        shrinkToDataUrl(f),
+      ]);
+      brief.photos.push(thumb);
+      briefFull.push(full);
     }
     catch { status("briefStatus", "bad", "תמונה אחת לא נקראה."); }
   }

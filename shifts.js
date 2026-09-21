@@ -291,7 +291,7 @@ async function autoAdvance(){
 // מסמך זמינות מגיע משני מסלולים: קוד אישי (שדה token) או כניסה עם גוגל (שדה uid).
 // ספירה שמסתכלת רק על אחד מהם סותרת את עצמה — "3 מתוך 3 שלחו" לצד צ'יפ
 // "עוד לא שלחו" על אותו אדם. keyOf מחזיר את מה שקיים, ומאחד את שתי הרשימות.
-const sentKeys = () => new Set(S.availability.map(keyOf).filter(Boolean));
+export const sentKeys = () => new Set(S.availability.map(keyOf).filter(Boolean));
 
 // אותו אדם יכול להיות גם ברשימת העובדים (לפי קוד) וגם חבר צוות שנכנס עם גוגל
 // (לפי uid). המייל הוא מה שמקשר ביניהם, ובלעדיו הוא נספר פעמיים.

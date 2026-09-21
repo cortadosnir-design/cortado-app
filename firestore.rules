@@ -76,13 +76,17 @@ service cloud.firestore {
         && daysOk(request.resource.data.days)
         && (!('note' in request.resource.data) || request.resource.data.note.size() < 300)
         && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
-        && weekPhase(request.resource.data.week) != 'locked'
+        // שער השלב חל על העובדים, לא על המנהל. הוא זה שמתקן נתונים
+        // ומעביר רשומות בין קודים אישיים, וגם בשבוע שכבר ננעל.
         && (
           isOwner()
-          || (validToken(request.resource.data.token)
-              && id == request.resource.data.week + '_' + request.resource.data.token)
-          || (allowed() && request.resource.data.uid == request.auth.uid
-              && id == request.resource.data.week + '_' + request.auth.uid)
+          || (weekPhase(request.resource.data.week) != 'locked'
+              && (
+                (validToken(request.resource.data.token)
+                 && id == request.resource.data.week + '_' + request.resource.data.token)
+                || (allowed() && request.resource.data.uid == request.auth.uid
+                    && id == request.resource.data.week + '_' + request.auth.uid)
+              ))
         );
       allow delete: if isOwner();
     }
@@ -99,13 +103,17 @@ service cloud.firestore {
         && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
         && request.resource.data.shift is string && request.resource.data.shift.size() <= 40
         && weekOk(request.resource.data.week)
-        && weekPhase(request.resource.data.week) == 'open'
+        // כנ"ל: "פתוח לשיבוץ" הוא שער לעובדים. המנהל משבץ ומעביר רשומות
+        // גם בשבוע נעול — אחרת החלפת קוד אישי נופלת על כל שבוע היסטורי.
         && (
           isOwner()
-          || (validToken(request.resource.data.token)
-              && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.resource.data.token)
-          || (allowed() && request.resource.data.uid == request.auth.uid
-              && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid)
+          || (weekPhase(request.resource.data.week) == 'open'
+              && (
+                (validToken(request.resource.data.token)
+                 && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.resource.data.token)
+                || (allowed() && request.resource.data.uid == request.auth.uid
+                    && id == request.resource.data.week + '_' + request.resource.data.shift + '_' + request.auth.uid)
+              ))
         );
       allow delete: if isOwner()
         || (validToken(resource.data.get('token', ''))

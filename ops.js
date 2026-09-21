@@ -1,7 +1,7 @@
 // תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
 import { S, emit, on, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
   status, copyText, waLink, withBusy, api, whoOf, track, makeToken, zLink,
-  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch } from "./core.js";
 import * as Weather from "./weather.js";
 import * as Shifts from "./shifts.js";
 
@@ -24,7 +24,9 @@ export function subscribe(){
       (snap) => {
         S.members = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
         S.memberNames = {}; S.members.forEach(m => S.memberNames[m.uid] = m.name || "חבר צוות");
-        renderAccess();
+        // rosterUid נשען על S.members. בלי emit, מי שמילא זמינות אחרי
+        // כניסה עם גוגל נראה "עוד לא שלח" עד שמאזין אחר יורה במקרה.
+        renderAccess(); emit("state");
       }, () => {}));
     track(onSnapshot(collection(db, "joinRequests"),
       (snap) => { S.joinReqs = snap.docs.map(d => ({ uid: d.id, ...d.data() })); renderAccess(); }, () => {}));
@@ -94,21 +96,21 @@ async function shareInvite(r){
    שלוש משמרות רשומות שהיא לא רואה יותר (ויכולה לקחת שוב), ואת הלוח עם
    "חבר צוות" במקום השם. לכן מעבירים לפני שמוחקים.
    היומן לא מועבר: הוא היסטוריה, והשם שמור בו בשדה by. */
-async function migrateToken(oldToken, newToken){
-  let moved = 0;
+/* הכול בכתיבה אחת (writeBatch): יצירת הקוד החדש, העברת הרשומות ומחיקת
+   הישן. קודם זה רץ כרצף של כתיבות נפרדות, וכישלון באמצע השאיר *שתי*
+   שורות פעילות לאותו אדם — מה ששובר את ספירת הצוות ואת הכיסוי — בזמן
+   שההודעה טענה "שום דבר לא השתנה". batch הוא הכול-או-כלום שמונע את זה.
+   המגבלה היא 500 פעולות; מעבר לזה אנחנו עוצרים ואומרים את זה, במקום
+   לפצל לכמה batches ולאבד את האטומיות. */
+const BATCH_LIMIT = 500;
+
+async function tokenDocs(oldToken){
+  const out = [];
   for (const col of ["availability", "signups"]){
     const snap = await getDocs(query(collection(db, col), where("token", "==", oldToken)));
-    for (const d of snap.docs){
-      const data = d.data();
-      const id = col === "availability"
-        ? `${data.week}_${newToken}`
-        : `${data.week}_${data.shift}_${newToken}`;
-      await setDoc(doc(db, col, id), { ...data, token: newToken });
-      await deleteDoc(doc(db, col, d.id));
-      moved++;
-    }
+    snap.docs.forEach(d => out.push({ col, id: d.id, data: d.data() }));
   }
-  return moved;
+  return out;
 }
 
 async function resetToken(r, btn){
@@ -116,13 +118,32 @@ async function resetToken(r, btn){
   return withBusy(btn, async () => {
     const token = makeToken();
     try {
-      await setDoc(doc(db, "roster", token), { name: r.name || "", phone: r.phone || "", email: r.email || "", role: r.role || "", active: true, at: serverTimestamp() });
-      const moved = await migrateToken(r.token, token);
-      await deleteDoc(doc(db, "roster", r.token));
-      status("teamStatus", "ok", moved
-        ? `הונפק קישור חדש, ו-${moved} רשומות עברו אליו. שלח אותו לעובד.`
+      const rows = await tokenDocs(r.token);
+      // 2 פעולות לכל רשומה (כתיבה + מחיקה) ועוד 2 לשורת העובד.
+      if (rows.length * 2 + 2 > BATCH_LIMIT){
+        status("teamStatus", "bad", `יותר מדי רשומות (${rows.length}) להעברה בפעולה אחת. פנה אליי ונעשה את זה בשלבים.`);
+        return;
+      }
+      const batch = writeBatch(db);
+      batch.set(doc(db, "roster", token), {
+        name: r.name || "", phone: r.phone || "", email: r.email || "",
+        role: r.role || "", active: true, at: serverTimestamp() });
+      for (const row of rows){
+        const id = row.col === "availability"
+          ? `${row.data.week}_${token}`
+          : `${row.data.week}_${row.data.shift}_${token}`;
+        batch.set(doc(db, row.col, id), { ...row.data, token });
+        batch.delete(doc(db, row.col, row.id));
+      }
+      batch.delete(doc(db, "roster", r.token));
+      await batch.commit();
+      status("teamStatus", "ok", rows.length
+        ? `הונפק קישור חדש, ו-${rows.length} רשומות עברו אליו. שלח אותו לעובד.`
         : "הונפק קישור חדש. שלח אותו לעובד.");
-    } catch { status("teamStatus", "bad", "לא הצלחתי להנפיק קישור חדש. שום דבר לא השתנה."); }
+    } catch {
+      // batch נכשל = אף כתיבה לא בוצעה. ההודעה נכונה עכשיו.
+      status("teamStatus", "bad", "לא הצלחתי להנפיק קישור חדש. שום דבר לא השתנה.");
+    }
   });
 }
 
@@ -172,7 +193,7 @@ export async function loadReminders(){
       (snap) => { if (gen !== remGen) return;
         remState = { shifts, ups: snap.docs.map(d => ({ id: d.id, ...d.data() })) }; drawReminders(); },
       () => clear(box).append(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." })));
-    track(unsubRem);
+    unsubRem = track(unsubRem);
   } catch {
     if (gen !== remGen) return;
     clear(box).append(el("p", { class: "small", text: "לא הצלחתי לקרוא את המשמרות של מחר." }));

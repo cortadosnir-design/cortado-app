@@ -29,6 +29,10 @@ const idOf = (r) => `${r.date || "unknown"}-${
   r.reportNo != null && r.reportNo !== "" ? r.reportNo
   : r.time ? "t" + String(r.time).replace(/[^0-9]/g, "")
   : "x"}`;
+// המזהה שהדוח הזה היה מקבל בסכמה הישנה (לפני שהשעה הפרידה). דוח שנשמר
+// פעם בלי מספר וצולם שוב כשהשעה כן נקראה מקבל מזהה חדש — ובלי הבדיקה
+// הזו הוא נוצר כמסמך שני, וההכנסות של אותו יום נספרות פעמיים.
+const legacyIdOf = (r) => `${r.date || "unknown"}-${r.reportNo ?? "x"}`;
 
 /* ===== צילום ===== */
 function shrink(file){
@@ -117,10 +121,16 @@ async function save(){
     delete rec.warn;
     rec.categories = (rec.categories || []).filter(c => c.name && c.amount != null);
     const id = idOf(rec);
+    const legacy = legacyIdOf(rec);
     try {
       // דריסה שקטה של דוח קיים היא אובדן כסף. שואלים לפני, ואז כותבים
       // בלי merge כדי שלא יישארו שדות של הדוח הקודם.
-      const prev = await getDoc(doc(db, "sales", id));
+      let prev = await getDoc(doc(db, "sales", id));
+      let replacing = id;
+      if (!prev.exists() && legacy !== id){
+        const old = await getDoc(doc(db, "sales", legacy));
+        if (old.exists()){ prev = old; replacing = legacy; }
+      }
       if (prev.exists()){
         const p = prev.data();
         const when = [p.date, p.time].filter(Boolean).join(" ");
@@ -129,7 +139,9 @@ async function save(){
           return;
         }
       }
+      // אם החלפנו דוח שנשמר במזהה הישן, מוחקים אותו כדי שלא יישארו שניים.
       await setDoc(doc(db, "sales", id), { ...rec, by: (S.me && S.me.displayName) || "", at: serverTimestamp() });
+      if (replacing !== id) await deleteDoc(doc(db, "sales", replacing)).catch(() => {});
       draft = null; renderDraft();
       status("zStatus", "ok", "נשמר. הפילוח למטה מתעדכן לבד.");
     } catch { status("zStatus", "bad", "השמירה נכשלה. רק המנהל יכול לשמור דוחות."); }

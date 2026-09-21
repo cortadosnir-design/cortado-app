@@ -50,6 +50,16 @@ export async function setDoc(ref, body, opts){
 }
 export async function updateDoc(ref, body){ col(ref.col)[ref.id] = { ...(col(ref.col)[ref.id] || {}), ...resolve(body) }; window.__writes.push({ col: ref.col, id: ref.id, keys: Object.keys(body) }); fire(); }
 export async function deleteDoc(ref){ delete col(ref.col)[ref.id]; window.__writes.push({ col: ref.col, id: ref.id, del: true }); fire(); }
+// batch אמיתי: אוסף פעולות ומחיל את כולן בבת אחת ב-commit, כמו Firestore.
+export function writeBatch(){
+  const ops = [];
+  return {
+    set(ref, body, opts){ ops.push(() => setDoc(ref, body, opts)); return this; },
+    update(ref, body){ ops.push(() => updateDoc(ref, body)); return this; },
+    delete(ref){ ops.push(() => deleteDoc(ref)); return this; },
+    async commit(){ for (const op of ops) await op(); },
+  };
+}
 window.__seed = (c, id, data) => { col(c)[id] = resolve(data); };
 window.__fire = fire;
 

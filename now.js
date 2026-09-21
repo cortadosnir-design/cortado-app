@@ -1,7 +1,7 @@
 // "עכשיו": השורה הראשונה שרואים. איפה השבוע עומד, ומה הצעד האחד הבא.
 // האפליקציה יודעת איזה יום היום ומה השלב, ומציעה את הפעולה במקום שהמנהלת תחפש אותה.
 import { S, DAYS, $, el, clear, dm, ymd, on, emit } from "./core.js";
-import { phase, shiftsOf, openDays } from "./shifts.js";
+import { phase, shiftsOf, openDays, sentKeys, hasSent } from "./shifts.js";
 import { weekProgress } from "./creative.js";
 import { googleMarked } from "./launch.js";
 
@@ -25,10 +25,13 @@ function owner(){
   };
 
   if (ph === "availability" || ph === "review"){
+    // דרך sentKeys/hasSent, כמו מסך האישור. ספירה נפרדת כאן יצרה סתירה
+    // גלויה: "3 מתוך 3" למטה, ו-"2/3 · עוד לא: דנה" בשורה הראשונה שקוראים.
     const active = S.roster.filter(r => r.active !== false);
-    const sent = new Set(S.availability.map(a => a.token).filter(Boolean));
-    const missing = active.filter(r => !sent.has(r.token));
-    const n = S.availability.length, total = active.length || n;
+    const sent = sentKeys();
+    const missing = active.filter(r => !hasSent(r, sent));
+    const total = active.length || sent.size;
+    const n = active.length ? active.length - missing.length : sent.size;
     const all = active.length && !missing.length;
     return {
       step: 1, title: `${n}/${total} שלחו זמינות`,
