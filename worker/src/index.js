@@ -56,12 +56,12 @@ export default {
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
         case "/ai/analyze":  requireOwner(owner); return json(await aiAnalyze(env, body), cors);
         case "/ai/zreport":  requireOwner(owner); return json(await aiZReport(env, body), cors);
-        case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(env, body), cors);
-        case "/publish/state":     requireOwner(owner); return json(await publishState(env), cors);
-        case "/insights/posts":    requireOwner(owner); return json(await postInsights(env, body), cors);
-        case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
+        case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(await withMeta(env), body), cors);
+        case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
+        case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
+        case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(await withMeta(env), body), cors);
         case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
-        case "/status":            requireOwner(owner); return json(await status(env), cors);
+        case "/status":            requireOwner(owner); return json(await status(await withMeta(env)), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
         default: return json({ error: "not_found" }, cors, 404);
       }
@@ -80,7 +80,7 @@ export default {
   // הקרון: כל עשר דקות. מפרסם לאינסטגרם את מה שהגיע זמנו.
   // לאינסטגרם אין תזמון ב-API — כל "תזמון" בעולם הוא תור שמחכה לדקה. זה התור שלנו.
   async scheduled(event, env, ctx){
-    ctx.waitUntil(publishDue(env).catch(e => console.error("cron", e && e.message)));
+    ctx.waitUntil(withMeta(env).then(publishDue).catch(e => console.error("cron", e && e.message)));
   },
 };
 
@@ -746,6 +746,26 @@ async function aiZReport(env, b){
 }
 
 /* ---------- Meta: פייסבוק ואינסטגרם ---------- */
+/* ===== חיבור העמוד נשמר בשרת, לא בלוח של Cloudflare =====
+   "חבר עמוד" באפליקציה מחליף טוקן משתמש קצר בטוקן עמוד ארוך. עד היום הוא
+   הציג את התוצאה וביקש להעתיק אותה ידנית ל-Cloudflare — צעד שאף אחד לא
+   עשה, ולכן "עמוד הפייסבוק עוד לא מחובר" נשאר על המסך. עכשיו הוא נשמר
+   ב-Firestore (secrets/meta), שאף לקוח לא יכול לקרוא (הכלל סגור), וה-Worker
+   קורא אותו עם חשבון השירות. מה שמוגדר בלוח של Cloudflare עדיין מנצח —
+   כך אפשר להחליף עמוד או לנתק בלי למחוק כלום. */
+const META_KEYS = ["FB_PAGE_ID", "FB_PAGE_TOKEN", "IG_USER_ID"];
+async function withMeta(env){
+  if ((env.FB_PAGE_ID && env.FB_PAGE_TOKEN) || !env.FIREBASE_SA) return env;
+  let d = null;
+  try { d = await fsGet(env, "secrets/meta"); } catch {}
+  if (!d) return env;
+  const out = { ...env };
+  for (const k of META_KEYS) if (!out[k] && d[k]) out[k] = String(d[k]);
+  return out;
+}
+// עמוד אחד בחשבון — הוא נבחר לבד. כמה עמודים — המנהל בוחר באפליקציה ושולח pageId.
+const choosePage = (pages, pageId) => pages.length === 1 ? pages[0] : (pages.find(p => String(p.id) === String(pageId || "")) || null);
+
 async function graph(env, path, params, method = "POST"){
   if (!env.FB_PAGE_TOKEN) throw fail("not_configured", "חסר טוקן של עמוד הפייסבוק בשרת.", 500);
   const q = new URLSearchParams({ ...params, access_token: env.FB_PAGE_TOKEN });
@@ -983,6 +1003,14 @@ async function fsPatch(env, path, fields){
   if (!r.ok) throw fail("firestore", "העדכון ב-Firestore נכשל: " + (await r.text()).slice(0, 200), 502);
   return true;
 }
+async function fsGet(env, path){
+  const tok = await saToken(env);
+  const r = await fetch(`${fsBase(env)}/${path}`, { headers: { authorization: "Bearer " + tok } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  const d = await r.json();
+  return Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)]));
+}
 async function fsQuery(env, colName, wheres){
   const tok = await saToken(env);
   const filters = wheres.map(([field, op, value]) => ({ fieldFilter: { field: { fieldPath: field }, op, value: toFs(value) } }));
@@ -1105,5 +1133,19 @@ async function setupPages(env, b){
   const pages = await (await fetch(`${GRAPH}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}`,
     { headers: { authorization: "Bearer " + ex.access_token } })).json();
   if (!pages.data) throw fail("meta_error", pages.error?.message || "לא נמצאו עמודים.", 502);
-  return { pages: pages.data.map(p => ({ FB_PAGE_ID: p.id, name: p.name, FB_PAGE_TOKEN: p.access_token, IG_USER_ID: p.instagram_business_account?.id || null, ig: p.instagram_business_account?.username || null })) };
+  const canSave = !!env.FIREBASE_SA;
+  const pick = canSave ? choosePage(pages.data, b.pageId) : null;
+  let saved = null;
+  if (pick){
+    await fsPatch(env, "secrets/meta", {
+      FB_PAGE_ID: pick.id, FB_PAGE_TOKEN: pick.access_token,
+      IG_USER_ID: pick.instagram_business_account?.id || "", pageName: pick.name,
+      ig: pick.instagram_business_account?.username || "", at: new Date().toISOString(),
+    });
+    saved = { name: pick.name, ig: pick.instagram_business_account?.username || null };
+  }
+  // הטוקן חוזר לדפדפן רק במסלול הידני (בלי FIREBASE_SA), כשאין ברירה.
+  return { canSave, saved, pages: pages.data.map(p => ({
+    FB_PAGE_ID: p.id, name: p.name, ...(canSave ? {} : { FB_PAGE_TOKEN: p.access_token }),
+    IG_USER_ID: p.instagram_business_account?.id || null, ig: p.instagram_business_account?.username || null })) };
 }

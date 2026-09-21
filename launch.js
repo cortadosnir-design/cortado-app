@@ -137,22 +137,39 @@ async function launch(btn){
   });
 }
 
-/* ===== חיבור עמוד פייסבוק, פעם אחת ===== */
-async function fbSetup(btn){
+/* ===== חיבור עמוד פייסבוק, פעם אחת =====
+   מדביקים טוקן זמני מ-Graph API Explorer, והשרת מחליף אותו בטוקן עמוד
+   ארוך ושומר אותו אצלו. אין יותר "העתק את הבלוק ל-Cloudflare": זה הצעד
+   שאף אחד לא עשה, ובגללו העמוד נשאר "לא מחובר". */
+async function fbSetup(btn, pageId){
   const token = $("fbUserToken").value.trim();
   if (!token){ $("fbSetupOut").textContent = "הדבק קודם את הטוקן."; return; }
   await withBusy(btn, async () => {
     try {
-      const r = await api("/setup/pages", { userToken: token });
+      const r = await api("/setup/pages", { userToken: token, pageId: pageId || undefined });
       const pages = Array.isArray(r.pages) ? r.pages : [];
+      clear($("fbPick")); $("fbSetupOut").textContent = "";
       if (!pages.length){ $("fbSetupOut").textContent = "לא נמצאו עמודים בחשבון הזה."; return; }
-      const out = pages.map(p =>
+      if (r.saved){
+        $("fbUserToken").value = "";
+        status("launchStatus", "ok", `העמוד "${r.saved.name}" מחובר${r.saved.ig ? " · אינסטגרם @" + r.saved.ig : ""}. שעות ופרסום יוצאים מעכשיו — לחץ "שגר".`);
+        $("fbConnect").open = false;
+        return;
+      }
+      if (r.canSave){
+        // כמה עמודים בחשבון — בוחרים אחד. אותו טוקן זמני משמש לשמירה.
+        $("fbSetupOut").textContent = "יש כמה עמודים בחשבון הזה. איזה מהם הוא העגלה?";
+        pages.forEach(p => $("fbPick").append(el("button", { class: "primary", text: "חבר את " + p.name,
+          onclick: (e) => fbSetup(e.currentTarget, p.FB_PAGE_ID) })));
+        return;
+      }
+      // בלי FIREBASE_SA השרת לא יכול לשמור. נשאר המסלול הידני, ואומרים את זה.
+      $("fbSetupOut").textContent = pages.map(p =>
         `# ${p.name}\nFB_PAGE_ID=${p.FB_PAGE_ID}\nFB_PAGE_TOKEN=${p.FB_PAGE_TOKEN}` +
         (p.IG_USER_ID ? `\nIG_USER_ID=${p.IG_USER_ID}   (${p.ig || ""})` : "\n# אין חשבון אינסטגרם מקושר לעמוד הזה")
       ).join("\n\n");
-      $("fbSetupOut").textContent = out;
       $("fbUserToken").value = "";
-      status("launchStatus", "ok", "העמוד נמצא. העתק את הבלוק שלמטה ושלח לקלוד — הוא ישמור אותו בשרת.");
+      status("launchStatus", "warn", "השרת לא יכול לשמור את החיבור בעצמו (חסר FIREBASE_SA). העתק את הבלוק ל-Cloudflare → Variables and Secrets.");
     } catch (e){ $("fbSetupOut").textContent = "שגיאה: " + e.message; }
   });
 }

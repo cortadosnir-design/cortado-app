@@ -11,8 +11,8 @@
 | `FIREBASE_PROJECT_ID` | var | אימות המשתמש (`cortado-ops`) |
 | `ALLOWED_ORIGINS` | var | מאיזה אתרים מותר לקרוא |
 | `GEMINI_API_KEY` | secret | כתיבה עם AI |
-| `FB_PAGE_ID`, `FB_PAGE_TOKEN` | var, secret | פרסום ושעות בפייסבוק |
-| `IG_USER_ID` | var | פרסום לאינסטגרם |
+| `FB_APP_ID`, `FB_APP_SECRET` | secret | "חבר עמוד" — החלפת טוקן זמני בטוקן עמוד ארוך |
+| `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `IG_USER_ID` | (לא חובה) | "חבר עמוד" שומר אותם לבד ב-Firestore (`secrets/meta`). מה שמוגדר כאן מנצח |
 | `FIREBASE_SA` | secret | **התור של אינסטגרם** — ראה למטה |
 | `GB_*` (ארבעה) | secret | שעות בגוגל, אחרי אישור ה-API |
 

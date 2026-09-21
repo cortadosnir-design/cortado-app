@@ -60,3 +60,36 @@ const due = helpers.dueNow(q).map(x => x.id);
 ok2("התור מוציא רק מה שהגיע זמנו", due.length === 1 && due[0] === "a", due.join(",") || "ריק");
 console.log(`\n${p2} עברו · ${f2} נכשלו`);
 if (f2) process.exitCode = 1;
+
+/* ── חיבור העמוד: מה שבלוח של Cloudflare מנצח, מה שחסר מגיע מ-secrets/meta ── */
+{
+  const block = wsrc.slice(wsrc.indexOf("const META_KEYS"), wsrc.indexOf("\n}\n", wsrc.indexOf("async function withMeta(")) + 2)
+    + "\n" + wsrc.slice(wsrc.indexOf("const choosePage"), wsrc.indexOf("\n", wsrc.indexOf("const choosePage")));
+  const mk = (fsGet) => new Function("fsGet", block + "\nreturn { withMeta, choosePage };")(fsGet);
+  let calls = 0;
+  const doc = { FB_PAGE_ID: "111", FB_PAGE_TOKEN: "tokDoc", IG_USER_ID: "ig1", pageName: "קפה" };
+  const { withMeta, choosePage } = mk(async () => { calls++; return doc; });
+  console.log("\n13ב. חיבור עמוד הפייסבוק");
+  let pass2 = 0, fail2 = 0;
+  const ok = (n, c, x = "") => c ? (pass2++, console.log("  ✓ " + n + (x ? "  " + x : ""))) : (fail2++, console.log("  ✗ " + n + "  " + x));
+  const full = await withMeta({ FB_PAGE_ID: "9", FB_PAGE_TOKEN: "tokEnv", FIREBASE_SA: "{}" });
+  ok("מוגדר בלוח → לא נוגעים ב-Firestore", full.FB_PAGE_TOKEN === "tokEnv" && calls === 0);
+  const filled = await withMeta({ FIREBASE_SA: "{}", GEMINI_API_KEY: "g" });
+  ok("חסר בלוח → מגיע מ-secrets/meta", filled.FB_PAGE_ID === "111" && filled.FB_PAGE_TOKEN === "tokDoc" && filled.IG_USER_ID === "ig1" && calls === 1);
+  ok("שאר המשתנים נשמרים", filled.GEMINI_API_KEY === "g");
+  const mixed = await withMeta({ FIREBASE_SA: "{}", IG_USER_ID: "igEnv" });
+  ok("ערך בלוח מנצח ערך במסמך", mixed.IG_USER_ID === "igEnv" && mixed.FB_PAGE_ID === "111");
+  const noSa = await withMeta({ GEMINI_API_KEY: "g" });
+  ok("בלי FIREBASE_SA → כמו שהיה, בלי קריאה", !noSa.FB_PAGE_ID && calls === 2);
+  const broken = mk(async () => { throw new Error("boom"); });
+  const b2 = await broken.withMeta({ FIREBASE_SA: "{}" });
+  ok("Firestore נופל → ממשיכים בלי חיבור, לא קורסים", !b2.FB_PAGE_TOKEN);
+  const empty = mk(async () => null);
+  ok("אין מסמך → כמו שהיה", !(await empty.withMeta({ FIREBASE_SA: "{}" })).FB_PAGE_ID);
+  const one = [{ id: "1", name: "א" }], two = [{ id: "1", name: "א" }, { id: "2", name: "ב" }];
+  ok("עמוד אחד נבחר לבד", choosePage(one) === one[0]);
+  ok("כמה עמודים בלי בחירה → אין שמירה", choosePage(two) === null);
+  ok("כמה עמודים עם pageId → הנבחר", choosePage(two, 2) === two[1]);
+  console.log(`\n${pass2} עברו · ${fail2} נכשלו`);
+  if (fail2) process.exitCode = 1;
+}
