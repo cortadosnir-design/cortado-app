@@ -3,7 +3,7 @@
 // ממילא נוסעת ל-Meta כ-data URL דרך /publish/schedule. קנבס מייצר בדיוק את זה.
 // העיקרון: מה שחוזר בכל פוסט לא נכתב מחדש בכל פוסט. הוא נצרב.
 import { S, db, DAYS, DAYS_SHORT, $, el, clear, ymd, dm, fromYmd, addDays, doc, setDoc, deleteDoc, collection, query, orderBy,
-  onSnapshot, serverTimestamp, track } from "./core.js";
+  onSnapshot, serverTimestamp, track, emit } from "./core.js";
 import { CARD, BRAND, THEMES, TARGETS, targetOf } from "./playbook.js";
 import { hoursByDay, phase } from "./shifts.js";
 import { drawQR } from "./qr.js";
@@ -51,7 +51,9 @@ export function subscribe(){
   track(onSnapshot(doc(db, "brand", "card"),
     (s) => { cfgDoc = s.exists() ? s.data() : null; render(); }, () => {}));
   track(onSnapshot(query(collection(db, "assets"), orderBy("at", "desc")),
-    (snap) => { library = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {}));
+    // כל מי שמציג רשימת צילומים צריך לדעת שהספרייה השתנתה — אחרת
+    // ייבוא מהדרייב לא מופיע בבוררים שכבר נטענו.
+    (snap) => { library = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); emit("assets"); }, () => {}));
 }
 
 /* ===== הקטנה =====
@@ -226,7 +228,11 @@ export async function build(opts = {}){
   await loadFonts(c);
 
   /* 1. רקע */
-  const [img, badge] = await Promise.all([loadImage(photo), loadImage(mark || markUrl(c))]);
+  // פוסטר בלי צילום נשאר עם חור באמצע. אם לא נבחר צילום — הראשון
+  // בספרייה. רק אם הספרייה ריקה הפוסטר נבנה בלי רצועה, והפריסה
+  // מתכווצת סביב זה במקום להשאיר שטח מת.
+  const photoSrc = photo || (layout === "poster" ? ((shots()[0] || {}).url || c.posterFile || "") : "");
+  const [img, badge] = await Promise.all([loadImage(photoSrc), loadImage(mark || markUrl(c))]);
   ctx.fillStyle = c.bg || "#22303c";
   ctx.fillRect(0, 0, W, H);
   if (img && layout !== "poster"){
@@ -589,8 +595,6 @@ function drawPoster(ctx, o){
   const ink = c.ink, accent = c.accent, bg = c.boardBg || "#f7eaca";
   const u = box.h / 1500;                 // כל המידות נגזרות מגובה האזור הבטוח
   const px = (n) => Math.round(n * u);
-  const links = qrLinks(c);
-
   ctx.save();
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
@@ -627,9 +631,18 @@ function drawPoster(ctx, o){
   ctx.beginPath(); ctx.arc(cx, y + 1, Math.max(3, px(6)), 0, Math.PI * 2); ctx.fill();
   y += px(38);
 
-  /* שבע השורות */
+  /* הפוטר נקבע ראשון — הוא לא תלוי בשורות, והשורות כן תלויות בו. */
+  const links = qrLinks(c);
+  const footH = links.length ? px(210) : px(140);
+  const footTop = box.y + box.h - footH;
+
+  /* שבע השורות. עם רצועת צילום הן בגובה קבוע; בלעדיה הן מתרחבות
+     וממלאות את המקום, כדי שלא יישאר שטח ריק באמצע הפוסטר. */
   const panelW = Math.round(box.w * .94), panelX = cx - panelW / 2;
-  const rh = px(62);
+  const space = footTop - px(46) - y;
+  const rh = img ? px(62) : Math.max(px(62), Math.min(px(104), Math.floor(space / days.length)));
+  if (!img) y += Math.max(0, Math.floor((space - rh * days.length) / 2));
+
   for (let i = 0; i < days.length; i++){
     const d = days[i], on = i === today;
     if (on){
@@ -665,17 +678,12 @@ function drawPoster(ctx, o){
     }
     y += rh;
   }
-  const rowsEnd = y + px(24);
 
-  /* הפוטר — נקבע מלמטה, והצילום מקבל את מה שנשאר */
-  const footH = links.length ? px(210) : px(140);
-  const footTop = box.y + box.h - footH;
-  const heroTop = rowsEnd;
-  const heroH = Math.max(px(200), footTop - px(46) - heroTop);
-
-  /* רצועת הצילום. המשפט יושב בתוכה, על הצללה — ככה הצילום מקבל את כל
-     הגובה שנשאר במקום לוותר על רצועה שלמה בשביל שורת טקסט אחת. */
+  /* רצועת הצילום — מקבלת את כל מה שנשאר בין השורות לפוטר.
+     המשפט יושב בתוכה, על הצללה, במקום לגזול רצועה לעצמו. */
   if (img){
+    const heroTop = y + px(24);
+    const heroH = Math.max(px(200), footTop - px(46) - heroTop);
     coverRect(ctx, img, 0, heroTop, W, heroH, typeof c.posterFocus === "number" ? c.posterFocus : .5);
     const fadeT = px(70), fadeB = px(80);
     const gT = ctx.createLinearGradient(0, heroTop, 0, heroTop + fadeT);
@@ -695,6 +703,13 @@ function drawPoster(ctx, o){
       ctx.font = `400 ${px(42)}px "${c.display}", system-ui, sans-serif`;
       ctx.fillText(c.posterTag, cx, scrimBot - px(16));
     }
+  } else if (c.posterTag){
+    // בלי צילום המשפט עדיין נאמר — בצבע הטקסט, מעל הפוטר.
+    ctx.textAlign = "center"; ctx.fillStyle = ink;
+    ctx.globalAlpha = .75;
+    ctx.font = `400 ${px(40)}px "${c.display}", system-ui, sans-serif`;
+    ctx.fillText(c.posterTag, cx, footTop - px(40));
+    ctx.globalAlpha = 1;
   }
 
   /* הפוטר */

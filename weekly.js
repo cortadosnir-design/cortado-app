@@ -132,12 +132,16 @@ export function bind(){
   if (!$("wkPlan")) return;
 
   const photoSel = $("wkPhoto");
+  // הרשימה נבנית מחדש כשהספרייה משתנה — אחרת מי שמייבא מהדרייב אחרי
+  // שהלשונית כבר נטענה רואה רשימה ריקה ומקבל פוסטר בלי צילום.
+  on("assets", () => fillPhotos());
   const fillPhotos = () => {
     if (!photoSel) return;
     const cur = photoSel.value;
     clear(photoSel);
-    photoSel.append(el("option", { value: "", text: "בלי צילום" }));
-    for (const a of Card.assets("photo")) photoSel.append(el("option", { value: a.url, text: a.name || "צילום" }));
+    const shots = Card.assets("photo");
+    photoSel.append(el("option", { value: "", text: shots.length ? "הצילום הראשון בספרייה" : "אין צילומים בספרייה" }));
+    for (const a of shots) photoSel.append(el("option", { value: a.url, text: a.name || "צילום" }));
     if (cur) photoSel.value = cur;
   };
   fillPhotos();
