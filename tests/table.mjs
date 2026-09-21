@@ -2,7 +2,7 @@
 import { parseDelimited, asNumber, profile, payload } from "../table.js";
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n)) : (fail++, console.log("  ✗ " + n + "  " + x));
-console.log("\n15. טבלאות לניתוח");
+console.log("\n19. טבלאות לניתוח");
 
 const t = parseDelimited("﻿תאריך,לקוחות,מזג אוויר\n2026-09-01,42,שמש\n2026-09-02,\"38\",\"גשם, קל\"\n\n2026-09-03,55,\"שורה\nכפולה\"\n");
 ok("כותרות", t.columns.join("|") === "תאריך|לקוחות|מזג אוויר", t.columns.join("|"));

@@ -3,7 +3,7 @@ import { deflateRawSync } from "zlib";
 import { parseXlsx, serialToDate } from "../xlsx.js";
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n)) : (fail++, console.log("  ✗ " + n + "  " + x));
-console.log("\n16. קריאת אקסל");
+console.log("\n20. קריאת אקסל");
 
 function zip(files, compress = true){
   const enc = new TextEncoder(), parts = [], cd = []; let off = 0;
