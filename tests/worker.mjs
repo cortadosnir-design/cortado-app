@@ -25,4 +25,38 @@ t("שגיאה לא מוכרת", "ECONNRESET socket hang up", /נסה|שוב|רש
 t("כבר בעברית עובר כמו שהוא", "רק המנהל יכול לבצע את הפעולה הזו.", /^רק המנהל/);
 t("ריק", "", /משהו|נסה/);
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
-process.exit(fail ? 1 : 0);
+if (fail) process.exitCode = 1;
+
+/* ── תזמון: החישובים שאפשר לבדוק בלי רשת ── */
+const wsrc = readFileSync(new URL("../worker/src/index.js", import.meta.url), "utf8");
+const cut = (name, from) => { const a = wsrc.indexOf(from); return wsrc.slice(a, wsrc.indexOf("\n}\n", a) + 2); };
+const helpers = new Function(
+  "fail",
+  cut("publishWhen", "function publishWhen(") + "\n" +
+  wsrc.slice(wsrc.indexOf("const MIN_AHEAD"), wsrc.indexOf("function dataUrlToBlob")) + "\n" +
+  wsrc.slice(wsrc.indexOf("const dueNow ="), wsrc.indexOf("// הקרון: מה שממתין")) + "\n" +
+  "return { publishWhen, dueNow };"
+)((c, m) => Object.assign(new Error(m), { code: c }));
+
+let p2 = 0, f2 = 0;
+const ok2 = (n, c, x = "") => c ? (p2++, console.log("  ✓ " + n + (x ? "  " + x : ""))) : (f2++, console.log("  ✗ " + n + "  " + x));
+console.log("\n15. תזמון פוסטים");
+const NOW = 1_700_000_000;
+ok2("זמן שעבר → מפרסם עכשיו", helpers.publishWhen((NOW - 3600) * 1000, NOW) === 0);
+ok2("בעוד 3 דקות → עכשיו (מטא דורשת 10)", helpers.publishWhen((NOW + 180) * 1000, NOW) === 0);
+ok2("בעוד שעה → מתוזמן", helpers.publishWhen((NOW + 3600) * 1000, NOW) === NOW + 3600);
+ok2("בלי זמן → עכשיו", helpers.publishWhen(0, NOW) === 0);
+let threw = false;
+try { helpers.publishWhen((NOW + 60 * 24 * 3600) * 1000, NOW); } catch { threw = true; }
+ok2("מעבר ל-30 יום → נדחה", threw);
+
+const q = [
+  { id: "a", fields: { igPending: true, publishAt: Date.now() - 60000 } },
+  { id: "b", fields: { igPending: true, publishAt: Date.now() + 3600000 } },
+  { id: "c", fields: { igPending: false, publishAt: Date.now() - 60000 } },
+  { id: "d", fields: { igPending: true } },
+];
+const due = helpers.dueNow(q).map(x => x.id);
+ok2("התור מוציא רק מה שהגיע זמנו", due.length === 1 && due[0] === "a", due.join(",") || "ריק");
+console.log(`\n${p2} עברו · ${f2} נכשלו`);
+if (f2) process.exitCode = 1;

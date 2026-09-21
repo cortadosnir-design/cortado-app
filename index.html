@@ -92,7 +92,7 @@
           <h2>שעות הפתיחה, בכל מקום</h2>
           <button class="primary big" id="launchBtn">שגר</button>
         </div>
-        <p class="small">דף הנחיתה ופייסבוק מתעדכנים לבד. גוגל ואינסטגרם: העתק-הדבק מוכן.</p>
+        <p class="small">דף הנחיתה ופייסבוק מתעדכנים לבד. גוגל: העתק-הדבק של 20 שניות, עד שה-API יאושר.</p>
         <div id="launchList" class="launchlist"></div>
         <div class="actions"><button id="launchCopy">העתק את השעות</button></div>
         <div class="status" id="launchStatus" role="status"></div>
@@ -258,9 +258,10 @@
 
           <div class="status" id="compStatus" role="status"></div>
           <div class="sheetbar">
-            <button id="saveIdea">שמור טיוטה</button>
-            <button class="primary" id="saveReady">מוכן ✓</button>
-            <button id="markDone">פורסם</button>
+            <button id="saveIdea">טיוטה</button>
+            <button id="saveReady">מוכן ✓</button>
+            <button class="primary" id="schedulePost" data-api hidden>תזמן ופרסם</button>
+            <button id="markDone" class="link">פורסם</button>
           </div>
         </div>
 

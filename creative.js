@@ -246,6 +246,8 @@ function addedWords(base, text){
 const DAY_LETTER = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const PILLAR_ICON = { process: "☕", place: "📍", when: "🕒" };
 const stateOf = (p, past) => (past && !p) ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty";
+// תקלה בפרסום לא נעלמת בשקט — היא מופיעה על השורה עד שמטפלים בה.
+const igTrouble = (p) => !!(p && p.igError);
 
 // התמונה של הפוסט, אם יש. thumb נשמר בפיירסטור, image הוא קישור חיצוני.
 const thumbOf = (p) => (p && (p.thumb || p.image)) || "";
@@ -441,8 +443,8 @@ function renderBoard(){
         el("span", { class: "small", text: ` · ${DAYS[s.day]} ${s.time}` }),
         el("div", { class: "small clip", text: (p && (p.text || p.idea || "").slice(0, 70))
           || (st === "gone" ? "הזמן חלף — חוזר בשבוע הבא" : "עוד לא נכתב") })));
-      row.append(el("span", { class: "pill " + (st === "done" ? "ok" : st === "draft" ? "warn" : ""),
-        text: st === "gone" ? "עבר" : p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" }));
+      row.append(el("span", { class: "pill " + (igTrouble(p) ? "bad" : st === "done" ? "ok" : st === "draft" ? "warn" : ""),
+        text: igTrouble(p) ? "אינסטגרם נכשל" : st === "gone" ? "עבר" : p ? STATUS_LABEL[p.status] || "טיוטה" : "ריק" }));
       wrap.append(row);
     });
     box.append(wrap);
@@ -730,6 +732,9 @@ export function loadPost(id){
   $("compTitle").textContent = s ? `${slotLabel(s)} · ${DAYS[fromYmd(p.date).getDay()]} ${dm(fromYmd(p.date))}` : "עריכת פוסט";
   $("timeWhy").textContent = s ? "השעה הקבועה של המשבצת." : "";
   if (aiOrigin) $("aiWrite").textContent = "✨ גרסה אחרת";
+  if (p.igError) status("compStatus", "bad", "אינסטגרם נכשל: " + p.igError + " — אפשר לתזמן שוב.");
+  else if (p.igPending) status("compStatus", "ok", "מתוזמן. אינסטגרם בתור ויעלה באותה דקה.");
+  else if (p.fbPostId) status("compStatus", "ok", "כבר פורסם או מתוזמן בפייסבוק." + (p.igPostId ? " ובאינסטגרם." : ""));
   $("delPost").hidden = false;
   renderComposerMeta();
   openSheet();
@@ -855,6 +860,7 @@ async function savePost(newStatus, btn){
     status("compStatus", "warn", "רגע. משפט אחד משלך למטה — פרט, שם, מה קרה היום — ואז מוכן.");
     $("cLine").focus(); return;
   }
+  let savedId = null;
   await withBusy(btn, async () => {
     try {
       const image = $("cImage").value || "";
@@ -877,12 +883,53 @@ async function savePost(newStatus, btn){
       await setDoc(doc(db, "posts", id), body, { merge: true });
       if (aiOrigin && newStatus !== "idea") await learnFromEdit(aiOrigin, text);
       $("cText").value = text;
-      editing = id; $("delPost").hidden = false;
+      editing = id; savedId = id; $("delPost").hidden = false;
       status("compStatus", "ok", newStatus === "done" ? "סומן כפורסם." : newStatus === "ready" ? "מוכן. המשבצת סגורה." : "נשמר כטיוטה.");
       renderComposerMeta();
     } catch (e){
       status("compStatus", "bad", e.code === "permission-denied" ? "רק המנהל יכול לשמור פוסטים." : "השמירה נכשלה.");
     }
+  });
+  return savedId;
+}
+
+/* ===== תזמון: נגיעה אחת, שתי רשתות =====
+   הלולאה הישנה הייתה: הורד CSV → פתח מתזמן → ייבא → העלה תמונה לכל פוסט →
+   חזור → סמן "תוזמן" → אחר כך סמן "פורסם". עכשיו: כפתור אחד.
+   פייסבוק מתזמן לבד; אינסטגרם נכנס לתור של השרת ומתפרסם בדקה. */
+async function schedulePost(btn){
+  const when = new Date(`${$("cDate").value}T${$("cTime").value || "10:30"}`);
+  if (isNaN(when)){ status("compStatus", "warn", "צריך תאריך ושעה כדי לתזמן."); return; }
+
+  const id = await savePost("ready", null);      // השער נאכף כאן, לפני שיוצא החוצה
+  if (!id) return;
+
+  await withBusy(btn, async () => {
+    try {
+      status("compStatus", "", "שולח…");
+      const p = S.posts.find(x => x.id === id) || {};
+      const r = await api("/publish/schedule", {
+        postId: id,
+        text: [mergedText(), $("cHash").value.trim()].filter(Boolean).join("\n\n").slice(0, 2200),
+        image: composerPhoto || "",                // הצילום המלא, לא הממוזערת
+        at: when.getTime(),
+      });
+      // אם לשרת אין גישה ל-Firestore, האפליקציה שומרת את התוצאה בעצמה
+      if (!r.saved){
+        await setDoc(doc(db, "posts", id), {
+          status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
+          publishAt: r.publishAt || when.getTime(), igPending: !!r.igPending,
+          igPostId: r.igPostId || "", igSkipped: r.igSkipped || "", igError: r.igError || "",
+        }, { merge: true });
+      }
+      const at = new Date(r.publishAt || when.getTime());
+      const now = Math.abs(at - Date.now()) < 11 * 60000;
+      const fb = now ? "פורסם בפייסבוק" : `מתוזמן לפייסבוק ל-${dm(at)} ${String(at.getHours()).padStart(2,"0")}:${String(at.getMinutes()).padStart(2,"0")}`;
+      const ig = r.igPostId ? "ופורסם באינסטגרם" : r.igPending ? "אינסטגרם בתור ויעלה באותה דקה"
+               : r.igError ? "אינסטגרם נכשל: " + r.igError : r.igSkipped ? "בלי אינסטגרם — " + r.igSkipped : "";
+      status("compStatus", r.igError ? "warn" : "ok", [fb, ig].filter(Boolean).join(". ") + ".");
+      if (!r.igError) setTimeout(closeSheet, 1600);
+    } catch (e){ status("compStatus", "bad", e.message); }
   });
 }
 
@@ -1009,6 +1056,7 @@ function sweepPublished(){
   const now = new Date();
   for (const p of S.posts){
     if (p.status !== "scheduled" || !p.date || sweeping.has(p.id)) continue;
+    if (p.igPending || p.igError) continue;      // עוד בתור או נכשל — לא "פורסם"
     const at = fromYmd(p.date); const [h, m] = String(p.time || "23:59").split(":").map(Number);
     at.setHours(h || 0, m || 0, 0, 0);
     if (at > now) continue;
@@ -1050,6 +1098,7 @@ export function init(){
   $("saveIdea").addEventListener("click", (e) => savePost("idea", e.currentTarget));
   $("saveReady").addEventListener("click", (e) => savePost("ready", e.currentTarget));
   $("markDone").addEventListener("click", (e) => savePost("done", e.currentTarget));
+  $("schedulePost").addEventListener("click", (e) => schedulePost(e.currentTarget));
   $("newPost").addEventListener("click", () => newPost());
   $("delPost").addEventListener("click", removePost);
   $("closeComposer").addEventListener("click", closeSheet);

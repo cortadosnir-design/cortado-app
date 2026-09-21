@@ -7,3 +7,8 @@ compatibility_date = "2025-09-01"
 # (FIREBASE_PROJECT_ID, GEMINI_MODEL, ALLOWED_ORIGINS, GEMINI_API_KEY, FB_*, IG_USER_ID).
 # Deploys from here replace only the code.
 keep_vars = true
+
+# הקרון: כל עשר דקות מפרסם לאינסטגרם את מה שהגיע זמנו (publishDue ב-index.js).
+# דורש את הסוד FIREBASE_SA בלוח של Cloudflare — ראה worker/README.md.
+[triggers]
+crons = ["*/10 * * * *"]
