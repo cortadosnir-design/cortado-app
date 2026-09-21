@@ -8,6 +8,25 @@ import { ask as askPoster } from "./poster.js";
 const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const GBP_URL = "https://business.google.com/";
 
+/* ===== גוגל, כל עוד אין אישור API =====
+   הערוץ הכי חשוב הוא גם היחיד שנעשה ביד, ולכן הוא הצעד שהכי קל לדלג עליו.
+   הבעיה אינה 20 השניות — היא ששעות שגויות בגוגל שולחות מטיילים לעגלה סגורה.
+   לכן מסמנים: מה שסומן נשמר על מסמך השבוע, ושורת "עכשיו" נודניקית עד שיסומן. */
+export const googleMarked = () => !!(S.week && S.week.googleAt);
+const googleWhen = () => {
+  const t = S.week && S.week.googleAt;
+  return t && t.seconds ? dm(new Date(t.seconds * 1000)) : "";
+};
+async function markGoogle(btn){
+  await withBusy(btn, async () => {
+    try {
+      await setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)),
+        { googleAt: serverTimestamp() }, { merge: true });
+      status("launchStatus", "ok", "סומן. שורת 'עכשיו' תפסיק לנדנד על גוגל השבוע.");
+    } catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+  });
+}
+
 // מצב כל ערוץ: pending / ok / manual / skip / fail
 const channels = {
   page:      { label: "דף הנחיתה",  auto: true },
@@ -37,12 +56,16 @@ function row(key, state, note, actions){
 function render(){
   const box = clear($("launchList"));
   for (const key of ["page","facebook","google","instagram"]){
-    const r = results[key] || { state: "pending", note: "" };
+    let r = results[key] || { state: "pending", note: "" };
+    if (key === "google" && googleMarked() && r.state !== "ok")
+      r = { state: "ok", note: `עודכן ידנית${googleWhen() ? " ב-" + googleWhen() : ""}. עד שגוגל תאשר את ה-API זה הצעד היחיד שנעשה ביד.` };
     let actions = null;
     if (key === "google" && r.state === "manual"){
       actions = el("div", { class: "actions" },
         el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }),
-        el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }));
+        el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }),
+        googleMarked() ? null
+          : el("button", { class: "primary", text: "עדכנתי ✓", onclick: (e) => markGoogle(e.currentTarget) }));
     }
     if (key === "instagram" && r.state === "manual"){
       actions = el("div", { class: "actions" },
@@ -114,6 +137,7 @@ async function launch(btn){
       try {
         await api("/hours/google", { hours: hoursPairs() });
         results.google = { state: "ok", note: "שעות הפרופיל עודכנו בגוגל." };
+        setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)), { googleAt: serverTimestamp() }, { merge: true }).catch(() => {});
       } catch (e){
         const msg = String(e.message || "");
         results.google = { state: "manual",
@@ -173,6 +197,8 @@ export function init(){
   const cp = $("launchCopy");
   if (cp) cp.addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק את השעות"));
   render();
+  on("week", render);
+  on("weekchanged", render);
   on("locked", () => {
     status("launchStatus", "ok", "השבוע ננעל. אפשר לשגר את השעות.");
     const card = $("launchCard");

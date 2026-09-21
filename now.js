@@ -3,6 +3,7 @@
 import { S, DAYS, $, el, clear, dm, ymd, addDays, sundayOf, on, emit } from "./core.js";
 import { phase, shiftsOf, openDays } from "./shifts.js";
 import { weekProgress } from "./creative.js";
+import { googleMarked } from "./launch.js";
 
 const STEPS = ["ימים", "זמינות", "שיבוץ", "נעול"];
 
@@ -64,6 +65,19 @@ function owner(){
     primary: ["שגר שעות", () => click("#launchBtn")],
     ghost: [`קריאייטיב ${done}/${total}`, () => emit("tab", "creative")],
   };
+  // גוגל הוא הערוץ שמביא את מי שמחפש "קפה ליד", והיחיד שעדיין נעשה ביד.
+  // לכן הוא צעד בפני עצמו — ונעלם ברגע שמסמנים אותו.
+  if (!googleMarked()) return {
+    step: 3, title: "גוגל עוד לא עודכן השבוע",
+    sub: "מי שמחפש קפה בדרך לבניאס רואה את גוגל, לא את פייסבוק. 20 שניות.",
+    nudge: cur && today >= 4 ? "סוף השבוע מתקרב — שעות שגויות בגוגל שולחות אנשים לעגלה סגורה." : "",
+    primary: ["לעדכן בגוגל", () => {
+      emit("tab", "shifts");
+      setTimeout(() => { const c = $("launchCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 120);
+    }],
+    ghost: [`קריאייטיב ${done}/${total}`, () => emit("tab", "creative")],
+  };
+
   if (done < total) return {
     step: 3, title: `${done}/${total} פוסטים מוכנים`,
     sub: "משבצת ריקה זו משימה. אחת אחת, עם משפט שלך.",

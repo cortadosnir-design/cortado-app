@@ -289,7 +289,31 @@ for (const [name, url] of [["z.html", "http://127.0.0.1:8899/z.html"], ["hours.h
   await p.close();
 }
 
+/* ── 15. גוגל: הצעד הידני נספר ── */
+console.log("\n15. מעקב אחרי העדכון הידני בגוגל");
+{
+  const p = await fresh();
+  const has = await p.evaluate(() => {
+    const L = window.L;
+    return { exported: typeof L.googleMarked === "function", marked: L.googleMarked() };
+  });
+  ok("launch.js חושף את מצב הסימון", has.exported);
+  ok("שבוע חדש מתחיל כלא-מסומן", has.marked === false);
+  // סימון כותב על מסמך השבוע ומכבה את הכפתור
+  await p.evaluate(async () => {
+    window.S.week = { phase: "locked", launchedAt: {}, shifts: [] };
+    document.getElementById("launchList").innerHTML = "";
+  });
+  const wrote = await p.evaluate(async () => {
+    const before = window.__writes.length;
+    window.S.week = { phase: "locked", googleAt: { seconds: Math.floor(Date.now()/1000) } };
+    return { marked: window.L.googleMarked(), grew: window.__writes.length >= before };
+  });
+  ok("googleAt על מסמך השבוע נקרא כ'סומן'", wrote.marked === true);
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();
 process.exit(fail ? 1 : 0);
+
