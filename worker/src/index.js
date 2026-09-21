@@ -187,6 +187,28 @@ function memoryBlock(b){
   if (recent.length)
     out.push("פוסטים אחרונים שפורסמו — אל תחזור על אותה זווית:\n" +
       recent.map(r => `${r.date || ""} (${r.pillar || ""}): ${String(r.text).slice(0,150)}`).join("\n"));
+
+  // מה שעבד. בלי זה המודל יודע רק מה כבר נאמר, ולא מה הצליח.
+  const best = Array.isArray(b.best) ? b.best.filter(x => x && x.text).slice(0, 4) : [];
+  if (best.length)
+    out.push("הפוסטים שהגיעו להכי הרבה אנשים. למד מהם מה עובד כאן — הפתיחה, האורך, סוג הזווית. אל תעתיק אותם:\n" +
+      best.map(x => `[${x.reach} חשיפות · ${x.format || ""} · ${x.pillar || ""}]\n${String(x.text).slice(0,300)}`).join("\n\n"));
+
+  // היומן: מה באמת קרה בעגלה. זו העובדה היחידה שיש למודל על המציאות,
+  // והיא מה שמפריד בין פוסט שנשען על משהו שקרה לבין פוסט מהדמיון.
+  const logs = Array.isArray(b.logs) ? b.logs.filter(l => l && l.date).slice(0, 21) : [];
+  if (logs.length){
+    const lines = logs.map(l => [
+      l.date,
+      l.customers != null ? `${l.customers} לקוחות` : "",
+      l.peak ? `עומס ב-${l.peak}` : "",
+      l.weather || "",
+      l.promo ? `מבצע: ${l.promo}` : "",
+    ].filter(Boolean).join(" · "));
+    out.push("יומן המשמרות האחרונות — עובדות מהעגלה, מהחדש לישן:\n" + lines.join("\n") +
+      "\n\nהשתמש בזה כדי להישען על משהו שבאמת קרה: יום שהיה עמוס, מזג אוויר שהשפיע, מבצע שעבד. " +
+      "אל תצטט מספרים מהיומן בפוסט עצמו ואל תמציא מהם מסקנות שלא נמצאות שם.");
+  }
   return out.join("\n\n");
 }
 

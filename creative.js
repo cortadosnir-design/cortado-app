@@ -5,7 +5,7 @@ import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, ho
   doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
 import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
-import { openDays, phase, wid, hoursByDay, hoursText } from "./shifts.js";
+import { openDays, phase, wid, hoursByDay } from "./shifts.js";
 
 /* ===== שלושת העמודים ===== */
 export const PILLAR3 = {
@@ -488,6 +488,14 @@ function aiContext(){
     voice: VOICE,
     recent: S.posts.filter(p => p.status === "done").sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0, 6)
       .map(p => ({ date: p.date, text: (p.text||"").slice(0,300), pillar: p.pillar, format: p.format, reach: p.performance && p.performance.reach })),
+    // הפוסטים שהגיעו הכי רחוק. "אל תחזור על זווית" זה לא אותו דבר כמו "ככה זה עובד",
+    // ובלי זה המערכת לא לומדת מה מצליח אלא רק מה כבר נאמר.
+    best: S.posts.filter(p => p.status === "done" && p.performance && p.performance.reach > 0)
+      .sort((a,b) => (b.performance.reach||0) - (a.performance.reach||0)).slice(0, 4)
+      .map(p => ({ text: (p.text||"").slice(0,300), pillar: p.pillar, format: p.format, reach: p.performance.reach })),
+    // מה באמת קרה בעגלה. היומן נאסף בכל משמרת וזו המציאות היחידה שיש למודל.
+    logs: (S.logs || []).slice().sort((a,b) => (b.date||"").localeCompare(a.date||"")).slice(0, 21)
+      .map(l => ({ date: l.date, customers: l.customers, peak: l.peak, weather: l.weather, promo: l.promo })),
     hours: hoursByDay(), openDays: openDays().map(i => DAYS[i]),
     words: WORDS,
   };
@@ -514,7 +522,10 @@ function openSlot(s){
   $("cDate").value = date; $("cTime").value = s.time;
   $("cFormat").value = s.format;
   const sk = (S.creative && S.creative.slots && S.creative.slots[s.key]) || {};
-  $("cIdea").value = sk.angle || (s.pillar === "when" ? hoursText() : "");
+  // הכיוון הוא משפט אחד, לא גוף הפוסט. השעות מגיעות למודל בנפרד דרך aiContext().hours,
+  // ולכן אין טעם לדחוף אותן לכאן — זה רק מילא שדה שורה אחת בטקסט רב-שורתי.
+  $("cIdea").value = sk.angle || "";
+  $("cIdea").placeholder = (PILLAR3[s.pillar] || {}).note || "למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר";
   if (sk.shoot) $("shootHint").textContent = "מה לצלם: " + sk.shoot;
   $("compTitle").textContent = `${slotLabel(s)} · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))}`;
   $("timeWhy").textContent = "";
