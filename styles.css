@@ -534,3 +534,19 @@ body.sheeton{overflow:hidden}
   background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
   padding:10px 14px;margin-bottom:4px;font-size:15px}
 .newver button{flex:none}
+
+/* ===== שאל את הנתונים ===== */
+.btn-file{display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--sunken);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-weight:600}
+.btn-file input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.btn-file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.ask-row{display:flex;gap:8px;margin-top:8px}
+.ask-row input{flex:1;min-width:0}
+#anaQuick .chip,.ana-item .chip{cursor:pointer;border:0;font:inherit;font-size:13px}
+#anaQuick .chip:hover,.ana-item .chip:hover{background:var(--line)}
+.ana-item{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.ana-q{font-weight:700;margin:0}
+.ana-a{margin:0;white-space:pre-line}
+.ana-scroll{overflow-x:auto}
+.ana-table{border-collapse:collapse;font-size:14px;min-width:240px}
+.ana-table th,.ana-table td{border:1px solid var(--line);padding:4px 8px;text-align:start}
+.ana-table th{background:var(--sunken);font-weight:600}

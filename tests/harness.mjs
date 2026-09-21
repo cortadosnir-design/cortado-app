@@ -13,6 +13,7 @@ export function build(){
   s = s.replace('<script type="module" src="app.js"></script>', `<script type="module">
   import * as C from "./creative.js";
   import * as L from "./launch.js";
+  import * as A from "./analyze.js";
   import { S } from "./core.js";
   window.C = C; window.L = L; window.S = S;
   window.__api = {};
@@ -20,7 +21,7 @@ export function build(){
   // מה ש-app.js עושה אחרי כניסה מוצלחת
   document.querySelectorAll("[data-owner]").forEach(n => n.hidden = !S.isOwner);
   document.querySelectorAll("[data-api]").forEach(n => n.hidden = !S.isOwner);
-  C.init(); L.init();
+  C.init(); L.init(); A.init();
   C.subscribe();
   window.__ready = true;
 </script>`);

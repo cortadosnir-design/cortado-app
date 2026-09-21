@@ -18,6 +18,7 @@ let code = 0;
 code |= await run("node", ["tests/ui.mjs"], { PORT });
 code |= await run("node", ["tests/worker.mjs"]);
 code |= await run("node", ["tests/version.mjs"]);
+code |= await run("node", ["tests/table.mjs"]);
 
 server.kill();
 clean();
