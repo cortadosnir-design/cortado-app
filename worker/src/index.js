@@ -10,6 +10,32 @@ const ownersOf = (env) => ((env.OWNER_EMAILS || "").split(",").map(s => s.trim()
   ? (env.OWNER_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
   : DEFAULT_OWNERS);
 
+/* מנהלים שמונו מתוך האפליקציה. הרשימה הקבועה למעלה היא המייסדים —
+   רצפה שלא תלויה בשום נתון — וכאן נבדק דגל admin במסמך members, אותו
+   מקור בדיוק ש-firestore.rules אוכף. בלי הבדיקה הזו מנהל חדש היה מקבל
+   את כל הלשוניות בממשק ונחסם בכל כפתור שנוגע בשרת.
+   בלי FIREBASE_SA אי אפשר לקרוא, ואז נשארים המייסדים בלבד — נכשל סגור.
+   מטמון קצר: הבדיקה רצה בכל בקשה, והמינוי הוא פעולה נדירה. */
+const ADMIN_TTL = 5 * 60e3;
+const adminCache = new Map();   // uid → { at, ok }
+async function isAdminUid(env, uid){
+  if (!env.FIREBASE_SA || !uid) return false;
+  const hit = adminCache.get(uid);
+  if (hit && Date.now() - hit.at < ADMIN_TTL) return hit.ok;
+  let ok = false;
+  try {
+    const tok = await saToken(env);
+    const r = await fetch(`${fsBase(env)}/members/${encodeURIComponent(uid)}`,
+      { headers: { authorization: "Bearer " + tok } });
+    if (r.ok){
+      const d = await r.json();
+      ok = !!(d.fields && d.fields.admin && d.fields.admin.booleanValue === true);
+    }
+  } catch { ok = false; }
+  adminCache.set(uid, { at: Date.now(), ok });
+  return ok;
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -18,7 +44,8 @@ export default {
     try {
       if (url.pathname === "/health") return json({ ok: true }, cors);
       const user = await requireUser(request, env);
-      const owner = ownersOf(env).includes((user.email || "").toLowerCase());
+      const owner = ownersOf(env).includes((user.email || "").toLowerCase())
+        || await isAdminUid(env, user.uid);
       const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
 
       switch (url.pathname) {

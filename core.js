@@ -5,12 +5,12 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRe
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { firebaseConfig, OWNER_EMAILS, WORKER_URL } from "./config.js";
+import { firebaseConfig, OWNER_EMAILS, FOUNDER_EMAILS, WORKER_URL } from "./config.js";
 import { HOLIDAYS } from "./playbook.js";
 
 export { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, documentId, writeBatch,
   GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
-  OWNER_EMAILS, WORKER_URL };
+  OWNER_EMAILS, FOUNDER_EMAILS, WORKER_URL };
 
 /* ===== Firebase ===== */
 const fbApp = initializeApp(firebaseConfig);
@@ -113,6 +113,7 @@ export const S = {
   week: null, availability: [], signups: [],
   posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [], sales: [],
   memory: null, timing: null, reach: null, creative: {},
+  isFounder: false,
   memberNames: {}, rosterNames: {},
   subs: [],
 };

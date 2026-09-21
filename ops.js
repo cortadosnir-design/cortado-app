@@ -167,12 +167,51 @@ function renderAccess(){
   }
   box.append(el("p", { style: "margin-top:8px" }, el("b", { text: "מאושרים" })));
   if (!S.members.length) box.append(el("p", { class: "small", text: "עוד אין עובדים מאושרים." }));
-  S.members.forEach(m => box.append(el("div", { class: "rem" },
-    el("span", { class: "grow", text: `${m.name || "ללא שם"} · ${m.email || ""}` }),
-    el("button", { class: "link", text: "הסר גישה", onclick: async () => {
-      if (!confirm(`להסיר את הגישה של ${m.name || "העובד"}?`)) return;
-      try { await deleteDoc(doc(db, "members", m.uid)); } catch { status("teamStatus", "bad", "ההסרה נכשלה."); }
-    } }))));
+
+  // מייסדים בלבד ממנים ומסירים מנהלים. למנהל רגיל הכפתורים לא מוצגים,
+  // והכללים ב-Firestore דוחים את הכתיבה גם אם מישהו ינסה לעקוף.
+  S.members.forEach(m => {
+    const isAdmin = m.admin === true;
+    const me = S.me && m.uid === S.me.uid;
+    const row = el("div", { class: "rem" });
+    row.append(el("span", { class: "grow" },
+      `${m.name || "ללא שם"} · ${m.email || ""}`, " ",
+      isAdmin ? el("span", { class: "pill ok", text: "מנהל" }) : null));
+
+    if (S.isFounder && !me){
+      row.append(el("button", { class: "link", text: isAdmin ? "הסר ניהול" : "הפוך למנהל",
+        onclick: (e) => withBusy(e.currentTarget, () => setAdmin(m, !isAdmin)) }));
+    }
+    if (!me){
+      row.append(el("button", { class: "link", text: "הסר גישה", onclick: async () => {
+        if (isAdmin && !S.isFounder){
+          status("teamStatus", "warn", "רק מייסד יכול להסיר מנהל."); return;
+        }
+        if (!confirm(`להסיר את הגישה של ${m.name || "העובד"}?${isAdmin ? " הוא מנהל." : ""}`)) return;
+        try { await deleteDoc(doc(db, "members", m.uid)); }
+        catch { status("teamStatus", "bad", "ההסרה נכשלה."); }
+      } }));
+    }
+    box.append(row);
+  });
+
+  if (S.isFounder) box.append(el("p", { class: "small", text:
+    "מנהל מקבל את אותה גישה שיש לך — שיבוץ, קריאייטיב, מכירות ופרסום — חוץ ממינוי מנהלים. זה נשאר אצלך." }));
+}
+
+/* מינוי והדחה. merge כדי לא לדרוס את השם והמייל שנשמרו באישור.
+   הכלל ב-Firestore הוא מה שבאמת אוכף: מנהל רגיל שינסה לקרוא לזה — ייחסם. */
+async function setAdmin(m, makeAdmin){
+  if (makeAdmin && !confirm(`להפוך את ${m.name || "העובד"} למנהל? הוא יקבל גישה מלאה לכל האפליקציה.`)) return;
+  if (!makeAdmin && !confirm(`להסיר ניהול מ${m.name || "העובד"}? הוא יישאר חבר צוות רגיל.`)) return;
+  try {
+    await setDoc(doc(db, "members", m.uid), { admin: makeAdmin }, { merge: true });
+    status("teamStatus", "ok", makeAdmin
+      ? `${m.name || "העובד"} מנהל עכשיו. שיראה את השינוי — שייכנס מחדש.`
+      : `${m.name || "העובד"} חזר להיות חבר צוות רגיל.`);
+  } catch {
+    status("teamStatus", "bad", "העדכון נכשל. רק מייסד יכול למנות מנהלים.");
+  }
 }
 
 /* ===== תזכורות למחר ===== */

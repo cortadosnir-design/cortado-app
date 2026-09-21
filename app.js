@@ -1,6 +1,6 @@
 // קורטדו אופרציה — נקודת הכניסה: זיהוי, ניווט, וחיבור המודולים.
 import { S, auth, db, provider, $, addDays, weekId, defaultWeekStart, emit, on, dropSubs,
-  OWNER_EMAILS, WORKER_URL,
+  FOUNDER_EMAILS, WORKER_URL,
   signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
   doc, getDoc, getDocs, setDoc, collection, serverTimestamp } from "./core.js";
 import * as Shifts from "./shifts.js";
@@ -104,11 +104,20 @@ let authGen = 0;
 onAuthStateChanged(auth, async (user) => {
   const gen = ++authGen;
   S.me = user;
-  S.isOwner = !!user && OWNER_EMAILS.map(e => e.toLowerCase()).includes((user.email || "").toLowerCase());
-  S.isMember = S.isOwner;
-  if (user && !S.isOwner){
-    try { const m = await getDoc(doc(db, "members", user.uid)); if (gen !== authGen) return; S.isMember = m.exists(); }
-    catch { if (gen !== authGen) return; S.isMember = false; }
+  /* מייסד מזוהה מהרשימה הקבועה; מנהל רגיל — מדגל admin במסמך members
+     שלו. את מסמך ה-members צריך לקרוא בכל מקרה (הוא גם מה שקובע אם
+     המשתמש מאושר בכלל), ולכן זו לא קריאה נוספת. */
+  S.isFounder = !!user && FOUNDER_EMAILS.map(e => e.toLowerCase()).includes((user.email || "").toLowerCase());
+  S.isOwner = S.isFounder;
+  S.isMember = S.isFounder;
+  if (user && !S.isFounder){
+    try {
+      const m = await getDoc(doc(db, "members", user.uid));
+      if (gen !== authGen) return;
+      S.isMember = m.exists();
+      S.isOwner = m.exists() && m.data().admin === true;
+    }
+    catch { if (gen !== authGen) return; S.isMember = false; S.isOwner = false; }
   }
 
   $("signin").hidden = !!user;

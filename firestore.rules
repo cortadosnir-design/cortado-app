@@ -4,13 +4,28 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
 
-    // רשימת המנהלים. חייבת להיות זהה ל-OWNER_EMAILS ב-config.js,
-    // ל-isOwner ב-storage.rules ול-OWNER_EMAILS ב-worker/src/index.js.
-    // להוספת מנהלת: עוד מחרוזת ברשימה, בכל ארבעת המקומות.
-    function isOwner() {
+    /* שתי דרגות.
+
+       מייסד — רשימה קבועה בקוד. זו רצפה שאי אפשר להסיר: גם אם כל מסמכי
+       ה-members יימחקו או ישתבשו, שני החשבונות האלה עדיין נכנסים. רק הם
+       ממנים ומסירים מנהלים.
+
+       מנהל — חבר צוות שקיבל admin: true במסמך members שלו, דרך המסך.
+       מקבל את כל הסמכויות (שיבוץ, קריאייטיב, מכירות, פרסום) חוץ מאחת:
+       הוא לא יכול לגעת ברשימת המנהלים עצמה.
+
+       הרשימה הקבועה חייבת להישאר זהה ל-FOUNDER_EMAILS ב-config.js,
+       ל-isOwner ב-storage.rules ול-DEFAULT_OWNERS ב-worker/src/index.js. */
+    function isFounder() {
       return signedIn() && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in ['cortado.snir@gmail.com', 'limormelman@gmail.com'];
     }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.get('admin', false) == true;
+    }
+    function isOwner() { return isFounder() || isAdmin(); }
 
     // חבר צוות שנכנס עם גוגל (מסלול המנהלים). העובדים הרגילים לא צריכים את זה.
     function member() {
@@ -194,9 +209,23 @@ service cloud.firestore {
     }
 
     // ── בקשות הצטרפות דרך גוגל ──
+    /* חברי הצוות שנכנסים עם גוגל, ודגל הניהול.
+
+       כל מנהל יכול לאשר ולהסיר חבר צוות רגיל. דגל admin הוא היוצא מן
+       הכלל: רק מייסד נוגע בו. בלי ההפרדה הזו מנהל אחד יכול למנות את עצמו
+       שותף מלא, למנות אחרים, או להדיח מנהל אחר — וטעות אחת פותחת את
+       הכול. adminOf מטפל גם ביצירה, שבה resource עוד לא קיים. */
+    function adminOf(d) { return d.get('admin', false) == true; }
     match /members/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
-      allow write: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['name','email','photo','admin','at'])
+        && (isFounder() || !adminOf(request.resource.data));
+      allow update: if isOwner()
+        && request.resource.data.keys().hasOnly(['name','email','photo','admin','at'])
+        && (isFounder() || adminOf(request.resource.data) == adminOf(resource.data));
+      // הסרת מנהל היא הדחה. רק מייסד.
+      allow delete: if isOwner() && (isFounder() || !adminOf(resource.data));
     }
     match /joinRequests/{uid} {
       allow read: if isOwner() || (signedIn() && request.auth.uid == uid);

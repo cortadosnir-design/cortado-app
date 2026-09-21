@@ -1,7 +1,7 @@
 // נוצר אוטומטית מ-core.js ע"י tests/fullcore.mjs — לא לערוך.
-import { OWNER_EMAILS, WORKER_URL } from "../../config.js";
+import { OWNER_EMAILS, FOUNDER_EMAILS, WORKER_URL } from "../../config.js";
 import { HOLIDAYS } from "../../playbook.js";
-export { OWNER_EMAILS, WORKER_URL };
+export { OWNER_EMAILS, FOUNDER_EMAILS, WORKER_URL };
 
 /* ===== Firestore מזויף, עם הלוך-חזור אמיתי ===== */
 const store = {};
@@ -59,7 +59,7 @@ window.__seed = (c, id, data) => { col(c)[id] = resolve(data); };
 window.__fire = fire;
 
 /* ===== Auth מזויף: המנהל כבר מחובר ===== */
-const USER = { uid: "owner1", email: OWNER_EMAILS[0], displayName: "סניר", photoURL: "", getIdToken: async () => "t" };
+const USER = { uid: "owner1", email: FOUNDER_EMAILS[0], displayName: "סניר", photoURL: "", getIdToken: async () => "t" };
 export const auth = { currentUser: USER };
 export const provider = {};
 export const GoogleAuthProvider = function(){};
@@ -156,6 +156,7 @@ export const S = {
   week: null, availability: [], signups: [],
   posts: [], team: [], roster: [], logs: [], members: [], joinReqs: [], sales: [],
   memory: null, timing: null, reach: null, creative: {},
+  isFounder: false,
   memberNames: {}, rosterNames: {},
   subs: [],
 };

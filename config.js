@@ -4,7 +4,7 @@
 // גרסת הבנייה. מוצגת בכותרת, וזהה ל-VERSION ב-sw.js (יש בדיקה שמוודאת).
 // **מעלים אותה בכל דחיפה שמשנה קבצים** — אחרת ה-Service Worker לא מתחלף
 // והדפדפן ממשיך להגיש את הגרסה הישנה.
-export const APP_VERSION = "2026-09-21.16";
+export const APP_VERSION = "2026-09-21.17";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD75yNOaZM6prmFAm2iyeLNcgzuQl-gh4Y",
@@ -15,14 +15,23 @@ export const firebaseConfig = {
   appId: "1:365004162115:web:b1d76cdc98c969f8f800f6"
 };
 
-// מי יכול לנהל: לפתוח שבוע, לשבץ, לכתוב פוסטים ולהסיר עובדים.
-// הרשימה הזו חייבת להיות זהה בארבעה מקומות:
-//   1. כאן                        — מה שהדפדפן מציג
-//   2. firestore.rules · isOwner   — מה שבאמת נאכף על הנתונים
-//   3. storage.rules · isOwner     — העלאת תמונות
-//   4. worker/src/index.js         — או משתנה OWNER_EMAILS בלוח של Cloudflare
-// להוספת מנהלת: הוסף את המייל שלה כמחרוזת נוספת בכל ארבעתם.
-export const OWNER_EMAILS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
+/* המייסדים. רשימה קבועה בקוד, בכוונה — זו רצפת הגישה שאי אפשר להסיר
+   דרך הממשק, וגם אם רשימת המנהלים תישבר היא מה שמחזיר אותך פנימה.
+   רק המייסדים ממנים ומסירים מנהלים.
+
+   מנהלים רגילים כבר לא נכתבים כאן: מוסיפים אותם מהמסך (צוות ← גישה
+   מלאה דרך גוגל ← "הפוך למנהל"), והם נשמרים כדגל admin במסמך members.
+
+   הרשימה הזו חייבת להישאר זהה בארבעה מקומות:
+     1. כאן                          — מה שהדפדפן מציג
+     2. firestore.rules · isFounder   — מה שבאמת נאכף על הנתונים
+     3. storage.rules · isOwner       — נשמר לתיעוד גם אם Storage כבוי
+     4. worker/src/index.js · DEFAULT_OWNERS — או OWNER_EMAILS בלוח של Cloudflare
+   להחלפת מייסד/ת: לעדכן את כל ארבעתם באותו commit. */
+export const FOUNDER_EMAILS = ["cortado.snir@gmail.com", "limormelman@gmail.com"];
+
+// שם ישן, נשמר כדי שקוד קיים לא יישבר.
+export const OWNER_EMAILS = FOUNDER_EMAILS;
 
 // כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
 export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
