@@ -54,6 +54,7 @@ export const db = {};
 export const collection = (_db, name) => ({ col: name });
 export const query = (c) => c;
 export const orderBy = () => null;
+export const where = () => null;
 export const limit = () => null;
 export const doc = (_db, col, id) => ({ col, id });
 export const serverTimestamp = () => ({ __ts: Date.now() });

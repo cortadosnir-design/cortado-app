@@ -58,6 +58,7 @@ export default {
         case "/ai/zreport":  requireOwner(owner); return json(await aiZReport(env, body), cors);
         case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(await withMeta(env), body), cors);
         case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
+        case "/publish/cancel":    requireOwner(owner); return json(await cancelPost(await withMeta(env), body), cors);
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(await withMeta(env), body), cors);
         case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
@@ -769,7 +770,11 @@ const choosePage = (pages, pageId) => pages.length === 1 ? pages[0] : (pages.fin
 async function graph(env, path, params, method = "POST"){
   if (!env.FB_PAGE_TOKEN) throw fail("not_configured", "חסר טוקן של עמוד הפייסבוק בשרת.", 500);
   const q = new URLSearchParams({ ...params, access_token: env.FB_PAGE_TOKEN });
-  const r = await fetch(`${GRAPH}/${path}${method === "GET" ? "?" + q : ""}`, method === "GET" ? {} : { method, body: q });
+  // GET ו-DELETE נושאים את הטוקן בשאילתה; POST בגוף. DELETE עם גוף
+  // מוחזר על ידי Graph כבקשה בלי הרשאה.
+  const inQuery = method === "GET" || method === "DELETE";
+  const r = await fetch(`${GRAPH}/${path}${inQuery ? "?" + q : ""}`,
+    method === "GET" ? {} : inQuery ? { method } : { method, body: q });
   const data = await r.json();
   if (!r.ok || data.error) throw fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502);
   return data;
@@ -885,6 +890,33 @@ async function publishDue(env){
     }
   }
   return { checked: pending.length, results };
+}
+
+/* ביטול פוסט מתוזמן. זה מה שמאפשר לפוסטר להישאר מסונכרן: כששעות
+   השבוע משתנות, הפוסט הישן נמחק ופוסט חדש נכנס במקומו.
+
+   שני מנעולים, כי מחיקה היא פעולה שאי אפשר לבטל:
+   1. רק פוסט שזמנו עוד לא הגיע. פוסט שכבר עלה הוא תוכן חי בעמוד —
+      "סנכרון" לא אמור למחוק אותו, ובוודאי לא בשקט.
+   2. מנקים קודם את התור של אינסטגרם. אחרת הקרון היה מפרסם תמונה של
+      פוסט שכבר לא קיים בפייסבוק, עם שעות ישנות. */
+async function cancelPost(env, b){
+  const at = Number(b.at || 0);
+  if (!at || at <= Date.now() + 60 * 1000)
+    throw fail("bad_request", "אפשר לבטל רק פוסט שזמנו עוד לא הגיע.");
+
+  const id = docId(b.postId);
+  // התור נסגר ראשון: גם אם המחיקה בפייסבוק תיכשל, אינסטגרם לא יפרסם ישן.
+  if (id && env.FIREBASE_SA){
+    try { await fsPatch(env, `posts/${id}`, { igPending: false, status: "cancelled" }); } catch {}
+  }
+
+  const out = { deleted: [], failed: [] };
+  for (const pid of [b.fbPostId, b.fbPhotoId].filter(Boolean)){
+    try { await graph(env, String(pid), {}, "DELETE"); out.deleted.push(String(pid)); }
+    catch (e){ out.failed.push(hebrew(e.message)); }
+  }
+  return out;
 }
 
 async function publishState(env){

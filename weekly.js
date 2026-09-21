@@ -10,7 +10,7 @@
 // 2. יום שהשעה שלו כבר עברה נדלג עליו בשקט. השרת דוחה תזמון לעבר,
 //    והניסיון היה מפיל את כל השיגור באמצע.
 import { S, db, api, on, $, el, clear, status, withBusy, ymd, dm, fromYmd, addDays,
-  doc, setDoc } from "./core.js";
+  doc, setDoc, collection, query, where, onSnapshot, track } from "./core.js";
 import * as Card from "./card.js";
 import { BRAND } from "./playbook.js";
 import { phase, wid, hoursByDay } from "./shifts.js";
@@ -20,6 +20,32 @@ const DAY_LABEL = ["יום א", "יום ב", "יום ג", "יום ד", "יום �
 const MIN_AHEAD_MS = 12 * 60 * 1000;
 
 export const locked = () => phase() === "locked";
+
+/* טביעת אצבע של שעות השבוע. זה מה שמאפשר לדעת שפוסטר שכבר בתור
+   מציג שעות שכבר לא נכונות — בלי להשוות שבע תמונות.
+   נשמר על מסמך הפוסט בזמן השיגור, ומושווה מול המצב הנוכחי. */
+export const hoursKey = () => JSON.stringify([ymd(S.weekStart), hoursByDay()]);
+
+// מה שכבר בתור לשבוע הזה — מתעדכן מפיירסטור ומניע את שורת הסנכרון
+let queued = new Map();     // postId → { date, at, hoursKey, fbPostId, fbPhotoId, status }
+
+/* הימים שצריכים עדכון: כאלה שכבר תוזמנו, שזמנם עוד לא הגיע, ושנשמרה
+   עליהם טביעת אצבע אחרת מזו שבלוח עכשיו. */
+export function stale(){
+  const key = hoursKey(), week = wid();
+  const now = Date.now();
+  const out = [];
+  for (const [id, q] of queued){
+    // רק השבוע שמוצג עכשיו. פוסטר של שבוע אחר נמדד מול שעות אחרות,
+    // והשוואה מול הלוח הנוכחי הייתה מסמנת אותו כישן בטעות.
+    if (q.week && q.week !== week) continue;
+    if (q.status === "cancelled" || q.status === "published") continue;
+    if (!(Number(q.at) > now + MIN_AHEAD_MS)) continue;
+    if (q.hoursKey === key) continue;
+    out.push({ id, ...q });
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
 
 /* התוכנית: שבעה ימים, מתי כל אחד משוגר, ומי כבר לא רלוונטי.
    מיוצא כי זה בדיוק מה שהממשק מציג לפני שלוחצים. */
@@ -69,6 +95,12 @@ export async function scheduleWeek(over = {}, onStep){
       const text = caption(d);
       const id = `poster-${week}-${d.i}`;
       const r = await api("/publish/schedule", { postId: id, text, image, at: d.at });
+      // טביעת האצבע נשמרת תמיד, גם כשהשרת כבר כתב את שאר השדות: היא
+      // מה שיודע להגיד אחר כך שהפוסטר הזה מציג שעות ישנות.
+      await setDoc(doc(db, "posts", id), {
+        kind: "poster", date: d.date, at: d.at, hoursKey: hoursKey(), week,
+        fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
+      }, { merge: true });
       if (!r.saved){
         await setDoc(doc(db, "posts", id), {
           kind: "poster", date: d.date, text, status: "scheduled",
@@ -82,6 +114,49 @@ export async function scheduleWeek(over = {}, onStep){
     if (onStep) onStep(ok.length + failed.length, days.length);
   }
   return { ok, failed, skipped: plan(over).filter(d => d.skip) };
+}
+
+/* הסנכרון: כל פוסטר שהשעות שלו התיישנו — מבוטל, נבנה מחדש, ומתוזמן
+   מחדש לאותה שעה. הביטול קודם לתזמון בכוונה: שני פוסטים לאותו יום
+   הם גרוע יותר מפוסט אחד עם שעות ישנות. */
+export async function syncWeek(over = {}, onStep){
+  const rows = stale();
+  if (!rows.length) return { ok: [], failed: [] };
+  const week = wid();
+  const ok = [], failed = [];
+  for (const q of rows){
+    try {
+      await api("/publish/cancel", { postId: q.id, at: q.at, fbPostId: q.fbPostId, fbPhotoId: q.fbPhotoId });
+      const i = Math.round((fromYmd(q.date) - fromYmd(ymd(S.weekStart))) / 86400000);
+      const d = plan(over).find(x => x.i === i);
+      if (!d) throw new Error("היום הזה כבר לא בשבוע המוצג.");
+      if (d.skip) throw new Error(d.skip);
+      const image = await buildDay(d, over);
+      const text = caption(d);
+      const id = `poster-${week}-${d.i}`;
+      const r = await api("/publish/schedule", { postId: id, text, image, at: d.at });
+      await setDoc(doc(db, "posts", id), {
+        kind: "poster", date: d.date, text, at: d.at, hoursKey: hoursKey(), week,
+        status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
+        publishAt: r.publishAt || d.at, igPending: !!r.igPending,
+        igPostId: r.igPostId || "", igSkipped: r.igSkipped || "", igError: r.igError || "",
+      }, { merge: true });
+      ok.push(d);
+    } catch (e){ failed.push(`${dm(fromYmd(q.date))} — ${e.message}`); }
+    if (onStep) onStep(ok.length + failed.length, rows.length);
+  }
+  return { ok, failed };
+}
+
+/* מה שבתור נקרא בזמן אמת: כך שורת הסנכרון מופיעה גם כשמישהו אחר
+   שינה את השיבוץ ממכשיר אחר. */
+export function subscribe(){
+  track(onSnapshot(query(collection(db, "posts"), where("kind", "==", "poster")),
+    (snap) => {
+      queued = new Map();
+      snap.forEach(d => queued.set(d.id, d.data()));
+      renderPlan();
+    }, () => {}));
 }
 
 /* ===== תצוגה ===== */
@@ -113,6 +188,23 @@ function renderPlan(){
       el("span", { class: "small", text: d.skip || `משוגר ${dm(fromYmd(d.date))} ב-${opts().time}` })));
   }
   box.append(list);
+
+  // מה שכבר בתור ולא תואם ללוח — זו כל מהות הסנכרון, ולכן זה על המסך
+  // ולא מוסתר מאחורי כפתור שצריך לזכור ללחוץ עליו.
+  const old = stale();
+  if (old.length){
+    box.append(el("div", { class: "notice warn" },
+      el("span", { text: `השעות השתנו מאז השיגור. ${old.length} פוסטרים בתור מציגים שעות ישנות.` }),
+      el("button", { class: "primary", text: "סנכרן עכשיו",
+        onclick: (e) => withBusy(e.currentTarget, async () => {
+          try {
+            const r = await syncWeek(opts(), (done) => status("wkStatus", "", `מעדכן ${done} מתוך ${old.length}…`));
+            status("wkStatus", r.failed.length ? "warn" : "ok",
+              r.failed.length ? `${r.ok.length} עודכנו, ${r.failed.length} נכשלו: ${r.failed[0]}`
+                              : `${r.ok.length} פוסטרים עודכנו לשעות החדשות.`);
+          } catch (err){ status("wkStatus", "bad", err.message); }
+        }) })));
+  }
 }
 
 function renderPreviews(){
@@ -186,5 +278,10 @@ export function bind(){
 
   // נעילת השבוע היא הרגע שבו התוכנית הופכת לאמיתית — מרעננים אותה מיד.
   on("locked", renderPlan);
+  // כל שינוי במסמך השבוע — שיבוץ, נעילה, פתיחה מחדש — יכול לייתר
+  // פוסטר שכבר בתור. זה בדיוק הרגע לבדוק.
+  on("week", renderPlan);
+  on("weekchanged", renderPlan);
+  subscribe();
   renderPlan();
 }
