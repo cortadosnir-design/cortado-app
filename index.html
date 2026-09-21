@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-21.13">
+  <meta name="app-build" content="2026-09-21.14">
 <meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -206,7 +206,7 @@
           <div class="calhead sheethead"><h2 id="compTitle">פוסט</h2><button class="link" id="closeComposer">סגור</button></div>
 
           <!-- מה שיראו בפועל. Planoly ו-Later מראים תצוגה מקדימה כי מתכננים בעיניים. -->
-          <div class="ig" id="igPrev">
+          <div class="ig">
             <div class="ighead"><span class="igav">☕</span><b id="igName">קפה קורטדו</b></div>
             <div class="igimg" id="igImg"><span class="small">עוד אין תמונה</span></div>
             <div class="igbody"><p id="igText" class="igcap"></p><p id="igTags" class="igtags"></p></div>
@@ -250,7 +250,7 @@
               <label for="cFormat">פורמט<select id="cFormat"></select></label>
               <p class="small" id="formatHint"></p>
             </div>
-            <p class="small" id="photoHint">אם תבחר תמונה עכשיו, הטיוטה תיכתב עליה ולא באוויר.</p>
+            <p class="small">אם תבחר תמונה עכשיו, הטיוטה תיכתב עליה ולא באוויר.</p>
             <p class="small" id="shootHint"></p>
             <label for="cHash">האשטגים<input id="cHash" type="text" dir="rtl"></label>
             <label for="cImage" class="small">קישור לתמונה (לא חובה)<input id="cImage" type="url" dir="ltr" placeholder="https://…"></label>
@@ -271,7 +271,7 @@
         </div>
 
         <div class="side">
-          <details class="card fold" id="clipsCard">
+          <details class="card fold">
             <summary>בנק הקליפים <span class="pill" id="clipCount"></span></summary>
             <p class="small">20 דקות צילום מכסות שבועיים.</p>
             <div class="notice warn" id="clipWarn" hidden>פחות מ-3 קליפים מוכנים. תכנן צילום בשבוע הקרוב.</div>
@@ -298,7 +298,7 @@
             <div class="status" id="exportStatus" role="status"></div>
           </details>
 
-          <details class="card fold" id="voiceCard">
+          <details class="card fold">
             <summary>הקול שלנו</summary>
             <p class="small">מה שהמערכת למדה עליכם, גלוי. כל תיקון שלך נכנס לכאן.</p>
             <label for="memTone">הטון<textarea id="memTone" rows="2" placeholder="למשל: חם, קצר, בלי סימני קריאה, תמיד מזכירים את הנוף"></textarea></label>
@@ -482,7 +482,7 @@
           <div class="reco" id="aiReco"></div>
         </div>
       </div>
-      <div class="card" id="analyzeCard" data-api hidden>
+      <div class="card" data-api hidden>
         <h2>שאל את הנתונים</h2>
         <p class="small">קובץ אקסל (xlsx) או CSV, או הנתונים שכבר יש באפליקציה. שואלים בעברית, מקבלים תשובה עם מספרים מתוך הנתונים.</p>
         <div class="actions">

@@ -34,7 +34,7 @@ function selectTab(name){
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
-on("tab", (name) => { selectTab(name); window.scrollTo({ top: 0, behavior: "smooth" }); });
+on("tab", (name) => { selectTab(name); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); });
 
 /* ===== ניווט בין שבועות ===== */
 on("weekchange", (delta) => {

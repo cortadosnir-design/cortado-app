@@ -550,3 +550,9 @@ body.sheeton{overflow:hidden}
 #zCheck.ok{color:var(--ok)} #zCheck.warn{color:var(--warn)}
 #salesCats .pill{font-family:var(--mono);font-size:13px}
 #salesKpis{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+
+/* מי שהגדיר במערכת ההפעלה "פחות תנועה" מתכוון לזה. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
