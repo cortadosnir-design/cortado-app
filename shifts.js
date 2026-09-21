@@ -1,5 +1,5 @@
 // משמרות: זמינות → המנהל בונה את השבוע → אישור → שיבוץ עצמי → נעילה.
-import { S, db, DAYS, DAYS_SHORT, $, el, clear, ymd, dm, addDays, fromYmd, toMin, fromMin, weekId, holidayOn,
+import { S, db, DAYS, sundayOf, DAYS_SHORT, $, el, clear, ymd, dm, addDays, fromYmd, toMin, fromMin, weekId, holidayOn,
   status, copyText, withBusy, nameOf, whoOf, keyOf, track, emit,
   doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
 
@@ -36,6 +36,7 @@ export function subscribe(){
   weekSubs.push(track(onSnapshot(doc(db, "weeks", id),
     (snap) => {
       S.week = snap.exists() ? snap.data() : null;
+      autoAdvance().catch(() => {});
       loaded = true;
       // שבוע שנוצר בגרסה ישנה ואין בו phase — משלימים בשקט, פעם אחת.
       if (S.isOwner && snap.exists() && !snap.data().phase && !repaired.has(id)){
@@ -203,6 +204,40 @@ async function purgeSignups(ids){
 }
 
 /* ===== שלב 3: מסך האישור ===== */
+/* ===== מה שקורה לבד =====
+   שני הצעדים שהבעלים תמיד רק אישר: לפתוח לשיבוץ כשכל הצוות ענה, ולנעול
+   ביום חמישי כדי שהשעות יצאו לפני הסופ״ש. שניהם הפיכים, שניהם מדווחים,
+   ושניהם לא קורים אם חסר משהו: לא נפתח בלי כיסוי, לא ננעל בלי אף שיבוץ. */
+let autoTried = "";
+async function autoAdvance(){
+  if (!S.isOwner || !S.week) return;
+  const id = wid();
+  if (autoTried === id + phase()) return;
+  autoTried = id + phase();
+  const ph = phase();
+
+  if (ph === "availability" || ph === "review"){
+    const active = S.roster.filter(r => r.active !== false);
+    if (!active.length || !shiftsOf().length) return;
+    const sent = new Set(S.availability.map(a => a.token).filter(Boolean));
+    if (active.some(r => !sent.has(r.token))) return;         // עוד לא כולם
+    const { perDay } = coverage();
+    if (openDays().some(d => perDay[d].yes + perDay[d].maybe < perDay[d].need)) return;  // אין כיסוי
+    await saveWeek({ phase: "open", approvedAt: serverTimestamp(), approvedBy: S.me.uid, openedAuto: true });
+    status("mgrStatus", "ok", "כל הצוות ענה ויש כיסוי — נפתח לשיבוץ לבד. אפשר להחזיר לאיסוף זמינות.");
+    return;
+  }
+
+  if (ph === "open"){
+    const now = new Date();
+    if (now.getDay() < 4 || ymd(S.weekStart) !== ymd(sundayOf(addDays(now, now.getDay() >= 5 ? 7 : 0)))) return;
+    if (!S.signups.length) return;                            // אף אחד לא נרשם — לא נועלים
+    await saveWeek({ phase: "locked", lockedAt: serverTimestamp(), lockedAuto: true });
+    status("mgrStatus", "ok", "יום חמישי והשיבוץ מלא — השבוע ננעל לבד. אפשר לפתוח מחדש.");
+    emit("locked");
+  }
+}
+
 function coverage(){
   const subs = S.availability.length;
   const perDay = {};

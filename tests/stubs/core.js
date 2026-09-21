@@ -35,7 +35,7 @@ export const api = async (path, body) => {
   const h = (window.__api || {})[path];
   if (!h) throw new Error("no stub for " + path);
   if (h.fail) throw new Error(h.fail);
-  return h;
+  return typeof h === "function" ? h(body) : h;
 };
 
 // ── אפיק אירועים ──

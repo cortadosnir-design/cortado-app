@@ -31,15 +31,9 @@ const channels = {
   page:      { label: "דף הנחיתה",  auto: true },
   facebook:  { label: "פייסבוק",     auto: true },
   google:    { label: "גוגל",        auto: false },
-  instagram: { label: "אינסטגרם",    auto: false },
 };
 let results = {};
 
-const bioText = () => {
-  const h = hoursByDay();
-  const open = h.map((x,i) => x.length ? `${DAYS[i].slice(0,3)}׳ ${x.join(", ")}` : null).filter(Boolean);
-  return `☕ קפה קורטדו · קיבוץ שניר\n${open.join(" | ")}`;
-};
 
 function row(key, state, note, actions){
   const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…", skip: "—" }[state] || "…";
@@ -54,7 +48,7 @@ function row(key, state, note, actions){
 
 function render(){
   const box = clear($("launchList"));
-  for (const key of ["page","facebook","google","instagram"]){
+  for (const key of ["page","facebook","google"]){
     let r = results[key] || { state: "pending", note: "" };
     if (key === "google" && googleMarked() && r.state !== "ok")
       r = { state: "ok", note: `עודכן ידנית${googleWhen() ? " ב-" + googleWhen() : ""}. עד שגוגל תאשר את ה-API זה הצעד היחיד שנעשה ביד.` };
@@ -65,10 +59,6 @@ function render(){
         el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }),
         googleMarked() ? null
           : el("button", { class: "primary", text: "עדכנתי ✓", onclick: (e) => markGoogle(e.currentTarget) }));
-    }
-    if (key === "instagram" && r.state === "manual"){
-      actions = el("div", { class: "actions" },
-        el("button", { text: "העתק לביו", onclick: (e) => copyText(bioText(), e.currentTarget, "העתק לביו") }));
     }
     box.append(row(key, r.state, r.note, actions));
   }
@@ -139,12 +129,9 @@ async function launch(btn){
     }
     render();
 
-    // 4. אינסטגרם — אין שדה שעות בכלל
-    results.instagram = { state: "manual", note: "לאינסטגרם אין שדה שעות. מה שעובד: שורת שעות בביו." };
-    render();
 
     const okCount = Object.values(results).filter(r => r.state === "ok").length;
-    status("launchStatus", okCount ? "ok" : "warn", `${okCount} מתוך 4 עודכנו אוטומטית. השאר מוכן להדבקה למטה.`);
+    status("launchStatus", okCount ? "ok" : "warn", `${okCount} מתוך 3 עודכנו אוטומטית. השאר מוכן להדבקה למטה.`);
   });
 }
 

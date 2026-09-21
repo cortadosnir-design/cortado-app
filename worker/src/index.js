@@ -29,6 +29,8 @@ export default {
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
         case "/publish/facebook":  requireOwner(owner); return json(await publishFacebook(env, body), cors);
         case "/publish/instagram": requireOwner(owner); return json(await publishInstagram(env, body), cors);
+        case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(env, body), cors);
+        case "/publish/state":     requireOwner(owner); return json(await publishState(env), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(env, body), cors);
         case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
         case "/status":            requireOwner(owner); return json(await status(env), cors);
@@ -41,7 +43,13 @@ export default {
       const raw = e.message || String(e);
       return json({ error: e.code || "error", message: hebrew(raw), detail: raw }, cors, code);
     }
-  }
+  },
+
+  // הקרון: כל עשר דקות. מפרסם לאינסטגרם את מה שהגיע זמנו.
+  // לאינסטגרם אין תזמון ב-API — כל "תזמון" בעולם הוא תור שמחכה לדקה. זה התור שלנו.
+  async scheduled(event, env, ctx){
+    ctx.waitUntil(publishDue(env).catch(e => console.error("cron", e && e.message)));
+  },
 };
 
 /* ---------- עזרים ---------- */
@@ -521,6 +529,196 @@ async function publishInstagram(env, b){
   const p = await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id });
   return { id: p.id };
 }
+
+/* ===== תזמון: פוסט אחד, שתי רשתות, נגיעה אחת =====
+   פייסבוק יודע לתזמן לבד (scheduled_publish_time). אינסטגרם לא — שם התמונה
+   צריכה כתובת ציבורית, ואין לנו אחסון. הפתרון: התמונה עולה לעמוד הפייסבוק
+   (זה ממילא הפוסט), ובזמן הפרסום הקרון שולף ממנה כתובת CDN טרייה ומגיש אותה
+   לאינסטגרם. מסמך הפוסט ב-Firestore הוא התור. */
+const MIN_AHEAD = 10 * 60;              // מטא: לפחות 10 דקות קדימה
+const MAX_AHEAD = 30 * 24 * 3600;       // ולכל היותר 30 יום
+
+function dataUrlToBlob(dataUrl){
+  const m = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl || ""));
+  if (!m) return null;
+  const bin = atob(m[2]); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
+
+// העלאה בינארית לעמוד. graph() עובד עם URLSearchParams; כאן צריך multipart.
+async function graphUpload(env, path, fields, file){
+  if (!env.FB_PAGE_TOKEN) throw fail("not_configured", "חסר טוקן של עמוד הפייסבוק בשרת.", 500);
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(fields)) if (v != null) fd.append(k, String(v));
+  fd.append("access_token", env.FB_PAGE_TOKEN);
+  fd.append("source", file, "photo.jpg");
+  const r = await fetch(`${GRAPH}/${path}`, { method: "POST", body: fd });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.error) throw fail("meta_error", data.error?.message || "Meta דחה את ההעלאה.", 502);
+  return data;
+}
+
+// מתי לפרסם: 0 = עכשיו. עבר או קרוב מדי → עכשיו; רחוק מדי → שגיאה.
+function publishWhen(atMs, nowSec = Math.floor(Date.now() / 1000)){
+  let when = Math.floor(Number(atMs || 0) / 1000);
+  if (!when || when < nowSec + MIN_AHEAD) return 0;
+  if (when > nowSec + MAX_AHEAD) throw fail("bad_request", "אפשר לתזמן עד 30 יום קדימה.");
+  return when;
+}
+
+async function schedulePost(env, b){
+  if (!env.FB_PAGE_ID) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+  const id = String(b.postId || "").slice(0, 60);
+  const text = String(b.text || "").slice(0, 2200);
+  const image = b.image ? dataUrlToBlob(b.image) : null;
+  if (!text && !image) throw fail("bad_request", "אין מה לפרסם — אין טקסט ואין תמונה.");
+  if (image && image.size > 8 * 1024 * 1024) throw fail("bad_request", "התמונה גדולה מ-8MB.");
+
+  const now = Math.floor(Date.now() / 1000);
+  const when = publishWhen(b.at, now);
+  const sched = when ? { published: "false", scheduled_publish_time: String(when) } : {};
+
+  // 1. פייסבוק — התמונה עולה כאן, וזה גם הפוסט
+  const fb = image
+    ? await graphUpload(env, `${env.FB_PAGE_ID}/photos`, { caption: text, ...sched }, image)
+    : await graph(env, `${env.FB_PAGE_ID}/feed`, { message: text, ...sched });
+  const out = { fbPostId: fb.post_id || fb.id || "", fbPhotoId: image ? (fb.id || "") : "",
+    publishAt: (when || now) * 1000, igPending: false, igPostId: "", igSkipped: "", igError: "" };
+
+  // 2. אינסטגרם — עכשיו, או בתור לקרון
+  if (!image) out.igSkipped = "אינסטגרם דורש תמונה";
+  else if (!env.IG_USER_ID) out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת";
+  else if (!when){
+    try { out.igPostId = await igPublishFromPhoto(env, out.fbPhotoId, text); }
+    catch (e){ out.igError = hebrew(e.message); }
+  } else if (!env.FIREBASE_SA) out.igSkipped = "תזמון לאינסטגרם דורש את FIREBASE_SA בשרת";
+  else out.igPending = true;
+
+  // 3. התור — מסמך הפוסט. אם אין חשבון שירות בשרת, האפליקציה כותבת בעצמה.
+  if (id && env.FIREBASE_SA){
+    try { await fsPatch(env, `posts/${id}`, { ...out, status: "scheduled" }); out.saved = true; }
+    catch (e){ out.saveError = hebrew(e.message); }
+  }
+  return out;
+}
+
+// כתובת CDN טרייה של תמונה שכבר בעמוד → קונטיינר → פרסום. הכתובת חתומה ופגה,
+// לכן שולפים אותה ברגע הפרסום ולא בזמן התזמון.
+async function igPublishFromPhoto(env, photoId, caption){
+  if (!photoId) throw fail("bad_request", "אין תמונה לאינסטגרם.");
+  const ph = await graph(env, photoId, { fields: "images" }, "GET");
+  const src = (ph.images || []).slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0];
+  if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
+  const c = await graph(env, `${env.IG_USER_ID}/media`, { image_url: src.source, caption: caption || "" });
+  const p = await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id });
+  return p.id;
+}
+
+// מה מהתור הגיע זמנו. נפרד מהרשת כדי שאפשר לבדוק אותו.
+const dueNow = (docs, nowMs = Date.now()) =>
+  docs.filter(d => d.fields.igPending === true && Number(d.fields.publishAt || 0) > 0 && Number(d.fields.publishAt) <= nowMs);
+
+// הקרון: מה שממתין לאינסטגרם והגיע זמנו
+async function publishDue(env){
+  if (!env.FIREBASE_SA || !env.IG_USER_ID) return { skipped: true };
+  const pending = await fsQuery(env, "posts", [["igPending", "EQUAL", true]]);
+  const results = [];
+  for (const d of dueNow(pending)){
+    const text = [d.fields.text || "", (d.fields.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+    try {
+      const igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
+      await fsPatch(env, `posts/${d.id}`, { igPending: false, igPostId, igError: "" });
+      results.push({ id: d.id, ok: true });
+    } catch (e){
+      // עוד ניסיון או שניים בעשר הדקות הבאות; אחרי זה יוצא מהתור, והסיבה גלויה באפליקציה
+      const tries = Number(d.fields.igTries || 0) + 1;
+      await fsPatch(env, `posts/${d.id}`, { igTries: tries, igError: hebrew(e.message), igPending: tries < 3 });
+      results.push({ id: d.id, ok: false, error: e.message });
+    }
+  }
+  return { checked: pending.length, results };
+}
+
+async function publishState(env){
+  return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID, queue: !!env.FIREBASE_SA };
+}
+
+/* ===== Firestore מהשרת =====
+   חשבון השירות חתום כ-JWT → access token → REST. רק לצורך התור.
+   האפליקציה עצמה ממשיכה לעבוד דרך ה-SDK, עם הכללים. */
+let saTok = { value: "", exp: 0 };
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64urlStr = (s) => b64url(new TextEncoder().encode(s));
+
+async function signSaJwt(sa, nowSec){
+  const header = b64urlStr(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = b64urlStr(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/datastore",
+    aud: "https://oauth2.googleapis.com/token", iat: nowSec, exp: nowSec + 3600 }));
+  const pem = sa.private_key.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${header}.${claims}`));
+  return `${header}.${claims}.${b64url(sig)}`;
+}
+async function saToken(env){
+  if (saTok.value && Date.now() < saTok.exp - 60000) return saTok.value;
+  const jwt = await signSaJwt(JSON.parse(env.FIREBASE_SA), Math.floor(Date.now() / 1000));
+  const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) });
+  const data = await r.json();
+  if (!data.access_token) throw fail("firestore", "חשבון השירות לא התקבל ב-Google.", 500);
+  saTok = { value: data.access_token, exp: Date.now() + (data.expires_in || 3600) * 1000 };
+  return saTok.value;
+}
+const fsBase = (env) => `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+// ערכים בפורמט של Firestore REST, לשני הכיוונים
+function toFs(v){
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === "boolean") return { booleanValue: v };
+  if (typeof v === "number") return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(toFs) } };
+  if (typeof v === "object") return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, toFs(x)])) } };
+  return { stringValue: String(v) };
+}
+function fromFs(f){
+  if (!f) return undefined;
+  if ("stringValue" in f) return f.stringValue;
+  if ("booleanValue" in f) return f.booleanValue;
+  if ("integerValue" in f) return Number(f.integerValue);
+  if ("doubleValue" in f) return f.doubleValue;
+  if ("nullValue" in f) return null;
+  if ("timestampValue" in f) return f.timestampValue;
+  if ("arrayValue" in f) return (f.arrayValue.values || []).map(fromFs);
+  if ("mapValue" in f) return Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, fromFs(x)]));
+  return undefined;
+}
+async function fsPatch(env, path, fields){
+  const tok = await saToken(env);
+  const mask = Object.keys(fields).map(k => "updateMask.fieldPaths=" + encodeURIComponent(k)).join("&");
+  const r = await fetch(`${fsBase(env)}/${path}?${mask}`, { method: "PATCH",
+    headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
+    body: JSON.stringify({ fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, toFs(v)])) }) });
+  if (!r.ok) throw fail("firestore", "העדכון ב-Firestore נכשל: " + (await r.text()).slice(0, 200), 502);
+  return true;
+}
+async function fsQuery(env, colName, wheres){
+  const tok = await saToken(env);
+  const filters = wheres.map(([field, op, value]) => ({ fieldFilter: { field: { fieldPath: field }, op, value: toFs(value) } }));
+  const where = filters.length === 1 ? filters[0] : { compositeFilter: { op: "AND", filters } };
+  const r = await fetch(`${fsBase(env)}:runQuery`, { method: "POST",
+    headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: colName }], where, limit: 50 } }) });
+  if (!r.ok) throw fail("firestore", "השאילתה ב-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  const rows = await r.json();
+  return rows.filter(x => x.document).map(x => ({
+    id: x.document.name.split("/").pop(),
+    fields: Object.fromEntries(Object.entries(x.document.fields || {}).map(([k, v]) => [k, fromFs(v)])),
+  }));
+}
+
 // hours: {sun:[["06:30","15:00"]], mon:[], ...}  -> פורמט של פייסבוק
 /* ---------- שעות בגוגל ----------
    Google Business Profile הוא הערוץ מספר 1 לחיפוש "קפה ליד": מי שנוסע לבניאס

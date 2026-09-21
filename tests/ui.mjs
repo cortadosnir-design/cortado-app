@@ -314,9 +314,44 @@ console.log("\n16. סימוני סטטוס שנעשים לבד");
   ok("'כולם תוזמנו ✓' מסמן את כל המוכנים", st.length === 1 && st[0] === "scheduled", st.join(","));
   await p.close();
 }
+/* ── 17. תזמון בנגיעה אחת ── */
+console.log("\n17. תזמון ופרסום מהקומפוזר");
+{
+  const p = await fresh();
+  await p.evaluate(() => {
+    window.__api["/publish/schedule"] = (b) => ({
+      fbPostId: "fb_1", fbPhotoId: "ph_1", publishAt: b.at, igPending: true, saved: false,
+    });
+  });
+  await p.evaluate(() => window.C.newPost());
+  await p.fill("#cText", "שישי בבוקר, הנוף פתוח והקפה חזק.");
+  await p.fill("#cLine", "אורנה הביאה עוגת תפוחים.");
+  ok("כפתור התזמון גלוי", await p.locator("#schedulePost").isVisible());
+  await p.click("#schedulePost");
+  await p.waitForTimeout(700);
+  const sent = await p.evaluate(() => (window.__apiCalls.find(c => c.path === "/publish/schedule") || {}).body);
+  ok("נשלח לשרת עם טקסט והאשטגים", !!sent && sent.text.includes("אורנה") && sent.text.includes("#"), sent && sent.text.slice(0, 30));
+  ok("נשלח עם זמן עתידי", !!sent && sent.at > Date.now() - 86400000);
+  const doc = await p.evaluate(() => Object.values(window.__store.posts)[0]);
+  ok("הפוסט סומן מתוזמן ונשמר מזהה פייסבוק", doc.status === "scheduled" && doc.fbPostId === "fb_1", doc.status);
+  ok("אינסטגרם מסומן כממתין בתור", doc.igPending === true);
+  const msg = await p.textContent("#compStatus");
+  ok("ההודעה מסבירה מה קרה בשתי הרשתות", /פייסבוק/.test(msg) && /אינסטגרם/.test(msg), msg.slice(0, 60));
+  // פוסט שממתין לאינסטגרם לא מסומן "פורסם" ע"י ה-sweep
+  const after = await p.evaluate(async () => {
+    const id = Object.keys(window.__store.posts)[0];
+    window.__store.posts[id].date = "2020-01-01"; window.__store.posts[id].time = "10:00";
+    window.S.posts = Object.entries(window.__store.posts).map(([i, x]) => ({ id: i, ...x }));
+    window.C.render(); await new Promise(r => setTimeout(r, 200));
+    return window.__store.posts[id].status;
+  });
+  ok("ממתין לאינסטגרם לא נסגר כ'פורסם'", after === "scheduled", after);
+  await p.close();
+}
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 await b.close();
 process.exit(fail ? 1 : 0);
+
 
 
