@@ -8,7 +8,7 @@ const CACHE = "cortado-shell-" + VERSION;
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./playbook.js",
   "./shifts.js", "./creative.js", "./reach.js", "./ops.js", "./launch.js", "./now.js", "./analyze.js",
   "./table.js", "./xlsx.js", "./sales.js", "./sales-stats.js", "./weather.js", "./season.js", "./people.js",
-  "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html",
+  "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html", "./hours.js",
   "./icon-192.png", "./icon-512.png"];
 // בכוונה בלי skipWaiting אוטומטי: החלפה באמצע חיים מגישה קבצים חדשים
 // ללשונית שכבר מריצה JS ישן — וזה בדיוק "HTML חדש עם JS ישן" שמתוקן
