@@ -46,9 +46,10 @@
 | נתיב | מה |
 |---|---|
 | `/health` | `{ok:true}` בלי אימות |
-| `/ai/post` `/ai/week` `/ai/brief` `/ai/angle` `/ai/insights` | Gemini |
+| `/ai/post` `/ai/week` `/ai/brief` `/ai/angle` `/ai/insights` | Gemini: כתיבה, תכנון שבוע, תחקיר, כיוון, תובנות |
+| `/ai/analyze` `/ai/zreport` | Gemini: שאלה חופשית על טבלה, וקריאת דוח Z מצילום |
+| `/insights/posts` | מושך חשיפה, לייקים ושיתופים ממטא לפוסטים שפורסמו |
 | `/publish/schedule` | פוסט + תמונה + זמן → פייסבוק מתוזמן, אינסטגרם בתור |
 | `/publish/state` | מה מחובר: פייסבוק, אינסטגרם, התור |
-| `/publish/facebook` `/publish/instagram` | פרסום מיידי עם כתובת תמונה חיצונית |
 | `/hours/facebook` `/hours/google` | שעות פתיחה |
 | `/status` `/setup/pages` | חיבור העמוד |
