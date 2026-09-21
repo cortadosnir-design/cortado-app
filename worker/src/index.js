@@ -383,9 +383,14 @@ async function aiPost(env, b){
     hoursLine(b) ? `שעות הפתיחה השבוע (אלה העובדות, אל תשנה אותן):\n${hoursLine(b)}` : "",
     b.avoid ? `זו הטיוטה הקודמת. כתוב משהו אחר לגמרי, פתיחה אחרת וזווית אחרת:\n${String(b.avoid).slice(0, 600)}` : "",
     "סיים בקריאה לפעולה אחת קונקרטית או בשאלה אחת. לא בשתיהן.",
+    // כשיש תמונה, היא העובדה החזקה ביותר שיש לכותב על הפוסט הזה.
+    b.photos && b.photos.length
+      ? "מצורפת התמונה שתתפרסם עם הפוסט. הסתכל עליה וכתוב על מה שבאמת רואים בה — " +
+        "פרט אחד קונקרטי משם שווה יותר מכל תיאור כללי. אל תתאר את התמונה במילים, תישען עליה."
+      : "",
     'החזר JSON בלבד: {"text":"טקסט הפוסט","hashtags":["#..."],"shoot":"מה לצלם, משפט אחד"}. 8–12 האשטגים בעברית, לא יותר.',
   ].filter(Boolean).join("\n\n");
-  const r = await gemini(env, prompt, { json: true });
+  const r = await gemini(env, prompt, { json: true, images: b.photos });
   return {
     text: String(r.text || "").trim(),
     hashtags: Array.isArray(r.hashtags) ? r.hashtags.filter(h => typeof h === "string" && h.startsWith("#")).slice(0, 15) : [],

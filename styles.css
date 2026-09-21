@@ -458,3 +458,6 @@ table.t tr.me a{color:var(--accent)}
 .card.fold[open]>summary::after{transform:rotate(180deg)}
 .card.fold[open]{padding-bottom:16px}
 .card.fold>summary+*{margin-top:0}
+
+/* המשבצת המובילה: הצעד הבא, לא אחת מארבע. */
+.slot.next{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}

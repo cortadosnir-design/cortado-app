@@ -30,6 +30,7 @@ let editSlot = null;         // המשבצת שהפוסט שייך לה
 let aiOrigin = null;         // הטיוטה שה-AI הציע, כדי ללמוד מהתיקון ולשמור על שער ההוספה
 let lastShoot = "";          // הצעת הצילום מהטיוטה האחרונה
 let pendingImage = null;
+let composerPhoto = null;   // data URL מוקטן, נשלח ל-AI כדי שיראה את התמונה
 let rhythm = null;           // brand/rhythm
 let clips = [];              // brand/clips.items
 
@@ -269,11 +270,15 @@ function renderSlots(){
   }
 
   const skel = (S.creative && S.creative.slots) || {};
+  // משבצת אחת מובילה. ארבע משבצות עם ארבעה כפתורים ראשיים הן ארבע החלטות;
+  // הקרובה בזמן שעוד לא נכתבה היא הצעד הבא, והשאר יכולות לחכות.
+  const nextKey = (items.find(({ p, past }) => !past && !isDone(p)) || {}).s?.key;
   items.forEach(({ s, p, past }) => {
     const gone = past && !p;                       // עבר וריק
+    const isNext = s.key === nextKey;
     const date = slotDate(s);
     const h = holidayOn(date);
-    const card = el("div", { class: "slot " + (gone ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty") });
+    const card = el("div", { class: "slot " + (gone ? "gone" : isDone(p) ? "done" : p ? "draft" : "empty") + (isNext ? " next" : "") });
     card.append(el("div", { class: "slothead" },
       el("div", {}, el("b", { text: slotLabel(s) }),
         el("span", { class: "small", text: ` · ${DAYS[s.day]} ${dm(addDays(S.weekStart, s.day))} · ${s.time}` }),
@@ -289,8 +294,8 @@ function renderSlots(){
       card.append(el("div", { class: "small", text: sk && sk.angle ? "כיוון: " + sk.angle : "עוד לא נכתב. " + (PILLAR3[s.pillar] || {}).note }));
     }
     card.append(el("div", { class: "actions" },
-      el("button", { class: (p || gone) ? "link" : "primary",
-        text: !p ? (gone ? "כתוב בכל זאת" : "כתוב") : isDone(p) ? "פתח" : "המשך",
+      el("button", { class: (isNext && !gone) ? "primary" : "link",
+        text: !p ? (gone ? "כתוב בכל זאת" : isNext ? "כתוב עכשיו" : "כתוב") : isDone(p) ? "פתח" : "המשך",
         onclick: () => p ? loadPost(p.id) : openSlot(s) }),
       isDone(p) ? el("button", { class: "link", text: "העתק", onclick: (e) => copyText(fullText(p), e.currentTarget, "העתק") }) : null));
     box.append(card);
@@ -517,7 +522,7 @@ const ai = (path, body) => api(path, { ...aiContext(), ...body });
 
 /* ===== עורך הפוסט ===== */
 function resetComposer(){
-  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; lastShoot = "";
+  editing = null; editSlot = null; aiOrigin = null; pendingImage = null; composerPhoto = null; lastShoot = "";
   $("cText").value = ""; $("cLine").value = ""; $("cIdea").value = "";
   $("cHash").value = defaultHashtags().join(" ");
   $("cImage").value = ""; $("cPreview").hidden = true; $("cPhoto").value = "";
@@ -657,6 +662,7 @@ async function write(btn){
         holiday: (holidayOn(date) || [])[1] || "",
         pillar: s ? slotLabel(s) : "", pillarNote: s ? (PILLAR3[s.pillar] || {}).note : "",
         format: $("cFormat").value,
+        photos: composerPhoto ? [composerPhoto] : [],    // התמונה שתתפרסם, אם כבר נבחרה
         avoid: aiOrigin ? aiOrigin.slice(0, 600) : "",   // גרסה אחרת = לא אותו דבר שוב
       });
       if (r.text){ $("cText").value = cleanTells(r.text); aiOrigin = $("cText").value; }
@@ -888,6 +894,8 @@ export function init(){
     const r = new FileReader();
     r.onload = () => { $("cPreview").src = r.result; $("cPreview").hidden = false; };
     r.readAsDataURL(f);
+    // גם ל-AI: מוקטנת, כדי שהכותב יראה מה באמת בתמונה במקום לנחש.
+    shrinkToDataUrl(f).then(u => { composerPhoto = u; }).catch(() => { composerPhoto = null; });
     status("compStatus", "ok", "התמונה תעלה בשמירה.");
   });
 

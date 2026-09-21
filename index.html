@@ -206,6 +206,13 @@
             <label for="cFormat">פורמט<select id="cFormat"></select></label>
             <p class="small" id="formatHint"></p>
           </div>
+          <!-- התמונה ראשונה: היא מה שמביא אנשים, והיא גם מה שהכותב מסתכל עליו. -->
+          <label for="cPhoto">התמונה — ממנה מתחילים
+            <input id="cPhoto" type="file" accept="image/*" capture="environment">
+          </label>
+          <img id="cPreview" alt="" hidden>
+          <input id="cImage" type="url" dir="ltr" hidden>
+          <p class="small" id="photoHint">אם תבחר תמונה עכשיו, הטיוטה תיכתב עליה ולא באוויר.</p>
           <label for="cIdea">הכיוון — משפט אחד</label>
           <div class="angle">
             <input id="cIdea" type="text" placeholder="למשל: הגשם הראשון, הקיטור, שלושה קבועים בשמונה בבוקר">
@@ -222,11 +229,6 @@
           <p class="small" id="gateHint"></p>
           <p class="small" id="shootHint"></p>
           <label for="cHash">האשטגים<input id="cHash" type="text" dir="rtl"></label>
-          <label for="cPhoto">תמונה או וידאו
-            <input id="cPhoto" type="file" accept="image/*" capture="environment">
-          </label>
-          <img id="cPreview" alt="" hidden>
-          <input id="cImage" type="url" dir="ltr" hidden>
           <div class="actions">
             <button id="saveIdea">שמור טיוטה</button>
             <button class="primary" id="saveReady">מוכן ✓</button>
