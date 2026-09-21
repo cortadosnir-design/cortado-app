@@ -1,5 +1,6 @@
-// מחולל תמונת הפוסט. הצילום שלך, הטיפוגרפיה שלנו. הכל בדפדפן, בלי שרת.
-import { S, $, el, clear, DAYS, dm, addDays, status, download, on, api, withBusy, WORKER_URL } from "./core.js";
+// מחולל תמונת הפוסט. אומרים במילים מה צריך להיות שם — ומקבלים תמונה.
+// אין פקדים, אין תפריטים, אין מה לעצב. הצילום שלך, הטיפוגרפיה שלנו, הכל בדפדפן.
+import { S, $, el, DAYS, status, on, api, withBusy, WORKER_URL } from "./core.js";
 import { hoursByDay } from "./shifts.js";
 
 const SIZES = { portrait: [1080, 1350], square: [1080, 1080], story: [1080, 1920] };
@@ -10,20 +11,6 @@ const THEMES = {
   olive:  { bg: "#3C4A36", ink: "#F4F1E6", accent: "#E0C27C", sub: "#BFC4B2" },
   clay:   { bg: "#A8654A", ink: "#FDF6EC", accent: "#F3D9A4", sub: "#EBCDBB" },
 };
-const THEME_LABEL = { cream: "שמנת", night: "לילה", olive: "זית", clay: "חמרה" };
-const LAYOUTS = { photo: "תמונה עם טקסט", plain: "טקסט בלבד", hours: "לוח שעות" };
-
-/* ===== תבניות =====
-   3 גדלים × 4 ערכות × 3 פריסות = 36 צירופים, ועוד שלושה שדות טקסט. זה ביקש
-   מהבעלים להיות מעצב. במקום זה: ארבע תבניות. הטקסט נלקח מהפוסט לבד, והפקדים
-   יורדים ל"לשנות ידנית" — לא נמחקים, רק מפסיקים להיות השלב הראשון. */
-const TEMPLATES = [
-  { key: "daily",   label: "יומיומי", hint: "הצילום שלך",     layout: "photo", theme: "cream", size: "portrait" },
-  { key: "hours",   label: "שעות",    hint: "מתי ואיפה",       layout: "hours", theme: "olive", size: "portrait" },
-  { key: "special", label: "מיוחד",   hint: "חג, אירוע",       layout: "photo", theme: "night", size: "portrait" },
-  { key: "free",    label: "פתוח",    hint: "תאר במילים",      free: true },
-];
-let activeTpl = "";
 
 let photo = null;   // HTMLImageElement
 let ready = false;
@@ -69,8 +56,6 @@ function draw(){
   const pad = Math.round(W * 0.085);
   ctx.fillStyle = t.bg;
   ctx.fillRect(0, 0, W, H);
-
-  let textTop = pad;
 
   if (state.layout === "photo" && photo){
     // התמונה ממלאת את הפריים, והטקסט יושב על שיפוע כהה בתחתית
@@ -134,7 +119,7 @@ function draw(){
   const maxW = W - pad * 2;
   const headSize = Math.round(W * (state.head.length > 60 ? 0.068 : state.head.length > 30 ? 0.085 : 0.105));
   ctx.font = `400 ${headSize}px "Secular One", sans-serif`;
-  const headLines = wrap(ctx, state.head || "כתוב כותרת", maxW);
+  const headLines = wrap(ctx, state.head || "כתוב במילים מה צריך להיות כאן", maxW);
   ctx.font = `400 ${Math.round(W*0.042)}px Assistant, sans-serif`;
   const subLines = state.sub ? wrap(ctx, state.sub, maxW) : [];
 
@@ -182,7 +167,6 @@ function footer(ctx, W, H, pad, subColor, accent){
 }
 
 /* ===== תצוגה ===== */
-export function wake(){ if (!ready){ ready = true; refresh(); } }
 async function refresh(){
   try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
   const c = draw();
@@ -192,85 +176,105 @@ async function refresh(){
   $("posterMeta").textContent = `${c.width}×${c.height}`;
 }
 
+// בפתיחה הראשונה מציירים נקודת מוצא מהטקסט של הפוסט, כדי שלא יהיה ריק.
+export function wake(){
+  if (ready) return;
+  ready = true;
+  if (!state.head) Object.assign(state, fromPostText());
+  refresh();
+}
+
+function fromPostText(){
+  const text = ($("cText") ? $("cText").value : "").trim();
+  if (!text) return {};
+  const lines = text.split("\n").filter(l => l.trim());
+  return { head: (lines[0] || "").slice(0, 60), sub: lines.slice(1, 3).join(" ").slice(0, 110) };
+}
+
 function setPhoto(file){
   if (!file) return;
   const r = new FileReader();
   r.onload = () => {
     const im = new Image();
-    im.onload = () => { photo = im; state.layout = "photo"; $("posterLayout").value = "photo"; refresh(); };
+    im.onload = () => {
+      photo = im;
+      if (state.layout !== "hours") state.layout = "photo";
+      refresh();
+      status("posterStatus", "ok", "הצילום נטען. כתוב מה צריך להיות עליו.");
+    };
     im.onerror = () => status("posterStatus", "bad", "לא הצלחתי לקרוא את התמונה.");
     im.src = r.result;
   };
   r.readAsDataURL(file);
 }
 
-// silent: כשתבנית נבחרת, הטקסט נמשך מהפוסט בלי הודעה ובלי נדנוד אם אין טקסט.
-function fromPost(silent){
-  const text = ($("cText").value || "").trim();
-  if (!text){ if (!silent) status("posterStatus", "warn", "אין טקסט בפוסט. כתוב קודם."); return false; }
-  const lines = text.split("\n").filter(l => l.trim());
-  state.head = (lines[0] || "").slice(0, 90);
-  state.sub = lines.slice(1, 3).join(" ").slice(0, 140);
-  syncControls();
+/* ===== מילים → מפרט =====
+   הדרך הרגילה: המודל מתרגם את המשפט למפרט. אם אין שרת, או שהוא נפל,
+   יש כאן קריאה מקומית של אותן מילים — פחות חכמה, אבל אף פעם לא מסך מת. */
+const CUES = [
+  [/סטורי|story|אנכי/i,                          s => { s.size = "story"; }],
+  [/ריבוע|רבוע|square/i,                          s => { s.size = "square"; }],
+  [/שעות|מתי פתוח|מתי אנחנו|לוח/i,                s => { s.layout = "hours"; }],
+  [/בלי (ה?תמונה|ה?צילום)|טקסט בלבד|רק טקסט|רקע/i, s => { s.layout = "plain"; }],
+  // קודם המועד, אחר כך מה שנאמר במפורש על הגוון — כדי ש"כהה לערב חג" ייצא כהה.
+  [/חג|חגיגי|חמים|סתיו|חורף/i,                    s => { s.theme = "clay"; }],
+  [/רגוע|שקט|ירוק|טבע|זית/i,                      s => { s.theme = "olive"; }],
+  [/כהה|לילה|דרמטי|שחור/i,                        s => { s.theme = "night"; }],
+  [/בהיר|בוקר|נקי|יומיומי|רגיל/i,                 s => { s.theme = "cream"; }],
+];
+
+function localSpec(want){
+  const s = { layout: photo ? "photo" : "plain", theme: "cream", size: "portrait", head: "", sub: "", badge: "" };
+  for (const [re, set] of CUES) if (re.test(want)) set(s);
+  // כותרת: מה שבמרכאות, אחרת "כותרת: ...", אחרת מהפוסט עצמו.
+  const q = /["״“'](.{2,60}?)["״”']/.exec(want) || /כותרת[:\s]+(.{2,60})/.exec(want);
+  if (q) s.head = q[1].trim();
+  else Object.assign(s, fromPostText());
+  if (s.layout === "hours"){ s.head = ""; s.sub = ""; s.badge = "שעות השבוע"; }
+  return s;
+}
+
+function apply(spec, note, kind){
+  Object.assign(state, spec);
+  if (state.layout !== "hours" && !state.head) Object.assign(state, fromPostText());
   refresh();
-  if (!silent) status("posterStatus", "ok", "נלקח מהפוסט. אפשר לקצר ולערוך.");
-  return true;
+  status("posterStatus", kind || "ok", note);
 }
 
-// הפקדים הידניים משקפים תמיד את המצב, כדי שמי שפותח "לשנות" יראה מה יש עכשיו.
-function syncControls(){
-  const set = (id, v) => { const n = $(id); if (n) n.value = v; };
-  set("posterLayout", state.layout); set("posterTheme", state.theme); set("posterSize", state.size);
-  set("posterHead", state.head); set("posterSub", state.sub); set("posterBadge", state.badge);
-}
-
-function renderTemplates(){
-  const box = $("posterTpl"); if (!box) return;
-  clear(box);
-  TEMPLATES.forEach(t => {
-    if (t.free && !(S.isOwner && WORKER_URL)) return;     // בלי שרת אין "פתוח"
-    box.append(el("button", {
-      class: "tplbtn" + (activeTpl === t.key ? " on" : ""),
-      onclick: () => pickTemplate(t.key),
-    }, el("b", { text: t.label }), el("span", { class: "small", text: t.hint })));
-  });
-}
-
-function pickTemplate(key){
-  const t = TEMPLATES.find(x => x.key === key); if (!t) return;
-  activeTpl = key;
-  renderTemplates();
-  const free = $("posterFreeBox");
-  if (free) free.hidden = !t.free;
-  if (t.free){ const i = $("posterFree"); if (i) i.focus(); return; }
-
-  state.layout = t.layout; state.theme = t.theme; state.size = t.size;
-  // "שעות" מצייר את השעות עצמן, אז כותרת מהפוסט רק תסתיר אותן.
-  if (t.layout === "hours"){ state.head = ""; state.sub = ""; state.badge = state.badge || "שעות השבוע"; }
-  const took = t.layout === "hours" ? true : fromPost(true);
-  syncControls();
-  refresh();
-  status("posterStatus", "ok", took ? `תבנית "${t.label}" מוכנה.` : `תבנית "${t.label}" מוכנה. כתוב טקסט בפוסט והוא ייכנס לבד.`);
-}
-
-// "פתוח": מתארים במילים, והמודל מחזיר מפרט. לא מחזיר את 36 הצירופים.
-async function freeBuild(btn){
-  const want = ($("posterFree").value || "").trim();
-  if (!want){ status("posterStatus", "warn", "כתוב במילים מה אתה רוצה שיהיה בתמונה."); return; }
+async function build(btn){
+  const box = $("posterSay");
+  const want = (box.value || "").trim();
+  if (!want){
+    status("posterStatus", "warn", "כתוב בשורה אחת מה צריך להיות בתמונה. למשל: משהו כהה לערב חג, עם הנוף.");
+    box.focus();
+    return;
+  }
+  if (!WORKER_URL || !S.isOwner){
+    apply(localSpec(want), "נבנה לפי מה שכתבת. (בלי שרת ה-AI — הקריאה כאן פשוטה יותר.)", "warn");
+    return;
+  }
   await withBusy(btn, async () => {
     try {
       const r = await api("/ai/poster", {
         want,
-        text: ($("cText").value || "").slice(0, 500),
+        text: ($("cText") ? $("cText").value : "").slice(0, 500),
         hasPhoto: !!photo,
       });
-      state.layout = r.layout; state.theme = r.theme; state.size = r.size;
-      state.head = r.head || state.head; state.sub = r.sub || ""; state.badge = r.badge || "";
-      syncControls();
-      refresh();
-      status("posterStatus", "ok", "נבנה. אפשר לשנות ידנית למטה.");
-    } catch (e){ status("posterStatus", "bad", e.message); }
+      apply(r, "מוכן. לא מתאים? כתוב את זה אחרת ותקבל גרסה אחרת.");
+    } catch (e){
+      apply(localSpec(want), (e.message || "ה-AI לא ענה") + " בניתי לפי המילים שלך בלי AI.", "warn");
+    }
   });
+}
+
+// לשאול מבחוץ, במילים. "שגר" משתמש בזה בשביל תמונת שעות.
+export function ask(words){
+  const box = $("posterSay");
+  if (box){ box.value = words; }
+  const card = $("posterCard");
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  wake();
+  build($("posterGo"));
 }
 
 function save(){
@@ -287,31 +291,11 @@ function save(){
 
 /* ===== חיווט ===== */
 export function init(){
-  const lay = $("posterLayout");
-  Object.entries(LAYOUTS).forEach(([k,v]) => lay.append(el("option", { value: k, text: v })));
-  const th = $("posterTheme");
-  Object.keys(THEMES).forEach(k => th.append(el("option", { value: k, text: THEME_LABEL[k] })));
-  const sz = $("posterSize");
-  [["portrait","פוסט (4:5)"],["square","ריבוע (1:1)"],["story","סטורי (9:16)"]]
-    .forEach(([k,v]) => sz.append(el("option", { value: k, text: v })));
-
-  lay.addEventListener("change", (e) => { state.layout = e.target.value; refresh(); });
-  th.addEventListener("change", (e) => { state.theme = e.target.value; refresh(); });
-  sz.addEventListener("change", (e) => { state.size = e.target.value; refresh(); });
-  $("posterHead").addEventListener("input", (e) => { state.head = e.target.value; refresh(); });
-  $("posterSub").addEventListener("input", (e) => { state.sub = e.target.value; refresh(); });
-  $("posterBadge").addEventListener("input", (e) => { state.badge = e.target.value; refresh(); });
   $("posterPhoto").addEventListener("change", (e) => setPhoto(e.target.files && e.target.files[0]));
-  $("posterClearPhoto").addEventListener("click", () => { photo = null; $("posterPhoto").value = ""; refresh(); });
-  $("posterFromPost").addEventListener("click", () => fromPost(false));
+  $("posterGo").addEventListener("click", (e) => build(e.currentTarget));
+  $("posterSay").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); build($("posterGo")); }
+  });
   $("posterSave").addEventListener("click", save);
-
-  renderTemplates();
-  const go = $("posterFreeGo");
-  if (go) go.addEventListener("click", (e) => freeBuild(e.currentTarget));
-  const fr = $("posterFree");
-  if (fr) fr.addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); freeBuild($("posterFreeGo")); } });
-
   on("week", () => { if (ready && state.layout === "hours") refresh(); });
-  on("state", renderTemplates);   // "פתוח" מופיע רק כשיש שרת ומנהל
 }

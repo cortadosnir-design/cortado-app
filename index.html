@@ -259,36 +259,18 @@
 
           <div class="card" id="posterCard">
             <h2>תמונת הפוסט</h2>
-            <p class="small">בוחרים תבנית, והטקסט נלקח מהפוסט. אין מה לעצב.</p>
-            <div class="tpl" id="posterTpl"></div>
+            <p class="small">אומרים במילים מה צריך להיות שם. אין פקדים ואין מה לעצב.</p>
 
-            <!-- "פתוח": מתארים במילים ומקבלים עיצוב. לא מחזיר 36 צירופים. -->
-            <div class="angle" id="posterFreeBox" hidden>
-              <label for="posterFree" class="sr-label">מה אתה רוצה שיהיה בתמונה</label>
-              <input id="posterFree" type="text" placeholder="למשל: משהו כהה לערב חג, עם הנוף…">
-              <button class="icon" id="posterFreeGo" data-api title="בנה לי">✨</button>
+            <div class="say">
+              <label for="posterSay" class="sr-label">מה צריך להיות בתמונה</label>
+              <textarea id="posterSay" rows="2" placeholder="למשל: משהו כהה לערב חג, הכותרת &quot;פתוחים עד מאוחר&quot;"></textarea>
+              <button class="primary" id="posterGo">בנה לי</button>
             </div>
 
-            <label for="posterPhoto">צילום מהעגלה
+            <label for="posterPhoto">צילום מהעגלה, אם יש
               <input id="posterPhoto" type="file" accept="image/*" capture="environment">
             </label>
-            <div class="actions">
-              <button class="link" id="posterClearPhoto">הסר תמונה</button>
-            </div>
 
-            <!-- הפקדים לא נמחקו, רק ירדו. מי שרוצה לכוון — פותח. -->
-            <details class="tweak" id="posterTweak">
-              <summary>לשנות ידנית</summary>
-              <div class="two-col">
-                <label for="posterLayout">סגנון<select id="posterLayout"></select></label>
-                <label for="posterSize">גודל<select id="posterSize"></select></label>
-              </div>
-              <label for="posterTheme">צבעים<select id="posterTheme"></select></label>
-              <label for="posterBadge">תווית קטנה<input id="posterBadge" type="text" placeholder="למשל: דוכן אורח"></label>
-              <label for="posterHead">כותרת<input id="posterHead" type="text" placeholder="המשפט שעוצר את הגלילה"></label>
-              <label for="posterSub">שורה שנייה<input id="posterSub" type="text" placeholder="לא חובה"></label>
-              <div class="actions"><button id="posterFromPost">קח מהפוסט שוב</button></div>
-            </details>
             <div class="posterwrap">
               <img id="posterPreview" alt="תצוגה מקדימה של תמונת הפוסט" hidden>
               <span class="small mono" id="posterMeta"></span>

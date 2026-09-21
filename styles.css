@@ -462,14 +462,9 @@ table.t tr.me a{color:var(--accent)}
 /* המשבצת המובילה: הצעד הבא, לא אחת מארבע. */
 .slot.next{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 
-/* ===== תבניות תמונת הפוסט =====
-   ארבעה כפתורים במקום 36 צירופים. הפקדים לא נמחקו — הם ב"לשנות ידנית". */
-.tpl{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px;margin:4px 0 12px}
-.tplbtn{display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:10px 6px;min-height:58px;border-radius:12px;line-height:1.25;text-align:center}
-.tplbtn b{font-size:15px}
-.tplbtn .small{color:var(--muted);font-size:11px}
-.tplbtn.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
-.tplbtn.on .small{color:var(--accent)}
-.tweak{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
-.tweak>summary{cursor:pointer;color:var(--muted);font-size:14px;min-height:40px;display:flex;align-items:center}
+/* ===== תמונת הפוסט =====
+   שדה אחד ומילים. אין תבניות, אין תפריטים, אין מה לעצב. */
+.say{display:flex;gap:8px;align-items:flex-start;margin:4px 0 14px}
+.say textarea{flex:1;min-width:0;resize:vertical;min-height:52px;line-height:1.4}
+.say button{flex:none;align-self:stretch;white-space:nowrap}
+@media (max-width:420px){ .say{flex-direction:column} .say button{width:100%;align-self:auto} }

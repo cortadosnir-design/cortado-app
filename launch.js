@@ -3,6 +3,7 @@
 import { S, db, DAYS, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
   doc, setDoc, serverTimestamp } from "./core.js";
 import { hoursByDay, hoursPairs, hoursText, phase } from "./shifts.js";
+import { ask as askPoster } from "./poster.js";
 
 const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const GBP_URL = "https://business.google.com/";
@@ -52,15 +53,11 @@ function render(){
   }
 }
 
+// תמונת השעות נבנית באותה דרך כמו כל תמונה אחרת: במילים.
 function toHoursPoster(){
   const tab = $("tab-creative");
   if (tab) tab.click();
-  const lay = $("posterLayout");
-  if (lay){ lay.value = "hours"; lay.dispatchEvent(new Event("change")); }
-  const head = $("posterHead");
-  if (head){ head.value = "שעות השבוע"; head.dispatchEvent(new Event("input")); }
-  const card = $("posterCard");
-  if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  askPoster("לוח שעות הפתיחה של השבוע");
 }
 
 /* ===== השיגור ===== */
