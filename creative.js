@@ -831,6 +831,7 @@ function renderComposerMeta(){
   $("formatHint").textContent = f ? f.note : "";
   renderFixed();
   renderTemplates();
+  renderHoursState();
 
   const text = $("cText").value || "";
   const n = wordCount(text);
@@ -897,7 +898,15 @@ function renderTemplates(){
   renderTemplateNote();
 }
 
+function applyHoursDefault(){
+  const sel = $("cHours");
+  if (!sel || sel.dataset.touched) return;
+  const t = currentTemplate();
+  sel.value = (t && t.cta === "hours") ? "week" : "day";
+}
+
 function renderTemplateNote(){
+  applyHoursDefault();
   const box = $("tplNote");
   if (!box) return;
   clear(box);
@@ -1054,24 +1063,64 @@ async function suggestAngle(btn){
 }
 
 /* ===== שמירה ===== */
-function mergedText(){
+/* מה שאדם כתב: הטיוטה והשורה שלך. שער ההוספה נמדד על זה בלבד —
+   שורת השעות נוספת אוטומטית, ואם היא נספרת כ"תוספת שלך" השער נפתח
+   מעצמו וטיוטת AI יוצאת החוצה בלי שנגעת בה. */
+function humanText(){
   const text = $("cText").value.trim();
   const line = $("cLine").value.trim();
-  const body = (!line || text.includes(line)) ? text : (text ? text + "\n\n" + line : line);
-  return withHours(body);
+  return (!line || text.includes(line)) ? text : (text ? text + "\n\n" + line : line);
 }
+const mergedText = () => withHours(humanText());
 
-/* הפתיחה של אותו היום נספחת לכל פוסט. זו העובדה שהכי הרבה אנשים מחפשים,
-   והיא נגזרת מהמשמרות — אז היא לא יכולה לסתור את הלוח. אם כבר כתבת אותה
-   בגוף הטקסט, לא מוסיפים שוב. */
+/* שעות הפתיחה נספחות לפוסט. זו העובדה שהכי הרבה אנשים מחפשים, והיא
+   נגזרת מהמשמרות — אז היא לא יכולה לסתור את הלוח.
+
+   שלושה מצבים: בלי · יום הפרסום · כל מה שנשאר עד סוף השבוע.
+   האחרון הוא מה שפוסט סופ״ש באמת צריך: לא "היום", אלא "מתי אפשר להגיע".
+
+   התנאי היחיד: שהשעות באמת ידועות לתאריך הזה. שבוע שעוד לא ננעל יכול
+   לזוז, ולכן הממשק מתריע — אבל ההחלטה בידיים שלך. */
 function withHours(body){
   const date = $("cDate").value;
-  const h = date ? Card.hoursOn(date) : null;
-  if (!h || !h.day) return body;
-  if (!$("cHours") || !$("cHours").checked) return body;
+  const mode = ($("cHours") && $("cHours").value) || "day";
+  if (!date || mode === "none") return body;
+
+  if (mode === "week"){
+    const days = Card.hoursAhead(date);
+    if (!days.length) return body;
+    const block = "שעות עד סוף השבוע:\n" + days.map(d => `${d.day} ${d.text}`).join("\n");
+    if (days.every(d => body.includes(d.text))) return body;
+    return body ? body + "\n\n" + block : block;
+  }
+
+  const h = Card.hoursOn(date);
+  if (!h.known) return body;
   const line = h.open ? `${h.day}: ${h.text}` : `${h.day}: סגור`;
   if (body.includes(h.text) || body.includes(line)) return body;
   return body ? body + "\n\n" + line : line;
+}
+
+/* מצב השעות, מוצג בקומפוזר. שלוש אפשרויות ושלוש אמירות שונות:
+   אין נתונים · יש אבל השבוע עוד פתוח לשינויים · נעול, כלומר סופי. */
+function renderHoursState(){
+  const box = $("hoursState");
+  if (!box) return;
+  const date = $("cDate").value;
+  if (!date){ box.textContent = ""; box.className = "small"; return; }
+  const h = Card.hoursOn(date);
+  if (!h.known){
+    box.textContent = "אין שעות לתאריך הזה — הוא מחוץ לשבוע שמוצג בלוח. הכרטיס ייבנה בלי שורת השעות.";
+    box.className = "small warn";
+    return;
+  }
+  if (!h.locked){
+    box.textContent = `${h.day}: ${h.text} — אבל השבוע עוד לא ננעל, והשיבוץ עשוי לזוז. שווה לנעול לפני שמפרסמים שעות.`;
+    box.className = "small warn";
+    return;
+  }
+  box.textContent = `${h.day}: ${h.text} · השבוע נעול, השעות סופיות.`;
+  box.className = "small ok";
 }
 
 async function savePost(newStatus, btn){
@@ -1079,8 +1128,9 @@ async function savePost(newStatus, btn){
   if (!date){ status("compStatus", "warn", "בחר תאריך."); return; }
   const text = mergedText();
   if (newStatus !== "idea" && !text){ status("compStatus", "warn", "אין טקסט."); return; }
-  // שער ההוספה: טיוטת AI לא יוצאת החוצה בלי שנגעת בה.
-  if (newStatus !== "idea" && aiOrigin && !$("cLine").value.trim() && addedWords(aiOrigin, text) < 4){
+  // שער ההוספה: טיוטת AI לא יוצאת החוצה בלי שנגעת בה. נמדד על הטקסט
+  // האנושי בלבד, בלי שורת השעות שנוספת מעצמה.
+  if (newStatus !== "idea" && aiOrigin && !$("cLine").value.trim() && addedWords(aiOrigin, humanText()) < 4){
     status("compStatus", "warn", "רגע. משפט אחד משלך למטה — פרט, שם, מה קרה היום — ואז מוכן.");
     $("cLine").focus(); return;
   }
@@ -1403,7 +1453,10 @@ export function init(){
   if ($("cTemplate")) $("cTemplate").addEventListener("change", renderTemplateNote);
   if ($("cBuildCard")) $("cBuildCard").addEventListener("click", (e) => buildCard(e.currentTarget));
   if ($("cHead")) $("cHead").addEventListener("input", renderPreview);
-  if ($("cHours")) $("cHours").addEventListener("change", renderComposerMeta);
+  if ($("cHours")) $("cHours").addEventListener("change", (e) => {
+    e.currentTarget.dataset.touched = "1";   // בחירה ידנית גוברת על ברירת המחדל של התבנית
+    renderComposerMeta();
+  });
   renderTargets();
   Card.bind();
   Card.bindDesigner();

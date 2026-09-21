@@ -2,10 +2,10 @@
 // למה בדפדפן ולא בשרת: אין Firebase Storage (תוכנית Spark), והתמונה שמתפרסמת
 // ממילא נוסעת ל-Meta כ-data URL דרך /publish/schedule. קנבס מייצר בדיוק את זה.
 // העיקרון: מה שחוזר בכל פוסט לא נכתב מחדש בכל פוסט. הוא נצרב.
-import { db, DAYS, $, el, clear, fromYmd, doc, setDoc, deleteDoc, collection, query, orderBy,
+import { S, db, DAYS, $, el, clear, ymd, fromYmd, addDays, doc, setDoc, deleteDoc, collection, query, orderBy,
   onSnapshot, serverTimestamp, track } from "./core.js";
 import { CARD, BRAND, THEMES, TARGETS, targetOf } from "./playbook.js";
-import { hoursByDay } from "./shifts.js";
+import { hoursByDay, phase } from "./shifts.js";
 
 /* ===== ספריית המדיה =====
    כל מה שאפשר לשים על כרטיס יושב כאן: סמלים, צילומי עגלה, מדבקות, חותמות,
@@ -82,19 +82,53 @@ const loadImage = (src) => new Promise((resolve) => {
   img.src = src;
 });
 
-/* ===== שעות היום הזה =====
-   זו הדרישה שחוזרת בכל פוסט: מה הפתיחה באותו היום. המקור הוא המשמרות
-   שכבר שובצו, לא טקסט שמישהו הקליד — כך זה לא יכול לסתור את הלוח. */
+/* ===== שעות =====
+   הדרישה שחוזרת בכל פוסט: מה הפתיחה באותו היום. המקור הוא המשמרות
+   ששובצו, לא טקסט שמישהו הקליד — כך זה לא יכול לסתור את הלוח.
+
+   שני סייגים שחייבים להיאכף כאן, לא בממשק:
+
+   1. hoursByDay() מחזיר שבעה ימים של *השבוע שמוצג כרגע*. פוסט לתאריך
+      בשבוע אחר היה מקבל את שעות השבוע הזה לפי יום בשבוע — כלומר מספרים
+      שנראים אמיתיים ואינם. לכן קודם בודקים שהתאריך בכלל בתוך השבוע.
+   2. שעות נעשות סופיות רק כשהשבוע ננעל (phase === "locked"). לפני זה
+      השיבוץ עוד זז, ופרסום שלהן הוא הבטחה שאפשר להפר. */
+const weekIndex = (dateStr) => {
+  if (!dateStr || !S.weekStart) return -1;
+  const i = Math.round((fromYmd(dateStr) - fromYmd(ymd(S.weekStart))) / 86400000);
+  return (i >= 0 && i <= 6) ? i : -1;
+};
+export const hoursLocked = () => phase() === "locked";
+
+/* known = יש לנו באמת את השעות של התאריך הזה.
+   locked = השבוע ננעל, כלומר הן כבר לא ישתנו. */
 export function hoursOn(dateStr){
-  if (!dateStr) return { day: "", text: "", open: false };
-  const d = fromYmd(dateStr);
-  const list = (hoursByDay()[d.getDay()] || []);
-  return { day: DAYS[d.getDay()], text: list.length ? list.join(" · ") : "סגור", open: !!list.length };
+  const i = weekIndex(dateStr);
+  if (i < 0) return { day: "", text: "", open: false, known: false, locked: false };
+  const list = hoursByDay()[i] || [];
+  return { day: DAYS[fromYmd(dateStr).getDay()], text: list.length ? list.join(" · ") : "סגור",
+    open: !!list.length, known: true, locked: hoursLocked() };
 }
 export const hoursLineOn = (dateStr) => {
   const h = hoursOn(dateStr);
-  return h.day ? (h.open ? `${h.day} ${h.text}` : `${h.day} — סגור`) : "";
+  if (!h.known) return "";
+  return h.open ? `${h.day} ${h.text}` : `${h.day} — סגור`;
 };
+
+/* כל הימים הפתוחים מתאריך הפרסום ועד סוף השבוע. זה מה שקורא רוצה
+   לדעת מפוסט סופ״ש: לא "היום", אלא "מתי אפשר להגיע". */
+export function hoursAhead(dateStr){
+  const from = weekIndex(dateStr);
+  if (from < 0) return [];
+  const all = hoursByDay();
+  const out = [];
+  for (let i = from; i <= 6; i++){
+    const list = all[i] || [];
+    if (!list.length) continue;
+    out.push({ day: DAYS[fromYmd(ymd(addDays(S.weekStart, i))).getDay()], text: list.join(" · ") });
+  }
+  return out;
+}
 
 /* ===== הציור ===== */
 // הגופנים נטענים מהרשת, ובעצלתיים: document.fonts.ready לבדו חוזר מיד
@@ -212,7 +246,8 @@ export async function build(opts = {}){
   const bottomLogo = sideBySide ? logoW + Math.round(W * .03) : 0;
   const bottomFloor = box.y + box.h - (stacked ? logoH + Math.round(W * .03) : 0);
   let bottomUsed = stacked ? logoH + Math.round(W * .03) : 0;
-  if (c.showHours !== false && h.day){
+  // h.known שומר על הכלל: שעות שאין לנו באמת לתאריך הזה לא נצרבות.
+  if (c.showHours !== false && h.known){
     const maxLine = box.w - bottomLogo;
     const hoursText = h.open ? `${h.day} · ${h.text}` : `${h.day} · סגור`;
     let hs = Math.round(W * (c.hoursSize || .046));
