@@ -221,6 +221,16 @@ function memoryBlock(b){
   }
   if (b.weatherImpact) out.push(String(b.weatherImpact).slice(0, 300));
 
+  // חלונות ביקוש. עגלה ליד הבניאס חיה ממטיילים, והם מגיעים בחלונות:
+  // חול המועד הוא שבוע, חופש גדול הוא חודשיים, סופ״ש ארוך הוא שלושה ימים.
+  const season = Array.isArray(b.season) ? b.season.filter(s => s && s.label).slice(0, 4) : [];
+  if (season.length){
+    out.push("מי מגיע לאזור בתקופה הזו:\n" +
+      season.map(s => `${s.soon ? "מתקרב — " : ""}${s.label} (${s.from} עד ${s.to})${s.note ? ": " + s.note : ""}`).join("\n") +
+      "\n\nבחלון כזה הפוסט שמביא אנשים בפועל הוא 'מתי ואיפה' — שעות ואיך מגיעים. " +
+      "אל תכתוב 'חג שמח' ואל תברך. תן מידע שימושי למי שמתכנן טיול.");
+  }
+
   return out.join("\n\n");
 }
 

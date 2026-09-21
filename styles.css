@@ -443,3 +443,4 @@ table.t tr.me a{color:var(--accent)}
 .wxi{font-size:17px;line-height:1.1}
 .wxt{font-weight:600;font-variant-numeric:tabular-nums}
 .wxnote{grid-column:1/-1;margin:2px 0 0;color:var(--muted)}
+.wxseason{font-weight:600;color:var(--accent)}

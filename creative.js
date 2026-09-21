@@ -7,6 +7,7 @@ import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, ho
 import { FORMATS, TIMING, HASHTAGS, VOICE } from "./playbook.js";
 import { openDays, phase, wid, hoursByDay } from "./shifts.js";
 import * as Weather from "./weather.js";
+import * as Season from "./season.js";
 
 /* ===== שלושת העמודים ===== */
 export const PILLAR3 = {
@@ -500,6 +501,8 @@ function aiContext(){
     hours: hoursByDay(), openDays: openDays().map(i => DAYS[i]),
     // תחזית השבוע + מה שמזג אוויר עושה למכירות בפועל, מהיומן שלך.
     weather: Weather.forAI(), weatherImpact: Weather.impactLine(),
+    // חלונות ביקוש: חול המועד, חופש גדול, סופ״ש ארוך. מי מגיע השבוע ומתי.
+    season: Season.forAI(S.weekStart),
     words: WORDS,
   };
 }

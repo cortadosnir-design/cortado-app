@@ -4,6 +4,7 @@
 // Open-Meteo: בלי מפתח, בלי חשבון, עם CORS. קריאה אחת לשבוע, נשמרת לשלוש שעות.
 import { S, ymd, addDays, on, emit, DAYS_SHORT } from "./core.js";
 import { PLACE } from "./config.js";
+import * as Season from "./season.js";
 
 const CACHE_KEY = "cortado.weather.v1";
 const CACHE_MS = 3 * 60 * 60 * 1000;
@@ -144,10 +145,12 @@ function render(){
   const box = document.getElementById("wx");
   if (!box) return;
   const days = forWeek();
-  if (!days.some(Boolean)){ box.hidden = true; return; }
+  const season = Season.weekLine(S.weekStart);
+  // חלון הביקוש חשוב בפני עצמו. אם אין רשת ואין תחזית — הוא עדיין מוצג.
+  if (!days.some(Boolean) && !season){ box.hidden = true; return; }
   box.hidden = false;
   box.textContent = "";
-  days.forEach((d, i) => {
+  if (days.some(Boolean)) days.forEach((d, i) => {
     const cell = document.createElement("div");
     cell.className = "wxday" + (d ? " wx-" + d.grade : "");
     if (d){
@@ -158,6 +161,13 @@ function render(){
     }
     box.append(cell);
   });
+  // חלון ביקוש, אם יש. "חול המועד סוכות" משנה את השבוע יותר מכל תחזית.
+  if (season){
+    const s = document.createElement("p");
+    s.className = "small wxnote wxseason";
+    s.textContent = season;
+    box.append(s);
+  }
   const note = impactLine();
   if (note){
     const p = document.createElement("p");
