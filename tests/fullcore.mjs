@@ -57,14 +57,12 @@ window.__fire = fire;
 const USER = { uid: "owner1", email: OWNER_EMAILS[0], displayName: "סניר", photoURL: "", getIdToken: async () => "t" };
 export const auth = { currentUser: USER };
 export const provider = {};
-export const storage = {};
 export const GoogleAuthProvider = function(){};
 export const signInWithPopup = async () => ({ user: USER });
 export const signInWithRedirect = async () => {};
 export const getRedirectResult = async () => null;
 export const signOut = async () => {};
 export const onAuthStateChanged = (_a, cb) => { setTimeout(() => cb(USER), 0); return () => {}; };
-export const sRef = () => ({}); export const uploadBytes = async () => { throw new Error("no storage"); }; export const getDownloadURL = async () => "";
 `;
 
 const FAKE_API = `/* ===== השרת (מזויף) ===== */

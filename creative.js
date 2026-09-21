@@ -1,6 +1,6 @@
 // קריאייטיב: ארבע משבצות קבועות בשבוע, בנק קליפים, טיוטה אחת שנשענת על הקול שלך, ושער ההוספה.
 // העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
-import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, weekId, holidayOn,
+import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
   doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
@@ -902,6 +902,12 @@ async function savePost(newStatus, btn){
         hashtags: $("cHash").value.split(/\s+/).filter(t => t.startsWith("#")).slice(0, 15),
         image, status: newStatus, at: serverTimestamp(),
       };
+      /* שמירה עם merge השאירה igError של פרסום קודם שנכשל, ולכן הלוח
+         המשיך לצבוע "אינסטגרם נכשל" על פוסט שנערך ונשמר מחדש. כל עוד
+         הפוסט לא במצב "תוזמן", אין לתוצאות הפרסום הקודמות מה לעשות כאן. */
+      if (newStatus !== "scheduled"){
+        Object.assign(body, { igError: "", igPending: false, igSkipped: "" });
+      }
       // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא מצורף בפרסום.
       if (composerThumb) body.thumb = composerThumb;
       if (composerPhoto) body.hasMedia = true;
@@ -1046,7 +1052,13 @@ function exportRows(){
 function exportCsv(){
   const rows = exportRows();
   if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לשבוע הזה. סמן 'מוכן' במשבצות."); return; }
-  const esc = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  /* תא שמתחיל ב-= + - או @ נחשב לנוסחה באקסל ובגיליונות. טיוטה שנפתחת
+     ב-"=מחר פתוחים" מתפרשת שם כנוסחה, והכיתוב נהרס. גרש מוביל מנטרל. */
+  const esc = (v) => {
+    let s = String(v == null ? "" : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const head = ["date","time","network","text","link","image"];
   const body = [];
   rows.forEach(p => (p.network || NETS).forEach(net =>

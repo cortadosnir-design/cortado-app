@@ -35,11 +35,20 @@ function el(tag, attrs = {}, ...kids){
 const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
 const say = (kind, msg) => { const n = $("zstatus"); n.className = "status " + (kind||""); n.textContent = msg || ""; };
 
-// הקוד מגיע מה-hash כדי שלא יישלח לשרתים בלוגים של referrer.
-const token = (location.hash || "").replace(/^#/, "").trim() || new URLSearchParams(location.search).get("t") || "";
+/* הקוד מגיע מה-hash כדי שלא יישלח לשרתים בלוגים של referrer.
+   ?t= נתמך רק בשביל קישורים ישנים, ומיד מומר ל-hash: בשאילתה הקוד נכנס
+   להיסטוריית הדפדפן וללוגי האירוח, וזה בדיוק מה שה-hash נועד למנוע. */
+const qToken = new URLSearchParams(location.search).get("t") || "";
+const token = (location.hash || "").replace(/^#/, "").trim() || qToken;
+if (qToken && !location.hash){
+  try { history.replaceState(null, "", location.pathname + "#" + qToken); } catch {}
+}
 
 let me = null;                    // { name }
-let weekStart = (() => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; })();
+// אותו חישוב כמו defaultWeekStart ב-core.js. כפונקציה, כדי שהעובד שמשאיר
+// את הדף פתוח על הטלפון לא יישאר תקוע על השבוע שהיה בזמן הטעינה.
+const defaultWeek = () => { const t = new Date(); const s = sundayOf(t); if (t.getDay() >= 5) s.setDate(s.getDate()+7); return s; };
+let weekStart = defaultWeek();
 let week = null, mine = null, taken = new Set();
 let draft = {}, note = "", dirty = false;
 let pending = [];                 // משמרות שנגמרו וטרם דווחו: [{ date, shift, wid }]
@@ -64,12 +73,12 @@ async function boot(){
    מה שקרה במשמרת יודע רק מי שעמד שם. עד היום רק המנהל יכול היה לדווח,
    ולכן רוב הימים נשארו ריקים. כאן זה נפתח לכל מי שיש לו קישור אישי.
    נבדקות שתי משמרות אחרונות בלבד — היום ואתמול. ישן מזה כבר לא זכור. */
-const HOURS_BACK = 2;
+const DAYS_BACK = 2;      // היום ואתמול. ישן מזה כבר לא זכור.
 
 async function findPending(){
   const out = [];
   const now = new Date();
-  for (let back = 0; back < HOURS_BACK; back++){
+  for (let back = 0; back < DAYS_BACK; back++){
     const d = addDays(now, -back);
     const dStr = ymd(d);
     const ws = sundayOf(d);
@@ -163,8 +172,10 @@ async function sendReport(it, form, btn){
       at: serverTimestamp(),
     });
     pending = pending.slice(1);
-    say("ok", "התקבל. תודה 🙏");
+    // render דורס את שורת הסטטוס (left() כותב "נשארו N ימים לסמן"),
+    // ולכן ההודעה חייבת לבוא אחריו — כמו ב-take() למטה.
     render();
+    say("ok", "התקבל. תודה 🙏");
   } catch (e){
     btn.disabled = false; btn.textContent = "שלח דיווח";
     say("bad", "הדיווח לא נשלח. בדוק חיבור ונסה שוב.");
@@ -385,5 +396,20 @@ function move(delta){
 $("zprev").addEventListener("click", () => move(-7));
 $("znext").addEventListener("click", () => move(7));
 window.addEventListener("beforeunload", (e) => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+/* העובד פותח את הקישור פעם אחת ומשאיר את הלשונית. בלי זה, אחרי חצות
+   שישי הוא ממשיך לראות את השבוע שעבר ולא מבין למה אין משמרות. */
+let autoWeek = ymd(weekStart);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || dirty) return;
+  const fresh = defaultWeek();
+  if (ymd(fresh) === autoWeek) return;
+  const onAuto = ymd(weekStart) === autoWeek;
+  autoWeek = ymd(fresh);
+  if (!onAuto) return;                 // ניווט ידני — לא נוגעים
+  weekStart = fresh;
+  load();
+  findPending().then(() => render()).catch(() => {});
+});
 
 boot();

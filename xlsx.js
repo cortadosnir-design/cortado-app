@@ -7,7 +7,11 @@ const td = new TextDecoder("utf-8");
 
 async function inflateRaw(bytes){
   const ds = new DecompressionStream("deflate-raw");
-  const w = ds.writable.getWriter(); w.write(bytes); w.close();
+  const w = ds.writable.getWriter();
+  // זרם פגום מפיל את שתי ההבטחות האלה. בלי ה-catch השגיאה של הכותב
+  // צפה כ-unhandledrejection בקונסול, גם כשהקורא כבר טופל כמו שצריך.
+  w.write(bytes).catch(() => {});
+  w.close().catch(() => {});
   return new Uint8Array(await new Response(ds.readable).arrayBuffer());
 }
 

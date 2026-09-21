@@ -111,23 +111,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .calhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .calhead h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.cal .dow{font-size:12px;color:var(--muted);text-align:center}
-.cell{min-height:86px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px;display:flex;flex-direction:column;gap:3px;cursor:pointer;text-align:start;min-width:0}
-.cell:hover{border-color:var(--muted)}
-.cell.out{opacity:.45} .cell.today{outline:2px solid var(--accent);outline-offset:-1px}
-.cell .d{font-size:12px;font-family:var(--mono);color:var(--muted)}
 .hol{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:4px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pchip{font-size:12px;border-radius:4px;padding:1px 4px;background:var(--sunken);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-inline-start:3px solid var(--accent)}
-.pchip.draft{border-inline-start-color:var(--warn)} .pchip.done{border-inline-start-color:var(--ok);opacity:.75}
 @media (max-width:560px){
-  .cell{min-height:64px}
-  .pchip,.hol{font-size:10px;padding:1px 3px;min-height:16px}
-  .cell .pchip:nth-of-type(n+3){display:none}
+  .hol{font-size:10px;padding:1px 3px;min-height:16px}
 }
-.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
-.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:4px;vertical-align:middle;background:var(--accent)}
-.legend .l-draft::before{background:var(--warn)} .legend .l-done::before{background:var(--ok)} .legend .l-hol::before{background:var(--warn-soft);border:1px solid var(--warn)}
 .ideas{display:flex;flex-direction:column;gap:6px}
 .idea{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .idea button{white-space:nowrap;flex:none}
@@ -238,11 +225,6 @@ button.icon:hover{color:var(--bad)}
 .slotrow .grow{min-width:0;display:block}
 .hint{padding-inline:2px}
 
-.metaline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);
-  background:var(--sunken);border-radius:10px;padding:8px 10px}
-.metaline .link{margin-inline-start:auto;font-size:13px}
-.extras{display:flex;flex-direction:column;gap:6px;margin-top:6px}
-/* משבצת שזמנה חלף: נוכחת, לא תובענית. */
 /* שורת המידע של משבצת קבועה: מה שאי אפשר לשנות כאן לא נראה כמו שדה. */
 .metaline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);
   background:var(--ground);border-radius:10px;padding:8px 12px;margin:0}
@@ -269,8 +251,6 @@ label.gate{border-inline-start:3px solid var(--accent);padding-inline-start:10px
 .cliprow:last-child{border-bottom:none}
 .cliprow.used{opacity:.5}
 .cliprow button{flex:none;white-space:nowrap}
-.planlist{display:flex;flex-direction:column;gap:10px}
-.planitem{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .angle{display:flex;gap:6px;align-items:center}
 .angle input{flex:1}
 .grow{flex:1;min-width:0}

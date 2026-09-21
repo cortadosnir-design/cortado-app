@@ -1,6 +1,6 @@
 // "עכשיו": השורה הראשונה שרואים. איפה השבוע עומד, ומה הצעד האחד הבא.
 // האפליקציה יודעת איזה יום היום ומה השלב, ומציעה את הפעולה במקום שהמנהלת תחפש אותה.
-import { S, DAYS, $, el, clear, dm, ymd, addDays, sundayOf, on, emit } from "./core.js";
+import { S, DAYS, $, el, clear, dm, ymd, on, emit } from "./core.js";
 import { phase, shiftsOf, openDays } from "./shifts.js";
 import { weekProgress } from "./creative.js";
 import { googleMarked } from "./launch.js";

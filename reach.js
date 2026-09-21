@@ -1,9 +1,9 @@
 // הפצה וצמיחה: קבוצות פייסבוק, דירקטוריות, מתחרים, שעות שנלמדו, ומדידת ביצועים.
-import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, weekId, fmt1,
+import { S, db, DAYS, $, el, clear, ymd, dm, fromYmd, weekId, fmt1,
   status, copyText, withBusy, api, WORKER_URL, track,
-  doc, setDoc, collection, onSnapshot, serverTimestamp } from "./core.js";
+  doc, setDoc, onSnapshot, serverTimestamp } from "./core.js";
 import { GROUPS, DIRECTORIES, COMPETITORS, AMPLIFIERS, BIG_MOVES, MILESTONES, BENCHMARKS, BRAND, TIMING, HASHTAGS } from "./playbook.js";
-import { hoursText, hoursByDay, openDays } from "./shifts.js";
+import { hoursText, hoursByDay } from "./shifts.js";
 import { bestTimes } from "./creative.js";
 
 const reach = () => S.reach || { done: {}, directories: {}, followers: [] };

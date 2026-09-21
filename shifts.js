@@ -1,7 +1,7 @@
 // משמרות: זמינות → המנהל בונה את השבוע → אישור → שיבוץ עצמי → נעילה.
-import { S, db, DAYS, sundayOf, DAYS_SHORT, $, el, clear, ymd, dm, addDays, fromYmd, toMin, fromMin, weekId, holidayOn,
+import { S, db, DAYS, sundayOf, $, el, clear, ymd, dm, addDays, toMin, fromMin, weekId, holidayOn,
   status, copyText, withBusy, whoOf, keyOf, track, emit, on,
-  doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
+  doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "./core.js";
 
 const PHASES = {
   availability: { label: "איסוף זמינות", cls: "warn" },

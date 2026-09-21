@@ -1,6 +1,6 @@
 // "שגר" — עדכון שעות הפתיחה בכל מקום בלחיצה אחת.
 // מה שאפשר אוטומטית נעשה אוטומטית; מה שלא — מוגש מוכן להדבקה, בלי לעגל פינות.
-import { S, db, DAYS, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
+import { S, db, $, el, clear, ymd, dm, addDays, status, copyText, withBusy, api, WORKER_URL, on,
   doc, setDoc, serverTimestamp } from "./core.js";
 import { hoursByDay, hoursPairs, hoursText, phase } from "./shifts.js";
 

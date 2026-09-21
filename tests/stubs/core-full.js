@@ -52,19 +52,16 @@ window.__fire = fire;
 const USER = { uid: "owner1", email: OWNER_EMAILS[0], displayName: "סניר", photoURL: "", getIdToken: async () => "t" };
 export const auth = { currentUser: USER };
 export const provider = {};
-export const storage = {};
 export const GoogleAuthProvider = function(){};
 export const signInWithPopup = async () => ({ user: USER });
 export const signInWithRedirect = async () => {};
 export const getRedirectResult = async () => null;
 export const signOut = async () => {};
 export const onAuthStateChanged = (_a, cb) => { setTimeout(() => cb(USER), 0); return () => {}; };
-export const sRef = () => ({}); export const uploadBytes = async () => { throw new Error("no storage"); }; export const getDownloadURL = async () => "";
 
 /* ===== עזרים ===== */
 export const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 export const DAYS_SHORT = ["א","ב","ג","ד","ה","ו","ש"];
-export const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 
 export const $ = (id) => document.getElementById(id);
 export const pad = (n) => String(n).padStart(2, "0");
@@ -78,14 +75,12 @@ export const fromMin = (m) => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
 export const fmt1 = (n) => (Math.round(n*10)/10).toString();
 export const weekId = (ws) => "w" + ymd(ws);
 export const holidayOn = (d) => HOLIDAYS.find(h => h[0] === (typeof d === "string" ? d : ymd(d)));
-export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
 export function el(tag, attrs = {}, ...kids){
   const e = document.createElement(tag);
   for (const [k,v] of Object.entries(attrs)){
     if (k === "class") e.className = v;
     else if (k === "text") e.textContent = v;
-    else if (k === "html") e.innerHTML = v;
     else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
     else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
   }
