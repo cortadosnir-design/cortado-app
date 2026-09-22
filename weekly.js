@@ -217,6 +217,9 @@ function opts(){
     target: ($("wkTarget") && $("wkTarget").value) || "ig_feed",
     photo: ($("wkPhoto") && $("wkPhoto").value) || "",
     noIg: !($("wkIg") && $("wkIg").checked),
+    // ריק = מה ששמור בתצורה. אחרת אי אפשר היה לנקות את השדה בלי
+    // למחוק את המשפט מהפוסטר.
+    ...(($("wkTag") && $("wkTag").value.trim()) ? { posterTag: $("wkTag").value.trim() } : {}),
   };
 }
 
@@ -291,7 +294,14 @@ export function bind(){
   const timeInput = $("wkTime");
   if (timeInput && !timeInput.value) timeInput.value = Card.cfg().posterTime || "08:00";
 
-  for (const id of ["wkTime", "wkClosed", "wkTarget", "wkPhoto"]){
+  const tagInput = $("wkTag");
+  if (tagInput){
+    tagInput.value = Card.cfg().posterTag || "";
+    // נשמר בעזיבת השדה ולא בכל הקשה — אחרת זו כתיבה לפיירסטור לכל אות
+    tagInput.addEventListener("change", () => Card.saveCfg({ posterTag: tagInput.value.trim() }));
+  }
+
+  for (const id of ["wkTime", "wkClosed", "wkTarget", "wkPhoto", "wkTag"]){
     const n = $(id);
     if (n) n.addEventListener("change", renderPlan);
   }
