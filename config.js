@@ -4,7 +4,7 @@
 // גרסת הבנייה. מוצגת בכותרת, וזהה ל-VERSION ב-sw.js (יש בדיקה שמוודאת).
 // **מעלים אותה בכל דחיפה שמשנה קבצים** — אחרת ה-Service Worker לא מתחלף
 // והדפדפן ממשיך להגיש את הגרסה הישנה.
-export const APP_VERSION = "2026-09-22.1";
+export const APP_VERSION = "2026-09-22.2";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD75yNOaZM6prmFAm2iyeLNcgzuQl-gh4Y",

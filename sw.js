@@ -1,6 +1,6 @@
 // מטמון בסיסי כדי שהאפליקציה תיפתח מהר, וגם כשאין רשת.
 // חייב להיות זהה ל-APP_VERSION ב-config.js. tests/version.mjs נופל אם לא.
-const VERSION = "2026-09-22.1";
+const VERSION = "2026-09-22.2";
 const CACHE = "cortado-shell-" + VERSION;
 // כל מודול ש-app.js מייבא חייב להיות כאן. weather/season/people נשכחו,
 // ולכן פתיחה קרה בלי רשת שברה את גרף המודולים — בדיוק המקרה שבשבילו
