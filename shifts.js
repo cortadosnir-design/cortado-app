@@ -30,12 +30,23 @@ export const WEEK_HOURS = [
 const CLOSED_ON = ["יום כיפור"];
 const isClosed = (d) => { const h = holidayOn(d); return !!h && CLOSED_ON.some(n => h[1].startsWith(n)); };
 
-/** המשמרות של השבוע המוצג לפי WEEK_HOURS, בלי הימים שהעגלה סגורה בהם. */
+/* השעות הקבועות נערכות מהאפליקציה (brand/hours, שורה ליום כמו "09:00–12:00, 16:00–19:00").
+   WEEK_HOURS למעלה הוא רק ברירת המחדל עד השמירה הראשונה. */
+export const parseDayHours = (line) => String(line || "").split(/[,·]/).map(x => x.trim()).filter(Boolean)
+  .map(parseRange).filter(p => p.length === 2 && p.every(x => /^\d{1,2}:\d{2}$/.test(x)) && toMin(p[1]) > toMin(p[0]))
+  .map(p => p.map(x => x.padStart(5, "0")));
+export const regularHours = () => {
+  const d = S.regularHours;
+  return Array.isArray(d) && d.length === 7 ? d.map(parseDayHours) : WEEK_HOURS;
+};
+
+/** המשמרות של השבוע המוצג לפי השעות הקבועות, בלי הימים שהעגלה סגורה בהם. */
 export function templateShifts(weekStart = S.weekStart){
   const out = [];
+  const reg = regularHours();
   for (let i = 0; i < 7; i++){
     if (isClosed(addDays(weekStart, i))) continue;
-    for (const [start, end] of (WEEK_HOURS[i] || []))
+    for (const [start, end] of (reg[i] || []))
       out.push({ id: newId(), day: i, start, end, need: 1 });
   }
   return out;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-23.1">
+  <meta name="app-build" content="2026-09-23.2">
 <meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -132,6 +132,13 @@
         </div>
         <div class="actions" id="phaseBar"></div>
         <div class="status" id="mgrStatus" role="status"></div>
+        <details id="regBox">
+          <summary>שעות קבועות — מהן נבנה כל שבוע חדש</summary>
+          <p class="small">שורה ליום, למשל <span dir="ltr">09:00–12:00, 16:00–19:00</span>. ריק = סגור. "מלא לפי שעות הפתיחה" בונה מזה את השבוע.</p>
+          <div id="regForm" class="regform"></div>
+          <div class="actions"><button class="primary" id="regSave">שמור שעות קבועות</button></div>
+          <div class="status" id="regStatus" role="status"></div>
+        </details>
         <details>
           <summary>שעות הפתיחה שיוצאות מזה</summary>
           <dl class="hours" id="hours"></dl>
