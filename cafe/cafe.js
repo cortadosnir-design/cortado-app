@@ -62,39 +62,70 @@ function renderTable(){
 function now(){
   try {
     const o = {};
-    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", weekday: "short", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" })
       .formatToParts(new Date()).forEach(x => o[x.type] = x.value);
-    return { d: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(o.weekday), m: (+o.hour) * 60 + (+o.minute) };
-  } catch { const n = new Date(); return { d: n.getDay(), m: n.getHours() * 60 + n.getMinutes() }; }
+    return { d: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(o.weekday), m: (+o.hour) * 60 + (+o.minute), y: +o.year, mo: +o.month, day: +o.day };
+  } catch { const n = new Date(); return { d: n.getDay(), m: n.getHours() * 60 + n.getMinutes(), y: n.getFullYear(), mo: n.getMonth() + 1, day: n.getDate() }; }
 }
+/* השעות לפי תאריך, לא רק לפי יום בשבוע. public/hours מחזיק את השבוע
+   הנוכחי ואת הבא בשדה weeks (מפתח = יום ראשון של השבוע). בלי זה, שיגור
+   של השבוע הבא ביום חמישי הציג ביום שישי את שעות השישי של השבוע הבא,
+   וסגירה מוקדמת של היום לא הייתה משנה את "פתוח עכשיו". */
+let byWeek = {};
+const p2 = (n) => String(n).padStart(2, "0");
+function weekKey(t, plus){
+  const x = new Date(Date.UTC(t.y, t.mo - 1, t.day + plus));
+  x.setUTCDate(x.getUTCDate() - x.getUTCDay());
+  return `${x.getUTCFullYear()}-${p2(x.getUTCMonth() + 1)}-${p2(x.getUTCDate())}`;
+}
+const hoursOn = (t, plus) => {
+  const w = byWeek[weekKey(t, plus)];
+  return (w || hours)[(t.d + plus) % 7] || [];
+};
 function renderStatus(){
   const t = now();
   tbody.querySelectorAll("tr").forEach(tr => tr.classList.toggle("today", +tr.dataset.d === t.d));
   const el = document.getElementById("status"), label = el.querySelector("span");
   el.classList.remove("open");
-  const open = (hours[t.d] || []).find(([a, b]) => t.m >= a && t.m < b);
+  const todays = hoursOn(t, 0);
+  const open = todays.find(([a, b]) => t.m >= a && t.m < b);
   if (open){ el.classList.add("open"); label.textContent = "פתוח עכשיו · עד " + fmt(open[1]); return; }
-  const later = (hours[t.d] || []).find(([a]) => a > t.m);
+  const later = todays.find(([a]) => a > t.m);
   if (later){ label.textContent = "נפתח היום ב־" + fmt(later[0]); return; }
   for (let i = 1; i <= 7; i++){
-    const d = (t.d + i) % 7;
-    if (hours[d] && hours[d].length){ label.textContent = "נפתח " + (i === 1 ? "מחר" : "ביום " + DAYS[d]) + " ב־" + fmt(hours[d][0][0]); return; }
+    const h = hoursOn(t, i), d = (t.d + i) % 7;
+    if (h.length){ label.textContent = "נפתח " + (i === 1 ? "מחר" : "ביום " + DAYS[d]) + " ב־" + fmt(h[0][0]); return; }
   }
   label.textContent = "שעות פתיחה";
 }
 renderStatus();
 
-// public/hours: { days: [7 מחרוזות], range: "20.9 – 26.9" } — מה ש"שגר" כותב.
+// public/hours: { days: [7 מחרוזות], range: "20.9 – 26.9", weeks: { "2026-09-20": [7 מחרוזות], … } }
 const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/public/hours?key=${firebaseConfig.apiKey}`;
+const strs = (arr) => Array.isArray(arr) && arr.length === 7 ? arr.map(v => parseDay(v.stringValue || "")) : null;
 fetch(url).then(r => r.ok ? r.json() : null).then(d => {
-  const vals = d && d.fields && d.fields.days && d.fields.days.arrayValue && d.fields.days.arrayValue.values;
-  if (!Array.isArray(vals) || vals.length !== 7) return;
-  hours = vals.map(v => parseDay(v.stringValue || ""));
+  const fields = d && d.fields; if (!fields) return;
+  const top = strs(fields.days && fields.days.arrayValue && fields.days.arrayValue.values);
+  const wm = fields.weeks && fields.weeks.mapValue && fields.weeks.mapValue.fields;
+  byWeek = {};
+  for (const [k, v] of Object.entries(wm || {})){
+    const w = strs(v.arrayValue && v.arrayValue.values);
+    if (w) byWeek[k] = w;
+  }
+  // הטבלה: השבוע שבו אנחנו נמצאים, אם פורסם; אחרת מה שבשדה days.
+  const key = weekKey(now(), 0);
+  let range = fields.range && fields.range.stringValue;
+  if (byWeek[key]){
+    hours = byWeek[key];
+    const [y, m, dd] = key.split("-").map(Number), a = new Date(Date.UTC(y, m - 1, dd)), b = new Date(Date.UTC(y, m - 1, dd + 6));
+    range = `${a.getUTCDate()}.${a.getUTCMonth() + 1} – ${b.getUTCDate()}.${b.getUTCMonth() + 1}`;
+  } else if (top) hours = top;
+  else return;
   renderTable(); renderStatus();
-  const range = d.fields.range && d.fields.range.stringValue;
   const note = document.getElementById("hours-note");
   if (range && note){
     const b = document.createElement("b"); b.textContent = "השעות לשבוע " + range + ". ";
     note.prepend(b);
   }
 }).catch(() => {});
+setInterval(renderStatus, 60000);

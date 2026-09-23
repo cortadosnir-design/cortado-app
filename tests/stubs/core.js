@@ -9,6 +9,7 @@ export const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n);
 export const fromYmd = (s) => { const [y,m,d]=String(s).split("-").map(Number); return new Date(y,m-1,d); };
 export const toMin = (t) => { const [h,m]=String(t).split(":").map(Number); return h*60+(m||0); };
 export const weekId = (ws) => "w" + ymd(ws);
+export const sundayOf = (d) => { const s = new Date(d.getFullYear(), d.getMonth(), d.getDate()); s.setDate(s.getDate()-s.getDay()); return s; };
 export const fmt1 = (n) => (Math.round(n*10)/10).toString();
 export const holidayOn = () => null;
 export function el(tag, attrs = {}, ...kids){
@@ -85,6 +86,7 @@ export async function setDoc(ref, body, opts){
     bytes: JSON.stringify(body).length });
   listeners.slice().forEach(fire);
 }
+export async function updateDoc(ref, body){ return setDoc(ref, body, { merge: true }); }
 export async function deleteDoc(ref){ delete (store[ref.col] || {})[ref.id]; listeners.slice().forEach(fire); }
 export const track = () => {};
 const st = new Date(); st.setDate(st.getDate() - st.getDay());

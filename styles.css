@@ -391,6 +391,7 @@ table.t tr.me a{color:var(--accent)}
 
 /* סדר הכרטיסים לפי השלב: הצעד הבא תמיד ראשון */
 #p-shifts>*{order:5}
+#p-shifts>#todayCard{order:-2}
 #p-shifts>#now{order:-1}
 #p-shifts>.weeknav,#p-shifts>#summary,#p-shifts>#notice{order:0}
 #p-shifts[data-phase="setup"] #mgrCard{order:1}
@@ -613,3 +614,28 @@ body.sheeton{overflow:hidden}
   padding: 7px 10px; border-radius: 8px; background: var(--card-2, rgba(0,0,0,.03)); }
 .wkrow.off { opacity: .45; }
 .wkrow span:last-child { text-align: left; }
+
+/* ===== היום (today.js): מצב העגלה עכשיו, ושינוי בנגיעה אחת ===== */
+.today{gap:10px}
+.today .tkick{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--muted)}
+.today .tdate{margin-inline-start:auto;font-weight:600}
+.today .tdot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.today .tdot.open{background:var(--ok)}
+.today .tdot.soon{background:var(--warn)}
+.today .tbig{font-family:var(--display);font-size:30px;line-height:1.1}
+.today .tline{font-size:15px;color:var(--muted)}
+.todayacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.todayacts button{min-height:52px;font-size:16px}
+.todayacts button.on{border:2px solid var(--accent);background:var(--accent-soft)}
+.tchips{display:flex;flex-wrap:wrap;gap:8px}
+.tchips button{min-height:48px;flex:1 1 auto;font-size:16px;font-variant-numeric:tabular-nums}
+.tov{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:4px 10px;font-size:14px;font-weight:600}
+.tov button.link{min-height:36px;color:var(--warn);padding:2px 4px}
+.todaytoast{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--ink);color:var(--surface);border-radius:14px;padding:8px 8px 8px 12px}
+.todaytoast .grow{flex:1 1 160px;padding-inline-start:4px}
+.todaytoast button,.todaytoast .btn{min-height:44px;background:transparent;color:var(--surface);border-color:rgba(255,255,255,.35)}
+.tsync{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:14px;color:var(--muted)}
+.tsync .okc{color:var(--ok);font-weight:600}
+.tsync .warnc{color:var(--warn);font-weight:600}
+.tsync .badc{color:var(--bad);font-weight:600}
+.tsync button{min-height:44px;margin-inline-start:auto}

@@ -27,6 +27,7 @@ code |= await run("node", ["tests/exports.mjs"]);
 code |= await run("node", ["tests/admins.mjs"]);
 code |= await run("node", ["tests/assign.mjs"]);
 code |= await run("node", ["tests/hours.mjs"]);
+code |= await run("node", ["tests/today.mjs"]);
 
 server.kill();
 clean();

@@ -1,0 +1,188 @@
+/* "היום" ושעות שמתפרסמות לבד.
+
+   הבעיה שהבדיקה הזו שומרת עליה: בעל העסק שינה שעה בטלפון, והלקוח המשיך
+   לראות את הישנה — כי דף העגלה ופייסבוק התעדכנו רק בלחיצה על "שגר".
+   וסגירה מוקדמת "רק להיום" לא הייתה קיימת בכלל.
+
+   השעון של הדפדפן קבוע: רביעי 23.9.2026, 10:40, שעון ישראל. כך "פתוח עכשיו"
+   ושורת השעות לסגירה מוקדמת צפויים מראש. */
+import { readFileSync, writeFileSync, unlinkSync } from "fs";
+import { spawn } from "child_process";
+import { buildFullCore } from "./fullcore.mjs";
+let chromium;
+try { ({ chromium } = await import("playwright")); }
+catch { ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs")); }
+
+const ROOT = new URL("..", import.meta.url).pathname;
+const PORT = process.env.TODAY_PORT || 8906;
+const NOW = new Date("2026-09-23T10:40:00+03:00");
+const CUR = "w2026-09-20", NEXT = "w2026-09-27";
+
+buildFullCore();
+writeFileSync(ROOT + "todaytest.html", readFileSync(ROOT + "index.html", "utf8")
+  .replace("</head>", `<script type="importmap">{"imports":{"/core.js":"/tests/stubs/core-full.js"}}</script></head>`));
+const server = spawn("npx", ["--yes", "http-server", ROOT, "-p", String(PORT), "-s", "-c-1"], { cwd: ROOT, stdio: "ignore" });
+const cleanup = () => { try { server.kill(); } catch {} try { unlinkSync(ROOT + "todaytest.html"); } catch {} };
+await new Promise(r => setTimeout(r, 2500));
+
+let pass = 0, fail = 0;
+const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n + (x ? "  " + x : "")))
+                               : (fail++, console.log("  ✗ " + n + "  " + x));
+
+console.log("\n29. היום, ושעות שמתפרסמות לבד");
+const b = await chromium.launch();
+try {
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "Asia/Jerusalem", locale: "he-IL" });
+  const page = await ctx.newPage();
+  await page.clock.setFixedTime(NOW);
+  const errors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error" && !/Failed to load resource|ERR_/.test(m.text())) errors.push(m.text()); });
+  const dialogs = [];
+  page.on("dialog", async d => { dialogs.push(d.message()); await d.accept(); });
+  await page.goto(`http://127.0.0.1:${PORT}/todaytest.html`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#tabs:not([hidden])", { timeout: 10000 });
+  await page.waitForTimeout(400);
+
+  await page.evaluate(({ CUR }) => {
+    window.__api["/hours/facebook"] = { ok: true };
+    window.__api["/hours/google"] = { fail: "not_configured גוגל עוד לא מחוברת" };
+    window.__seed("roster", "t1", { token: "t1", name: "דנה", phone: "050-1111111", active: true });
+    window.__seed("weeks", CUR, { phase: "locked", shifts: [
+      { id: "a", day: 0, start: "09:00", end: "12:00", need: 1 },
+      { id: "d", day: 3, start: "09:30", end: "12:30", need: 1 },
+      { id: "e", day: 4, start: "09:30", end: "12:30", need: 1 },
+    ] });
+    window.__seed("signups", `${CUR}_d_t1`, { week: CUR, shift: "d", token: "t1", name: "דנה" });
+    window.__fire();
+  }, { CUR });
+  await page.waitForTimeout(2200);
+
+  const pub = () => page.evaluate(() => JSON.parse(JSON.stringify((window.__store.public || {}).hours || null)));
+  const week = (id) => page.evaluate((id) => (window.__store.weeks || {})[id] || null, id);
+
+  // 1. בלי שום לחיצה, השבוע הנוכחי כבר בדף העגלה ובפייסבוק
+  let p = await pub();
+  ok("השבוע הנוכחי מתפרסם לבד, בלי \"שגר\"", !!p && p.weeks && p.weeks["2026-09-20"] && p.weeks["2026-09-20"][3] === "09:30–12:30",
+     JSON.stringify(p && p.weeks));
+  ok("השדות הישנים (days/range) עדיין נכתבים — דף ישן במטמון לא נשבר", p && Array.isArray(p.days) && p.days[3] === "09:30–12:30" && typeof p.range === "string");
+  ok("פייסבוק קיבל את השעות", await page.evaluate(() => window.__apiCalls.some(c => c.path === "/hours/facebook" && c.body.hours.wed)));
+  const w1 = await week(CUR);
+  ok("מה שפורסם נרשם על השבוע (בלי לולאה)", !!(w1.sync && w1.sync.sig), JSON.stringify(w1.sync && w1.sync.page));
+  const fbCalls = await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/hours/facebook").length);
+  await page.waitForTimeout(1600);
+  ok("אין פרסום חוזר כשהשעות לא השתנו", await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/hours/facebook").length) === fbCalls);
+
+  // 2. כרטיס היום
+  const card = () => page.evaluate(() => {
+    const c = document.getElementById("todayCard");
+    return { hidden: c.hidden, big: (c.querySelector(".tbig") || {}).textContent, line: (c.querySelector(".tline") || {}).textContent,
+      kick: (c.querySelector(".tkick") || {}).textContent, buttons: [...c.querySelectorAll(".todayacts button")].map(b => b.textContent),
+      chips: [...c.querySelectorAll(".tchips button")].map(b => b.textContent), toast: (c.querySelector(".todaytoast") || {}).textContent || "",
+      wa: [...c.querySelectorAll(".todaytoast a")].map(a => a.href), sync: (c.querySelector(".tsync") || {}).textContent || "",
+      top: c.getBoundingClientRect().top };
+  });
+  let c = await card();
+  ok("כרטיס היום מופיע ראשון במסך", !c.hidden && c.top < 200, "top=" + Math.round(c.top));
+  ok("\"פתוח עכשיו · עד 12:30\"", /פתוח עכשיו/.test(c.kick) && c.big === "עד 12:30", c.kick + " | " + c.big);
+  ok("מי בעגלה היום", /דנה/.test(c.line), c.line);
+  ok("שלוש פעולות: סוגרים מוקדם / נשארים עוד", c.buttons.includes("סוגרים מוקדם") && c.buttons.includes("נשארים עוד"), c.buttons.join(" · "));
+  ok("שורת הסנכרון אומרת שהכול מעודכן", /דף העגלה ✓/.test(c.sync) && /פייסבוק ✓/.test(c.sync), c.sync);
+
+  // 3. סוגרים מוקדם: שתי נגיעות
+  await page.click("#todayCard .todayacts button:has-text('סוגרים מוקדם')");
+  c = await card();
+  ok("השעות לסגירה: עכשיו, ואז כל חצי שעה עד הסגירה", c.chips.join(",") === "עכשיו,11:00,11:30,12:00", c.chips.join(","));
+  await page.click("#todayCard .tchips button:has-text('11:00')");
+  await page.waitForTimeout(300);
+  let w = await week(CUR);
+  ok("נשמר כחריגה ליום, בלי לגעת במשמרת", JSON.stringify(w.hoursOverride) === '{"3":{"ranges":["09:30–11:00"]}}' && w.shifts.find(s => s.id === "d").end === "12:30",
+     JSON.stringify(w.hoursOverride));
+  ok("השיבוץ של דנה לא נמחק", await page.evaluate((k) => !!(window.__store.signups || {})[k], `${CUR}_d_t1`));
+  c = await card();
+  ok("המסך מתעדכן מיד: עד 11:00", c.big === "עד 11:00", c.big);
+  ok("הודעה עם \"בטל\"", /11:00/.test(c.toast) && /בטל/.test(c.toast), c.toast);
+  ok("וואטסאפ מוכן לדנה, עם השעה", c.wa.some(h => h.includes("972501111111") && decodeURIComponent(h).includes("11:00")), c.wa.join(" "));
+  ok("בלי חלון \"אתה בטוח?\"", dialogs.length === 0, dialogs.join(" | "));
+  await page.waitForTimeout(1800);
+  p = await pub();
+  ok("דף העגלה קיבל את הסגירה המוקדמת לבד", p.weeks["2026-09-20"][3] === "09:30–11:00" && p.days[3] === "09:30–11:00", p.weeks["2026-09-20"][3]);
+  ok("שאר הימים לא זזו", p.weeks["2026-09-20"][4] === "09:30–12:30" && p.weeks["2026-09-20"][0] === "09:00–12:00");
+  ok("בלוח המשמרות רואים שהיום שונה ללקוחות", await page.evaluate(() => [...document.querySelectorAll("#board .tov")].some(n => n.textContent.includes("09:30–11:00"))));
+
+  // 4. בטל מחזיר בדיוק את מה שהיה
+  await page.click("#todayCard .todaytoast button:has-text('בטל')");
+  await page.waitForTimeout(1900);
+  w = await week(CUR); p = await pub();
+  ok("בטל מוחק את החריגה", !w.hoursOverride || !w.hoursOverride["3"], JSON.stringify(w.hoursOverride));
+  ok("ודף העגלה חוזר ל-12:30", p.weeks["2026-09-20"][3] === "09:30–12:30", p.weeks["2026-09-20"][3]);
+
+  // 5. נשארים עוד
+  await page.click("#todayCard .todayacts button:has-text('נשארים עוד')");
+  await page.click("#todayCard .tchips button:has-text('עד 13:30')");
+  await page.waitForTimeout(1900);
+  p = await pub();
+  ok("נשארים עוד שעה: 09:30–13:30 בדף העגלה", p.weeks["2026-09-20"][3] === "09:30–13:30", p.weeks["2026-09-20"][3]);
+  await page.click("#todayCard .tov button:has-text('חזרה לרגיל')");
+  await page.waitForTimeout(1900);
+  p = await pub();
+  ok("\"חזרה לרגיל\" בלחיצה אחת", p.weeks["2026-09-20"][3] === "09:30–12:30", p.weeks["2026-09-20"][3]);
+
+  // 6. שינוי שעה בלוח הניהול מתפרסם בלי "שגר"
+  const sel = page.locator("#planner .planday").nth(4).locator("select.timesel").nth(1);
+  await sel.selectOption("13:00");
+  await page.waitForTimeout(2000);
+  p = await pub();
+  ok("שינוי משמרת בחמישי מגיע לדף העגלה לבד", p.weeks["2026-09-20"][4] === "09:30–13:00", p.weeks["2026-09-20"][4]);
+  ok("וגם לפייסבוק", await page.evaluate(() => { const c = window.__apiCalls.filter(c => c.path === "/hours/facebook").pop(); return JSON.stringify(c.body.hours.thu) === '[["09:30","13:00"]]'; }));
+
+  // 7. השבוע הבא: לא מתפרסם עד שננעל, ואז לא מוחק את השבוע הנוכחי
+  await page.evaluate(({ NEXT }) => {
+    window.__seed("weeks", NEXT, { phase: "open", shifts: [{ id: "n1", day: 5, start: "08:00", end: "11:00", need: 1 }] });
+    window.__fire();
+  }, { NEXT });
+  await page.waitForTimeout(1800);
+  p = await pub();
+  ok("שבוע הבא פתוח לשיבוץ — עוד לא בדף", !p.weeks["2026-09-27"], Object.keys(p.weeks).join(","));
+  await page.evaluate(({ NEXT }) => {
+    const w = window.__store.weeks[NEXT]; window.__seed("weeks", NEXT, { ...w, phase: "locked" }); window.__fire();
+  }, { NEXT });
+  await page.waitForTimeout(1900);
+  p = await pub();
+  ok("נעילת השבוע הבא מפרסמת אותו לבד", p.weeks["2026-09-27"] && p.weeks["2026-09-27"][5] === "08:00–11:00", JSON.stringify(p.weeks["2026-09-27"]));
+  ok("והשבוע הנוכחי נשאר בדף (שישי-שבת לא נמחקים)", p.weeks["2026-09-20"][4] === "09:30–13:00" && p.from === "2026-09-20", p.from);
+  ok("אין מערך בתוך מערך", !JSON.stringify(p.weeks).includes("[["));
+  ok("בלי שגיאות בקונסולה", errors.length === 0, errors.slice(0, 2).join(" | "));
+
+  // 8. דף העגלה קורא לפי תאריך
+  const rest = (v) => Array.isArray(v) ? { arrayValue: { values: v.map(rest) } }
+    : v && typeof v === "object" ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, rest(x)])) } }
+    : { stringValue: String(v) };
+  // "days" העליון בכוונה שגוי: הדף חייב להעדיף את המפה לפי תאריך.
+  const docBody = { fields: { days: rest(["", "", "", "", "", "", ""]), range: rest("x"),
+    weeks: rest({ "2026-09-20": ["", "", "", "09:30–11:00", "", "", ""], "2026-09-27": ["07:00–08:00", "", "", "", "", "", ""] }) } };
+  const cafe = await ctx.newPage();
+  await cafe.clock.setFixedTime(NOW);
+  await cafe.route(/firestore\.googleapis\.com/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(docBody) }));
+  await cafe.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await cafe.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
+  await cafe.waitForTimeout(700);
+  const cf = await cafe.evaluate(() => ({
+    status: document.querySelector("#status span").textContent,
+    wed: [...document.querySelectorAll("#hours tr")][3].children[1].textContent,
+    note: document.getElementById("hours-note").textContent.slice(0, 30) }));
+  ok("דף העגלה: \"פתוח עכשיו · עד 11:00\" מתוך השבוע של היום", cf.status === "פתוח עכשיו · עד 11:00", cf.status);
+  ok("הטבלה היא של השבוע הנוכחי", cf.wed === "09:30–11:00" && cf.note.startsWith("השעות לשבוע 20.9 – 26.9"), cf.wed + " | " + cf.note);
+  await cafe.clock.setFixedTime(new Date("2026-09-23T12:00:00+03:00"));
+  await cafe.reload({ waitUntil: "domcontentloaded" }); await cafe.waitForTimeout(700);
+  const st2 = await cafe.evaluate(() => document.querySelector("#status span").textContent);
+  ok("אחרי הסגירה — הפתיחה הבאה נלקחת מהשבוע הבא", st2 === "נפתח ביום ראשון ב־07:00", st2);
+  await cafe.close();
+} catch (e){
+  fail++; console.log("  ✗ הבדיקה נפלה  " + e.message);
+}
+
+console.log(`\n${pass} עברו · ${fail} נכשלו`);
+await b.close();
+cleanup();
+process.exit(fail ? 1 : 0);

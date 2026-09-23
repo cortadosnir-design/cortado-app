@@ -1,139 +1,88 @@
-// "שגר" — עדכון שעות הפתיחה בכל מקום בלחיצה אחת.
-// מה שאפשר אוטומטית נעשה אוטומטית; מה שלא — מוגש מוכן להדבקה, בלי לעגל פינות.
-import { S, db, $, el, clear, ymd, dm, status, copyText, withBusy, api, WORKER_URL, on,
-  doc, setDoc, serverTimestamp } from "./core.js";
-import { hoursByDay, hoursPairs, hoursText, hoursDoc, phase } from "./shifts.js";
+// שעות הפתיחה בכל מקום. מאז hoursync.js זה קורה לבד בכל שינוי; הכרטיס
+// הזה מראה איפה כל ערוץ עומד, ומשאיר כפתור "עדכן עכשיו" למקרה שמשהו נכשל.
+import { S, $, el, clear, dm, status, copyText, withBusy, api, on } from "./core.js";
+import { hoursText, wid } from "./shifts.js";
+import * as H from "./hoursync.js";
 
-const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const GBP_URL = "https://business.google.com/";
 
 /* ===== גוגל, כל עוד אין אישור API =====
-   הערוץ הכי חשוב הוא גם היחיד שנעשה ביד, ולכן הוא הצעד שהכי קל לדלג עליו.
-   הבעיה אינה 20 השניות — היא ששעות שגויות בגוגל שולחות מטיילים לעגלה סגורה.
-   לכן מסמנים: מה שסומן נשמר על מסמך השבוע, ושורת "עכשיו" נודניקית עד שיסומן. */
-export const googleMarked = () => !!(S.week && S.week.googleAt);
+   הערוץ הכי חשוב הוא גם היחיד שנעשה ביד. "מסומן" = מה שסומן בגוגל הוא
+   בדיוק השעות של עכשיו; שינוי שעה אחרי הסימון מחזיר את הנדנוד. */
+export const googleMarked = () => H.googleFresh(S.week);
 const googleWhen = () => {
   const t = S.week && S.week.googleAt;
   return t && t.seconds ? dm(new Date(t.seconds * 1000)) : "";
 };
 async function markGoogle(btn){
   await withBusy(btn, async () => {
-    try {
-      await setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)),
-        { googleAt: serverTimestamp() }, { merge: true });
-      status("launchStatus", "ok", "סומן. שורת 'עכשיו' תפסיק לנדנד על גוגל השבוע.");
-    } catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+    try { await H.markGoogle(wid(), S.week); status("launchStatus", "ok", "סומן. שורת 'עכשיו' תפסיק לנדנד על גוגל, עד השינוי הבא בשעות."); }
+    catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
   });
 }
 
-// מצב כל ערוץ: pending / ok / manual / skip / fail
-const channels = {
-  page:      { label: "דף הנחיתה",  auto: true },
-  facebook:  { label: "פייסבוק",     auto: true },
-  google:    { label: "גוגל",        auto: false },
-};
-let results = {};
-
+const LABEL = { page: "דף הנחיתה", facebook: "פייסבוק", google: "גוגל" };
 
 function row(key, state, note, actions){
   const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…", skip: "—" }[state] || "…";
   const r = el("div", { class: "launchrow " + state });
   r.append(el("span", { class: "launchicon", text: icon }));
   r.append(el("div", { class: "grow" },
-    el("b", { text: channels[key].label }),
+    el("b", { text: LABEL[key] }),
     note ? el("div", { class: "small", text: note }) : null));
   if (actions) r.append(actions);
   return r;
 }
 
+/** מצב כל ערוץ, מתוך מה שנרשם על מסמך השבוע — לא מתוך לחיצה אחרונה. */
+function channels(){
+  const st = H.stateOf(wid(), S.week), sync = st.sync;
+  const when = sync && sync.at && sync.at.seconds ? " · " + new Date(sync.at.seconds * 1000).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) : "";
+  if (st.pending) return { page: ["pending", "מתעדכן…"], facebook: ["pending", "מתעדכן…"], google: googleRow() };
+  const stale = st.dirty;
+  const page = !sync ? ["pending", st.live ? "יתעדכן לבד עוד רגע." : "יתעדכן לבד כשהשבוע יינעל. אפשר גם עכשיו."]
+    : stale ? ["fail", "השעות השתנו מאז העדכון האחרון. לחץ \"עדכן עכשיו\"."]
+    : sync.page === "ok" ? ["ok", "מעודכן" + when] : ["fail", sync.page];
+  const facebook = !sync ? ["pending", ""]
+    : sync.facebook === "skip" ? ["skip", "פייסבוק מחזיק שעות של שבוע אחד, וכרגע זה שבוע אחר."]
+    : stale ? ["fail", "לא מעודכן."]
+    : sync.facebook === "ok" ? ["ok", "מעודכן" + when] : ["fail", sync.facebook || "לא נוסה."];
+  return { page, facebook, google: googleRow() };
+}
+function googleRow(){
+  return googleMarked()
+    ? ["ok", `סומן כמעודכן${googleWhen() ? " ב-" + googleWhen() : ""}.`]
+    : ["manual", "הדבקה ידנית עד שגוגל תאשר את ה-API. אחרי כל שינוי בשעות."];
+}
+
 function render(){
-  const box = clear($("launchList"));
+  const box = $("launchList"); if (!box) return;
+  clear(box);
+  const ch = channels();
   for (const key of ["page","facebook","google"]){
-    let r = results[key] || { state: "pending", note: "" };
-    if (key === "google" && googleMarked() && r.state !== "ok")
-      r = { state: "ok", note: `עודכן ידנית${googleWhen() ? " ב-" + googleWhen() : ""}. עד שגוגל תאשר את ה-API זה הצעד היחיד שנעשה ביד.` };
+    const [state, note] = ch[key];
     let actions = null;
     if (key === "page")
       actions = el("div", { class: "actions" },
         el("a", { class: "btn", href: "cafe/#visit", target: "_blank", rel: "noopener", text: "פתח את דף הנחיתה" }));
-    if (key === "google" && r.state === "manual"){
+    if (key === "google" && state === "manual")
       actions = el("div", { class: "actions" },
         el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }),
         el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }),
-        googleMarked() ? null
-          : el("button", { class: "primary", text: "עדכנתי ✓", onclick: (e) => markGoogle(e.currentTarget) }));
-    }
-    box.append(row(key, r.state, r.note, actions));
+        el("button", { class: "primary", text: "עדכנתי ✓", onclick: (e) => markGoogle(e.currentTarget) }));
+    box.append(row(key, state, note, actions));
   }
 }
 
-/* ===== השיגור ===== */
+/* ===== עדכון ידני — למקרה שמשהו נכשל, או לשבוע הבא לפני שננעל ===== */
 async function launch(btn){
-  results = {};
-  render();
   await withBusy(btn, async () => {
-    const h = hoursByDay(), pairs = hoursPairs();
-    const anyOpen = h.some(x => x.length);
-    if (!anyOpen){
-      status("launchStatus", "warn", "אין אף יום פתוח בשבוע הזה. הגדר משמרות קודם.");
-      return;
-    }
-    if (phase() !== "locked" && !confirm("השבוע עוד לא ננעל — השעות עלולות להשתנות. לשגר בכל זאת?")) return;
-
-    // 1. דף הנחיתה — מיידי
-    try {
-      await setDoc(doc(db, "public", "hours"), hoursDoc());
-      results.page = { state: "ok", note: "עודכן. הדף הציבורי כבר מציג את השעות החדשות." };
-      // מסמן על השבוע שהשעות שוגרו, כדי שהצעד הבא יידע להתקדם.
-      setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)), { launchedAt: serverTimestamp() }, { merge: true }).catch(() => {});
-    } catch (e){
-      // "נסה שוב" על תקלה שחוזרת בכל פעם הוא מבוי סתום. הסיבה נכתבת כאן.
-      results.page = { state: "fail", note: e.code === "permission-denied"
-        ? "רק המנהל יכול לעדכן את דף השעות." : "העדכון נכשל: " + String(e.message || e.code || "").slice(0, 140) };
-    }
+    if (!S.week){ status("launchStatus", "warn", "אין עוד משמרות בשבוע הזה."); return; }
+    const out = await H.publish(wid(), S.week).catch((e) => ({ page: e.message }));
+    if (!out){ status("launchStatus", "warn", "כבר מתעדכן, או שאין עוד שבוע."); return; }
+    const okN = [out.page, out.facebook, out.google].filter(x => x === "ok").length;
+    status("launchStatus", out.page === "ok" ? "ok" : "bad", out.page === "ok" ? `עודכן. ${okN} מתוך 3 ערוצים אוטומטיים.` : out.page);
     render();
-
-    // 2. פייסבוק — דרך ה-API, אם העמוד מחובר
-    if (!WORKER_URL){
-      results.facebook = { state: "fail", note: "השרת לא מוגדר." };
-    } else {
-      try {
-        const hours = {};
-        pairs.forEach((list, i) => { if (list.length) hours[FB_DAY[i]] = list; });
-        const r = await api("/hours/facebook", { hours });
-        results.facebook = { state: "ok", note: "שעות העמוד עודכנו בפייסבוק." };
-      } catch (e){
-        const msg = String(e.message || "");
-        results.facebook = { state: "fail",
-          note: /not_configured|חסר/.test(msg) ? "עמוד הפייסבוק עוד לא מחובר — חסר App Secret בשרת." : msg };
-      }
-    }
-    render();
-
-    // 3. גוגל — הערוץ מספר 1 לחיפוש "קפה ליד".
-    // מנסים אוטומטית. כל עוד אין אישור מגוגל השרת מחזיר not_configured, וזה
-    // נופל בחזרה להדבקה ידנית בלי להיראות כמו תקלה. ביום שהאישור מגיע
-    // ומוגדרים המשתנים ב-Cloudflare — זה הופך לאוטומטי בלי שינוי קוד.
-    if (!WORKER_URL){
-      results.google = { state: "manual", note: "הדבקה ידנית, 20 שניות. הטקסט מוכן למטה." };
-    } else {
-      try {
-        await api("/hours/google", { hours: hoursPairs() });
-        results.google = { state: "ok", note: "שעות הפרופיל עודכנו בגוגל." };
-        setDoc(doc(db, "weeks", "w" + ymd(S.weekStart)), { googleAt: serverTimestamp() }, { merge: true }).catch(() => {});
-      } catch (e){
-        const msg = String(e.message || "");
-        results.google = { state: "manual",
-          note: /not_configured|עוד לא מחוברת/.test(msg)
-            ? "גוגל עוד לא מאושרת ל-API. עד אז — הדבקה ידנית, 20 שניות."
-            : msg };
-      }
-    }
-    render();
-
-
-    const okCount = Object.values(results).filter(r => r.state === "ok").length;
-    status("launchStatus", okCount ? "ok" : "warn", `${okCount} מתוך 3 עודכנו אוטומטית. השאר מוכן להדבקה למטה.`);
   });
 }
 
@@ -198,9 +147,6 @@ export function init(){
   render();
   on("week", render);
   on("weekchanged", render);
-  on("locked", () => {
-    status("launchStatus", "ok", "השבוע ננעל. אפשר לשגר את השעות.");
-    const card = $("launchCard");
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+  on("hoursync", render);
+  on("locked", () => status("launchStatus", "ok", "השבוע ננעל. השעות מתפרסמות לבד."));
 }

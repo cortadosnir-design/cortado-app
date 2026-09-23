@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-22.2">
+  <meta name="app-build" content="2026-09-23.1">
 <meta name="theme-color" content="#5C3D2E">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -61,6 +61,8 @@
 
     <!-- ═══════════ משמרות ═══════════ -->
     <section id="p-shifts" class="tabpanel" role="tabpanel" hidden>
+      <!-- היום: מצב העגלה עכשיו, ושינוי שעות של היום בנגיעה אחת (today.js) -->
+      <section class="card today" id="todayCard" hidden aria-label="היום בעגלה"></section>
       <div class="now" id="now" hidden></div>
       <div class="weeknav">
         <button id="prevWeek" aria-label="שבוע קודם">→</button>
@@ -94,9 +96,9 @@
       <section class="card launchcard" id="launchCard" hidden data-owner>
         <div class="calhead">
           <h2>שעות הפתיחה, בכל מקום</h2>
-          <button class="primary big" id="launchBtn">שגר</button>
+          <button id="launchBtn">עדכן עכשיו</button>
         </div>
-        <p class="small">דף הנחיתה ופייסבוק מתעדכנים לבד. גוגל: העתק-הדבק של 20 שניות, עד שה-API יאושר.</p>
+        <p class="small">כל שינוי בשעות מתפרסם לבד בדף העגלה ובפייסבוק. גוגל: העתקה והדבקה, עד שה-API יאושר.</p>
         <div id="launchList" class="launchlist"></div>
         <div class="actions"><button id="launchCopy">העתק את השעות</button></div>
         <div class="status" id="launchStatus" role="status"></div>
@@ -135,9 +137,7 @@
           <dl class="hours" id="hours"></dl>
           <div class="actions">
             <button id="copyHours">העתק טקסט</button>
-            <button class="primary" id="pushHours">עדכן את דף השעות הציבורי</button>
           </div>
-          <div class="status" id="hoursStatus" role="status"></div>
         </details>
       </section>
     </section>

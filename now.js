@@ -64,8 +64,8 @@ function owner(){
   const { done, total } = weekProgress();
   if (!launched) return {
     step: 3, title: "השבוע נעול",
-    sub: "השעות סופיות. שגר אותן לדף הנחיתה ולפייסבוק.",
-    primary: ["שגר שעות", () => click("#launchBtn")],
+    sub: "השעות מתפרסמות לבד לדף העגלה ולפייסבוק, תוך שנייה או שתיים.",
+    primary: ["עדכן עכשיו", () => click("#launchBtn")],
     ghost: [`קריאייטיב ${done}/${total}`, () => emit("tab", "creative")],
   };
   // גוגל הוא הערוץ שמביא את מי שמחפש "קפה ליד", והיחיד שעדיין נעשה ביד.

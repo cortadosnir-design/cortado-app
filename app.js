@@ -12,6 +12,8 @@ import * as Ops from "./ops.js";
 import * as People from "./people.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
+import * as Today from "./today.js";
+import * as Hours from "./hoursync.js";
 import * as Weather from "./weather.js";
 import * as Analyze from "./analyze.js";
 import * as Sales from "./sales.js";
@@ -84,7 +86,7 @@ getRedirectResult(auth).catch(() => {});
 
 function startSubs(){
   Shifts.subscribe();
-  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); }
+  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); }
   Ops.subscribe();
 }
 
@@ -178,6 +180,7 @@ Ops.init();
 People.init();
 Launch.init();
 Now.init();
+Today.init();
 Weather.init();
 Analyze.init();
 Sales.init();

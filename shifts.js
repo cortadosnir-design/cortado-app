@@ -182,6 +182,13 @@ function renderPlanner(){
       el("span", {}, el("b", { text: DAYS[i] }), el("span", { class: "small", text: " " + dm(d) }))));
     if (h) head.append(el("span", { class: "hol", text: h[1] }));
     card.append(head);
+    // חריגה ליום (סוגרים מוקדם, לא פותחים) גוברת על המשמרות מול הלקוחות.
+    // בלי השורה הזו המנהל משנה כאן משמרת ולא מבין למה דף העגלה לא זז.
+    const ov = overrideOf(S.week, i);
+    if (ov) card.append(el("div", { class: "tov" },
+      el("span", {}, "ללקוחות: ", ov.closed ? "סגור" : el("bdi", { dir: "ltr", text: (ov.ranges || []).join(", ") }), " · שונה ידנית"),
+      el("button", { class: "link", type: "button", text: "חזרה לפי המשמרות",
+        onclick: () => emit("override", { id: wid(), day: i, value: null }) })));
 
     if (isOpen){
       dayShifts.forEach((s, idx) => {
@@ -515,6 +522,8 @@ function renderBoard(){
     const col = el("div", { class: "day" });
     col.append(el("div", { class: "dayhead" }, el("b", { text: DAYS[i] }), el("span", { text: dm(d) })));
     if (h) col.append(el("div", { class: "hol", text: h[1] + (h[2] ? " · " + h[2] : "") }));
+    const ov = overrideOf(S.week, i);
+    if (ov) col.append(el("div", { class: "tov" }, "ללקוחות: ", ov.closed ? "סגור היום" : el("bdi", { dir: "ltr", text: (ov.ranges || []).join(", ") })));
     for (const s of dayShifts){
       const people = inShift(s.id), need = s.need || 1, full = people.length >= need;
       const card = el("div", { class: "shift " + (full ? "full" : people.length ? "part" : "") });
@@ -544,44 +553,46 @@ function renderBoard(){
   }
 }
 
-/* ===== שעות פתיחה מחושבות ===== */
-export function hoursByDay(){
-  const out = [];
-  for (let i = 0; i < 7; i++){
-    const ss = shiftsOf().filter(s => s.day === i).sort((a,b) => toMin(a.start) - toMin(b.start));
-    if (!ss.length){ out.push([]); continue; }
-    const merged = [];
-    for (const s of ss){
-      const last = merged[merged.length - 1];
-      if (last && toMin(s.start) <= toMin(last.end)) last.end = toMin(s.end) > toMin(last.end) ? s.end : last.end;
-      else merged.push({ start: s.start, end: s.end });
-    }
-    out.push(merged.map(m => `${m.start}–${m.end}`));
+/* ===== שעות פתיחה מחושבות =====
+   ברירת המחדל: איחוד המשמרות של אותו יום. אבל העגלה לא תמיד עובדת לפי
+   הלוח — יורד גשם וסוגרים ב-11:00, מגיעה קבוצה ונשארים עוד שעה, מישהו
+   חולה ולא פותחים. בשביל זה יש hoursOverride על מסמך השבוע: חריגה ליום
+   אחד שגוברת על המשמרות, בלי לגעת בהן ובלי למחוק שיבוצים — ולכן גם
+   "בטל" מחזיר בדיוק את מה שהיה.
+     hoursOverride: { "3": { closed: true } }
+     hoursOverride: { "3": { ranges: ["09:30–11:00"] } }
+   הטווחים הם מחרוזות ולא זוגות, כי Firestore לא מקבל מערך בתוך מערך. */
+const parseRange = (r) => String(r).split(/[–-]/).map(x => x.trim());
+export function rangesOf(data, day){
+  const ov = data && data.hoursOverride && data.hoursOverride[day];
+  if (ov){
+    if (ov.closed) return [];
+    if (Array.isArray(ov.ranges)) return ov.ranges.map(parseRange)
+      .filter(p => p.length === 2 && toMin(p[1]) > toMin(p[0]));
   }
-  return out;
+  const ss = (data && Array.isArray(data.shifts) ? data.shifts : [])
+    .filter(s => s.day === day).sort((a,b) => toMin(a.start) - toMin(b.start));
+  const merged = [];
+  for (const s of ss){
+    const last = merged[merged.length - 1];
+    if (last && toMin(s.start) <= toMin(last[1])) last[1] = toMin(s.end) > toMin(last[1]) ? s.end : last[1];
+    else merged.push([s.start, s.end]);
+  }
+  return merged;
 }
+export const overrideOf = (data, day) => (data && data.hoursOverride && data.hoursOverride[day]) || null;
+export const hoursByDayOf = (data) => [0,1,2,3,4,5,6].map(i => rangesOf(data, i).map(([a,b]) => `${a}–${b}`));
 // זוגות שעות גולמיים, בפורמט שפייסבוק וגוגל מבקשים
-export function hoursPairs(){
-  const out = [];
-  for (let i = 0; i < 7; i++){
-    const ss = shiftsOf().filter(s => s.day === i).sort((a,b) => toMin(a.start) - toMin(b.start));
-    const merged = [];
-    for (const s of ss){
-      const last = merged[merged.length - 1];
-      if (last && toMin(s.start) <= toMin(last[1])) last[1] = toMin(s.end) > toMin(last[1]) ? s.end : last[1];
-      else merged.push([s.start, s.end]);
-    }
-    out.push(merged.slice(0, 2));
-  }
-  return out;
-}
-
-export const hoursText = () => {
-  const h = hoursByDay();
-  return `☕ שעות העגלה · ${dm(S.weekStart)}–${dm(addDays(S.weekStart, 6))}\n\n` +
+export const hoursPairsOf = (data) => [0,1,2,3,4,5,6].map(i => rangesOf(data, i).slice(0, 2));
+export const hoursTextOf = (data, ws) => {
+  const h = hoursByDayOf(data);
+  return `☕ שעות העגלה · ${dm(ws)}–${dm(addDays(ws, 6))}\n\n` +
     h.map((x,i) => `${DAYS[i]}: ${x.length ? x.join(", ") : "סגור"}`).join("\n") +
     `\n\nקפה קורטדו · קיבוץ שניר`;
 };
+export const hoursByDay = () => hoursByDayOf(S.week);
+export const hoursPairs = () => hoursPairsOf(S.week);
+export const hoursText = () => hoursTextOf(S.week, S.weekStart);
 
 /* מסמך השעות הציבורי — מקור אחד לשני הכפתורים ("שגר" ו"עדכן את דף השעות"),
    וגם הפורמט שדף הנחיתה קורא.
@@ -590,29 +601,17 @@ export const hoursText = () => {
    מערך, וכל כתיבה כזו נפלה כאן על "Nested arrays are not supported" עוד
    לפני שיצאה לרשת. זה היה "העדכון נכשל" שאין לו שום קשר להרשאות או לחיבור,
    והוא הופיע בכל שיגור מאז שהדף נולד. מחרוזת ריקה = סגור. */
-export function hoursDoc(){
-  const to = addDays(S.weekStart, 6);
+export function hoursDocOf(data, ws){
+  const to = addDays(ws, 6);
   return {
-    week: wid(), from: ymd(S.weekStart), to: ymd(to),
-    range: `${dm(S.weekStart)} – ${dm(to)}`,
-    days: hoursByDay().map(x => x.join(", ")),
-    text: hoursText(),
+    week: weekId(ws), from: ymd(ws), to: ymd(to),
+    range: `${dm(ws)} – ${dm(to)}`,
+    days: hoursByDayOf(data).map(x => x.join(", ")),
+    text: hoursTextOf(data, ws),
     at: serverTimestamp(),
   };
 }
-
-async function publishHours(btn){
-  return withBusy(btn, async () => {
-    try {
-      await setDoc(doc(db, "public", "hours"), hoursDoc());
-      status("hoursStatus", "ok", "דף השעות הציבורי עודכן.");
-    } catch (e){
-      // הודעה שלא אומרת מה נשבר שולחת את המנהל לחפש בהרשאות ובחיבור.
-      status("hoursStatus", "bad", e.code === "permission-denied"
-        ? "רק המנהל יכול לעדכן את דף השעות." : "העדכון נכשל: " + String(e.message || e.code || ""));
-    }
-  });
-}
+export const hoursDoc = () => hoursDocOf(S.week, S.weekStart);
 
 /* ===== ציור ===== */
 export function render(){
@@ -693,7 +692,6 @@ export function init(){
   $("prevWeek").addEventListener("click", () => { emit("weekchange", -7); });
   $("nextWeek").addEventListener("click", () => { emit("weekchange", 7); });
   $("copyHours").addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק טקסט"));
-  $("pushHours").addEventListener("click", (e) => publishHours(e.currentTarget));
   $("applyAll").addEventListener("click", () => {
     const first = shiftsOf()[0];
     if (!first){ status("mgrStatus", "warn", "הגדר קודם משמרת אחת."); return; }
