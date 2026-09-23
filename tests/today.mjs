@@ -48,6 +48,7 @@ try {
     window.__api["/hours/facebook"] = { ok: true };
     window.__api["/hours/google"] = { fail: "not_configured גוגל עוד לא מחוברת" };
     window.__seed("roster", "t1", { token: "t1", name: "דנה", phone: "050-1111111", active: true });
+    window.__seed("roster", "t2", { token: "t2", name: "יואב", phone: "050-2222222", active: true });
     window.__seed("weeks", CUR, { phase: "locked", shifts: [
       { id: "a", day: 0, start: "09:00", end: "12:00", need: 1 },
       { id: "d", day: 3, start: "09:30", end: "12:30", need: 1 },
@@ -127,6 +128,35 @@ try {
   await page.waitForTimeout(1900);
   p = await pub();
   ok("\"חזרה לרגיל\" בלחיצה אחת", p.weeks["2026-09-20"][3] === "09:30–12:30", p.weeks["2026-09-20"][3]);
+
+  // 5ב. מישהו לא מגיע: שתי נגיעות להוריד, נגיעה אחת לשבץ מחליף
+  await page.click("#todayCard .todayacts button:has-text('מישהו לא מגיע')");
+  await page.click("#todayCard .tchips button:has-text('בלי דנה')");
+  await page.waitForTimeout(300);
+  ok("השיבוץ של דנה להיום ירד", await page.evaluate((k) => !(window.__store.signups || {})[k], `${CUR}_d_t1`));
+  c = await card();
+  ok("מוצע מחליף, עם וואטסאפ לשאול", /מי מחליף את דנה/.test(c.chips.join(" ") + (await page.textContent("#todayCard .tchips"))) &&
+     await page.evaluate(() => [...document.querySelectorAll("#todayCard .tswap a")].some(a => a.href.includes("972502222222"))));
+  await page.click("#todayCard .tswap button:has-text('שבץ')");
+  await page.waitForTimeout(300);
+  ok("יואב משובץ לאותה משמרת, באותו פורמט כמו שיבוץ ידני", await page.evaluate((k) => { const d = (window.__store.signups || {})[k]; return !!d && d.token === "t2" && d.shift === "d"; }, `${CUR}_d_t2`));
+  c = await card();
+  ok("המסך מראה את יואב בעגלה", /יואב/.test(c.line) && !/דנה/.test(c.line), c.line);
+  ok("השעות לא זזו כשהחלפנו אנשים", (await pub()).weeks["2026-09-20"][3] === "09:30–12:30");
+
+  // 5ג. שעות קבועות: נערכות באפליקציה
+  await page.evaluate(() => { document.getElementById("regBox").open = true; });
+  const reg0 = await page.inputValue("#regForm input[data-day='3']");
+  ok("השעות הקבועות מוצגות לעריכה", reg0 === "09:30–12:30", reg0);
+  await page.fill("#regForm input[data-day='0']", "08:00-11:00");
+  await page.fill("#regForm input[data-day='1']", "בוקר");
+  await page.click("#regSave");
+  ok("טעות הקלדה נעצרת עם שם היום", /שני/.test(await page.textContent("#regStatus")), await page.textContent("#regStatus"));
+  await page.fill("#regForm input[data-day='1']", "");
+  await page.click("#regSave");
+  await page.waitForTimeout(300);
+  const regDoc = await page.evaluate(() => (window.__store.brand || {}).hours);
+  ok("נשמר ל-brand/hours, שורה ליום", regDoc && regDoc.days[0] === "08:00–11:00" && regDoc.days[1] === "" && regDoc.days[3] === "09:30–12:30", JSON.stringify(regDoc && regDoc.days));
 
   // 6. שינוי שעה בלוח הניהול מתפרסם בלי "שגר"
   const sel = page.locator("#planner .planday").nth(4).locator("select.timesel").nth(1);
