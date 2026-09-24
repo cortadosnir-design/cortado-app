@@ -615,6 +615,7 @@ body.sheeton{overflow:hidden}
 .wkrow { display: grid; grid-template-columns: 5em 1fr auto; gap: 10px; align-items: baseline;
   padding: 7px 10px; border-radius: 8px; background: var(--card-2, rgba(0,0,0,.03)); }
 .wkrow.off { opacity: .45; }
+.wkrow > button.link { grid-column: 1 / -1; justify-self: start; min-height: 32px; }
 .wkrow span:last-child { text-align: left; }
 
 /* ===== היום (today.js): מצב העגלה עכשיו, ושינוי בנגיעה אחת ===== */

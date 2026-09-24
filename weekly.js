@@ -52,7 +52,8 @@ export function stale(){
 export function plan(over = {}){
   const c = Card.cfg(over);
   const time = /^\d{2}:\d{2}$/.test(over.time || "") ? over.time : (c.posterTime || "08:00");
-  const withClosed = over.withClosed !== false;
+  // ביום סגור לא יוצא פוסט, אלא אם ביקשו במפורש.
+  const withClosed = over.withClosed === true;
   const all = hoursByDay();
   const now = Date.now();
   const today = ymd(new Date());
@@ -131,14 +132,16 @@ export async function syncWeek(over = {}, onStep){
   const rows = stale();
   if (!rows.length) return { ok: [], failed: [] };
   const week = wid();
-  const ok = [], failed = [];
+  const ok = [], failed = [], removed = [];
   for (const q of rows){
     try {
       await api("/publish/cancel", { postId: q.id, at: q.at, fbPostId: q.fbPostId, fbPhotoId: q.fbPhotoId });
+      await setDoc(doc(db, "posts", q.id), { status: "cancelled", igPending: false }, { merge: true });
       const i = Math.round((fromYmd(q.date) - fromYmd(ymd(S.weekStart))) / 86400000);
       const d = plan(over).find(x => x.i === i);
       if (!d) throw new Error("היום הזה כבר לא בשבוע המוצג.");
-      if (d.skip) throw new Error(d.skip);
+      // יום שנסגר: הפוסטר הישן בוטל, ובמקומו לא יוצא כלום. זו ההצלחה.
+      if (d.skip){ removed.push(d); if (onStep) onStep(ok.length + failed.length + removed.length, rows.length); continue; }
       const image = await buildDay(d, over);
       const text = caption(d);
       const id = `poster-${week}-${d.i}`;
@@ -151,9 +154,9 @@ export async function syncWeek(over = {}, onStep){
       }, { merge: true });
       ok.push(d);
     } catch (e){ failed.push(`${dm(fromYmd(q.date))} — ${e.message}`); }
-    if (onStep) onStep(ok.length + failed.length, rows.length);
+    if (onStep) onStep(ok.length + failed.length + removed.length, rows.length);
   }
-  return { ok, failed };
+  return { ok, failed, removed };
 }
 
 /* ===== ההרצה האוטומטית =====
@@ -178,20 +181,47 @@ export const queuedThisWeek = () => {
 
 export async function auto(){
   if (!ready || running || !autoOn() || !S.isOwner || !locked()) return;
-  const has = queuedThisWeek().length;
+  // שבוע שכבר שוגר פעם — גם אם כל הפוסטרים שלו בוטלו ביד — לא משוגר מחדש
+  // לבד. אחרת ביטול של הפוסטר האחרון היה מחזיר את כל השבוע לתור.
+  const week = wid();
+  const has = queuedThisWeek().length || [...queued.values()].some(q => q.week === week);
   const old = stale();
   if (!has && !plan(opts()).some(d => !d.skip)) return;
   if (has && !old.length) return;
   running = true;
   try {
     const r = has ? await syncWeek(opts()) : await scheduleWeek(opts());
-    if (r.ok.length || r.failed.length){
+    const gone = (r.removed || []).length ? ` ${r.removed.length} בוטלו כי היום סגור.` : "";
+    if (r.ok.length || r.failed.length || gone){
       status("wkStatus", r.failed.length ? "warn" : "ok",
-        (has ? `סנכרון אוטומטי: ${r.ok.length} פוסטרים עודכנו.` : `שיגור אוטומטי: ${r.ok.length} פוסטרים נכנסו לתור.`) +
+        (has ? `סנכרון אוטומטי: ${r.ok.length} פוסטרים עודכנו.` + gone : `שיגור אוטומטי: ${r.ok.length} פוסטרים נכנסו לתור.`) +
         (r.failed.length ? ` ${r.failed.length} נכשלו: ${r.failed[0]}` : ""));
     }
   } catch (e){ status("wkStatus", "bad", "השיגור האוטומטי נכשל: " + e.message); }
   finally { running = false; renderPlan(); }
+}
+
+/* ביטול פוסטר של יום אחד — למשל שבת שנסגרה ולא רוצים עליה שום הודעה.
+   פוסטר שבוטל לא חוזר: הסנכרון מדלג על cancelled, והשיגור האוטומטי רץ
+   רק כשאין לשבוע אף פוסטר. השרת מסרב לבטל פוסט שזמנו כבר הגיע. */
+const CANCEL_AHEAD_MS = 2 * 60 * 1000;
+function pendingOn(date){
+  const week = wid();
+  for (const [id, q] of queued)
+    if (q.date === date && (!q.week || q.week === week) && q.status !== "cancelled" && q.status !== "published"
+        && Number(q.at) > Date.now() + CANCEL_AHEAD_MS) return { id, ...q };
+  return null;
+}
+async function cancelDay(q, d){
+  if (!confirm(`לבטל את הפוסט של ${d.day} ${dm(fromYmd(d.date))}? הוא יימחק מהתזמון בפייסבוק ולא ייצא.`)) return;
+  try {
+    const r = await api("/publish/cancel", { postId: q.id, at: q.at, fbPostId: q.fbPostId, fbPhotoId: q.fbPhotoId });
+    await setDoc(doc(db, "posts", q.id), { status: "cancelled", igPending: false }, { merge: true });
+    const failed = (r && r.failed) || [];
+    status("wkStatus", failed.length ? "warn" : "ok", failed.length
+      ? `הפוסט של ${d.day} סומן כמבוטל, אבל פייסבוק לא אישר את המחיקה: ${failed[0]}. כדאי לבדוק במתכנן של מטא.`
+      : `הפוסט של ${d.day} בוטל ולא ייצא.`);
+  } catch (e){ status("wkStatus", "bad", "הביטול נכשל: " + e.message); }
 }
 
 /* מה שבתור נקרא בזמן אמת: כך שורת הסנכרון מופיעה גם כשמישהו אחר
@@ -213,7 +243,7 @@ let previews = [];      // [{ d, url }]
 function opts(){
   return {
     time: ($("wkTime") && $("wkTime").value) || "08:00",
-    withClosed: !($("wkClosed") && !$("wkClosed").checked),
+    withClosed: !!($("wkClosed") && $("wkClosed").checked),
     target: ($("wkTarget") && $("wkTarget").value) || "ig_feed",
     photo: ($("wkPhoto") && $("wkPhoto").value) || "",
     noIg: !($("wkIg") && $("wkIg").checked),
@@ -234,10 +264,13 @@ function renderPlan(){
   const rows = plan(opts());
   const list = el("div", { class: "wkplan" });
   for (const d of rows){
+    const q = pendingOn(d.date);
     list.append(el("div", { class: "wkrow" + (d.skip ? " off" : "") },
       el("b", { text: d.day }),
       el("span", { class: "small", text: d.open ? d.hours : "סגור" }),
-      el("span", { class: "small", text: d.skip || (d.now ? "מתפרסם מיד" : `משוגר ${dm(fromYmd(d.date))} ב-${opts().time}`) })));
+      el("span", { class: "small", text: d.skip || (d.now ? "מתפרסם מיד" : `משוגר ${dm(fromYmd(d.date))} ב-${opts().time}`) }),
+      q ? el("button", { class: "link", type: "button", text: "בטל את הפוסט",
+        onclick: (e) => withBusy(e.currentTarget, () => cancelDay(q, d)) }) : null));
   }
   box.append(list);
 
@@ -254,7 +287,8 @@ function renderPlan(){
             const r = await syncWeek(opts(), (done) => status("wkStatus", "", `מעדכן ${done} מתוך ${old.length}…`));
             status("wkStatus", r.failed.length ? "warn" : "ok",
               r.failed.length ? `${r.ok.length} עודכנו, ${r.failed.length} נכשלו: ${r.failed[0]}`
-                              : `${r.ok.length} פוסטרים עודכנו לשעות החדשות.`);
+                              : `${r.ok.length} פוסטרים עודכנו לשעות החדשות.` +
+                                ((r.removed || []).length ? ` ${r.removed.length} בוטלו כי היום סגור.` : ""));
           } catch (err){ status("wkStatus", "bad", err.message); }
         }) })));
   }
@@ -352,6 +386,7 @@ export function bind(){
   // פוסטר שכבר בתור. זה בדיוק הרגע לבדוק.
   on("week", () => { renderPlan(); auto(); });
   on("weekchanged", renderPlan);
-  subscribe();
+  // subscribe לא נקרא כאן: לפני הכניסה אין הרשאה לקרוא, ו-dropSubs בכניסה
+  // היה מנתק אותו בכל מקרה. startSubs ב-app.js מחבר אותו אחרי הכניסה.
   renderPlan();
 }

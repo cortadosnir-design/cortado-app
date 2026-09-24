@@ -86,7 +86,7 @@ getRedirectResult(auth).catch(() => {});
 
 function startSubs(){
   Shifts.subscribe();
-  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); }
+  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); Weekly.subscribe(); }
   Ops.subscribe();
 }
 

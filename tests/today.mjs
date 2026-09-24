@@ -176,6 +176,42 @@ try {
   ok("סיום לפני ההתחלה מזיז את ההתחלה אחורה", await thu() === "09:30–13:00", await thu());
   await page.waitForTimeout(2000);
 
+  // 6ב. שבת נסגרה: ביטול הפוסטר שלה בלחיצה, בלי שיחזור בסנכרון
+  await page.evaluate(async ({ CUR }) => {
+    const W = await import("/weekly.js");
+    window.__api["/publish/cancel"] = { deleted: ["fb6"], failed: [] };
+    window.__seed("posts", "poster-" + CUR + "-6", { kind: "poster", week: CUR, date: "2026-09-26", status: "scheduled",
+      at: new Date("2026-09-26T08:00:00+03:00").getTime(), hoursKey: W.hoursKey(), fbPostId: "fb6", fbPhotoId: "ph6" });
+    window.__fire();
+  }, { CUR });
+  await page.waitForTimeout(400);
+  const btns = await page.$$eval("#wkPlan .wkrow button", bs => bs.map(b => b.textContent));
+  ok("כפתור ביטול מופיע רק ליד היום שיש לו פוסטר בתור", btns.length === 1 && btns[0] === "בטל את הפוסט", JSON.stringify(btns));
+  const before = dialogs.length;
+  await page.evaluate(() => document.querySelector("#wkPlan .wkrow button").click());
+  await page.waitForTimeout(500);
+  ok("יש אישור לפני מחיקה", dialogs.length === before + 1 && /שבת/.test(dialogs[dialogs.length - 1]), dialogs[dialogs.length - 1]);
+  const cc = await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/publish/cancel").map(c => c.body));
+  ok("השרת התבקש למחוק את הפוסט של שבת", cc.length === 1 && cc[0].fbPostId === "fb6" && cc[0].postId === "poster-" + CUR + "-6", JSON.stringify(cc));
+  const post6 = await page.evaluate((id) => window.__store.posts[id], "poster-" + CUR + "-6");
+  ok("הפוסטר מסומן כמבוטל", post6.status === "cancelled" && post6.igPending === false, post6.status);
+  ok("והכפתור נעלם", (await page.$$("#wkPlan .wkrow button")).length === 0);
+  ok("לא נוצר פוסטר חדש במקומו", await page.evaluate(() => !window.__apiCalls.some(c => c.path === "/publish/schedule" && /-6$/.test(c.body.postId))));
+
+  // 6ג. הסנכרון האוטומטי: פוסטר של שבת עם שעות ישנות (מלפני שנסגרה) מבוטל לבד, ולא נבנה "סגור" במקומו
+  await page.evaluate(({ CUR }) => {
+    window.__apiCalls.length = 0;
+    window.__seed("posts", "poster-" + CUR + "-6", { kind: "poster", week: CUR, date: "2026-09-26", status: "scheduled",
+      at: new Date("2026-09-26T08:00:00+03:00").getTime(), hoursKey: "ישן", fbPostId: "fb7", fbPhotoId: "ph7" });
+    window.__fire();
+  }, { CUR });
+  await page.waitForTimeout(800);
+  const cc2 = await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/publish/cancel").map(c => c.body.fbPostId));
+  ok("הסנכרון מבטל לבד את פוסטר השבת הישן", cc2.length === 1 && cc2[0] === "fb7", JSON.stringify(cc2));
+  ok("ולא מתזמן פוסטר 'סגור' במקומו", await page.evaluate(() => !window.__apiCalls.some(c => c.path === "/publish/schedule" && /-6$/.test(c.body.postId))));
+  ok("הפוסטר מסומן כמבוטל אחרי הסנכרון", await page.evaluate((id) => window.__store.posts[id].status, "poster-" + CUR + "-6") === "cancelled");
+  ok("ההודעה לא מדווחת על כישלון", !/נכשל/.test(await page.textContent("#wkStatus")), await page.textContent("#wkStatus"));
+
   // 7. השבוע הבא: לא מתפרסם עד שננעל, ואז לא מוחק את השבוע הנוכחי
   await page.evaluate(({ NEXT }) => {
     window.__seed("weeks", NEXT, { phase: "open", shifts: [{ id: "n1", day: 5, start: "08:00", end: "11:00", need: 1 }] });
