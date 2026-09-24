@@ -27,9 +27,12 @@ const server = spawn("npx", ["--yes", "http-server", ROOT, "-p", String(PORT), "
 const cleanup = () => { try { server.kill(); } catch {} try { unlinkSync(ROOT + "assign.html"); } catch {} };
 await new Promise(r => setTimeout(r, 2500));
 
+// שעון קבוע ביום שלישי: מיום חמישי autoAdvance נועל שבוע פתוח שיש בו שיבוץ,
+// והלוח מפסיק להציע מקומות. בלי זה הבדיקה נפלה כל יום חמישי.
+const NOW = new Date(2026, 8, 22, 10, 0);
 // אותו חישוב כמו defaultWeekStart: יום ראשון של השבוע, ומיום שישי הבא.
 const pad = (n) => String(n).padStart(2, "0");
-const t = new Date(), ws = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+const t = NOW, ws = new Date(t.getFullYear(), t.getMonth(), t.getDate());
 ws.setDate(ws.getDate() - ws.getDay());
 if (t.getDay() >= 5) ws.setDate(ws.getDate() + 7);
 const WID = `w${ws.getFullYear()}-${pad(ws.getMonth()+1)}-${pad(ws.getDate())}`;
@@ -43,6 +46,7 @@ const errors = [], dialogs = [];
 let promptAnswer = "";
 const newPage = async () => {
   const p = await b.newPage({ viewport: { width: 1200, height: 900 } });
+  await p.clock.setFixedTime(NOW);
   p.on("pageerror", e => errors.push(e.message));
   p.on("console", m => { if (m.type() === "error" && !/Failed to load resource|ERR_/.test(m.text())) errors.push(m.text()); });
   p.on("dialog", async d => { dialogs.push(d.message()); d.type() === "prompt" ? await d.accept(promptAnswer) : await d.accept(); });
