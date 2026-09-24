@@ -181,6 +181,8 @@ label.block{display:flex;flex-direction:column;gap:4px;flex:1 1 100%}
 .planshift .tf span{font-weight:600}
 .planshift .tf input,.planshift .tf select{width:100%;min-width:0}
 .planshift .tf:nth-of-type(3){grid-column:1/-1}
+/* המספר יושב מעל התווית "מתחילה", לא עליה */
+.planshift.numbered{padding-top:20px}
 .shiftnum{position:absolute;inset-block-start:4px;inset-inline-start:6px;font-size:11px;color:var(--muted);font-family:var(--mono)}
 button.icon.del{align-self:center;min-width:44px;min-height:44px;border-radius:10px;font-size:16px}
 button.icon.del:hover{background:var(--bad-soft);color:var(--bad)}

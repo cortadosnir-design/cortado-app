@@ -166,6 +166,16 @@ try {
   ok("שינוי משמרת בחמישי מגיע לדף העגלה לבד", p.weeks["2026-09-20"][4] === "09:30–13:00", p.weeks["2026-09-20"][4]);
   ok("וגם לפייסבוק", await page.evaluate(() => { const c = window.__apiCalls.filter(c => c.path === "/hours/facebook").pop(); return JSON.stringify(c.body.hours.thu) === '[["09:30","13:00"]]'; }));
 
+  // 6א. התחלה שעוברת את הסיום גוררת את הסיום איתה (ולא חוזרת בשקט ל-13:00)
+  const thu = () => page.evaluate((CUR) => window.__store.weeks[CUR].shifts.filter(s => s.day === 4).map(s => s.start + "–" + s.end).join(","), CUR);
+  await page.locator("#planner .planday").nth(4).locator("select.timesel").nth(0).selectOption("16:00");
+  await page.waitForTimeout(300);
+  ok("התחלה אחרי הסיום מזיזה את הסיום ושומרת על האורך", await thu() === "16:00–19:30", await thu());
+  await page.locator("#planner .planday").nth(4).locator("select.timesel").nth(1).selectOption("13:00");
+  await page.waitForTimeout(300);
+  ok("סיום לפני ההתחלה מזיז את ההתחלה אחורה", await thu() === "09:30–13:00", await thu());
+  await page.waitForTimeout(2000);
+
   // 7. השבוע הבא: לא מתפרסם עד שננעל, ואז לא מוחק את השבוע הנוכחי
   await page.evaluate(({ NEXT }) => {
     window.__seed("weeks", NEXT, { phase: "open", shifts: [{ id: "n1", day: 5, start: "08:00", end: "11:00", need: 1 }] });

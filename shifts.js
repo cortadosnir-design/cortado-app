@@ -203,7 +203,7 @@ function renderPlanner(){
 
     if (isOpen){
       dayShifts.forEach((s, idx) => {
-        const row = el("div", { class: "planshift" });
+        const row = el("div", { class: "planshift" + (dayShifts.length > 1 ? " numbered" : "") });
         const field = (label, value, patchKey) => el("label", { class: "tf" },
           el("span", { text: label }),
           timeSelect(value, (v) => editShift(s.id, { [patchKey]: v })));
@@ -249,11 +249,21 @@ function addShift(day){
   const end = fromMin(Math.min(23*60+59, toMin(start) + 240));
   saveWeek({ shifts: [...shiftsOf(), { id: newId(), day, start, end, need: 1 }] });
 }
+// שעת התחלה שעוברת את הסיום (או סיום שמוקדם מההתחלה) לא נדחית — הצד השני
+// זז איתה ושומר על אורך המשמרת. דחייה החזירה את הבחירה בשקט, ומשמרת בוקר
+// שהמנהל ניסה להעביר לערב נשארה תקועה על 12:00 בלי שיבין למה.
+const MIN_T = 5 * 60, MAX_T = 23 * 60 + 45;
 function editShift(id, patch){
-  const next = shiftsOf().map(s => s.id === id ? { ...s, ...patch } : s);
-  const s = next.find(x => x.id === id);
+  const cur = shiftsOf().find(s => s.id === id);
+  if (!cur) return;
+  const s = { ...cur, ...patch };
+  const len = Math.max(STEP, toMin(cur.end) - toMin(cur.start));
+  if (toMin(s.end) <= toMin(s.start)){
+    if (patch.start) s.end = fromMin(Math.min(MAX_T, toMin(s.start) + len));
+    else if (patch.end) s.start = fromMin(Math.max(MIN_T, toMin(s.end) - len));
+  }
   if (toMin(s.end) <= toMin(s.start)){ status("mgrStatus", "warn", "שעת הסיום צריכה להיות אחרי ההתחלה."); render(); return; }
-  saveWeek({ shifts: next });
+  saveWeek({ shifts: shiftsOf().map(x => x.id === id ? s : x) });
 }
 async function removeShift(id, s){
   const who = inShift(id).length;
