@@ -185,17 +185,13 @@ try {
     window.__fire();
   }, { CUR });
   await page.waitForTimeout(400);
-  const btns = await page.$$eval("#wkPlan .wkrow button", bs => bs.map(b => b.textContent));
-  ok("כפתור ביטול מופיע רק ליד היום שיש לו פוסטר בתור", btns.length === 1 && btns[0] === "בטל את הפוסט", JSON.stringify(btns));
-  const before = dialogs.length;
-  await page.evaluate(() => document.querySelector("#wkPlan .wkrow button").click());
-  await page.waitForTimeout(500);
-  ok("יש אישור לפני מחיקה", dialogs.length === before + 1 && /שבת/.test(dialogs[dialogs.length - 1]), dialogs[dialogs.length - 1]);
+  // הפוסטר הישן הושבת: מה שעוד בתור מבוטל לבד, בלי לחיצה ובלי אישור
   const cc = await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/publish/cancel").map(c => c.body));
-  ok("השרת התבקש למחוק את הפוסט של שבת", cc.length === 1 && cc[0].fbPostId === "fb6" && cc[0].postId === "poster-" + CUR + "-6", JSON.stringify(cc));
+  ok("הפוסטר הישן של שבת מבוטל לבד", cc.length === 1 && cc[0].fbPostId === "fb6" && cc[0].postId === "poster-" + CUR + "-6", JSON.stringify(cc));
   const post6 = await page.evaluate((id) => window.__store.posts[id], "poster-" + CUR + "-6");
   ok("הפוסטר מסומן כמבוטל", post6.status === "cancelled" && post6.igPending === false, post6.status);
-  ok("והכפתור נעלם", (await page.$$("#wkPlan .wkrow button")).length === 0);
+  ok("אין כפתורי ביטול שנשארו", (await page.$$("#wkPlan .wkrow button")).length === 0);
+  ok("כפתור השיגור מוסתר", await page.locator("#wkSend").isHidden());
   ok("לא נוצר פוסטר חדש במקומו", await page.evaluate(() => !window.__apiCalls.some(c => c.path === "/publish/schedule" && /-6$/.test(c.body.postId))));
 
   // 6ג. הסנכרון האוטומטי: פוסטר של שבת עם שעות ישנות (מלפני שנסגרה) מבוטל לבד, ולא נבנה "סגור" במקומו

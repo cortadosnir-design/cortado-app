@@ -21,6 +21,13 @@ const MIN_AHEAD_MS = 12 * 60 * 1000;
 
 export const locked = () => phase() === "locked";
 
+/* הפוסטר הזה הושבת ב-25.9.2026 לבקשת סניר: "לא לאפשר יותר להעלות את
+   הפלייר הזה". הפליירים מגיעים מעכשיו מהתבנית החדשה (צילום, עיגול לבן,
+   הסבתא). מה שנשאר כאן הוא רק הביטול: כל פוסטר ישן שעוד מחכה בתור
+   בפייסבוק מבוטל לבד בכניסה הבאה של מנהל, ושום פוסטר חדש לא נבנה. */
+export const RETIRED = true;
+const RETIRED_MSG = "פוסטר השעות הישן הושבת. הפליירים מגיעים מהתבנית החדשה.";
+
 /* טביעת אצבע של שעות השבוע. זה מה שמאפשר לדעת שפוסטר שכבר בתור
    מציג שעות שכבר לא נכונות — בלי להשוות שבע תמונות.
    נשמר על מסמך הפוסט בזמן השיגור, ומושווה מול המצב הנוכחי. */
@@ -93,6 +100,7 @@ export const buildDay = (d, over = {}) =>
 /* השיגור. יום-יום בכוונה: תמונה אחת גדולה בכל בקשה, וכישלון ביום אחד
    לא מפיל את השאר. */
 export async function scheduleWeek(over = {}, onStep){
+  if (RETIRED) throw new Error(RETIRED_MSG);
   if (!locked()) throw new Error("השבוע עוד לא ננעל. אי אפשר לפרסם שעות שעוד יכולות לזוז.");
   const days = plan(over).filter(d => !d.skip);
   if (!days.length) throw new Error("אין יום אחד שאפשר עוד לתזמן השבוע.");
@@ -129,6 +137,7 @@ export async function scheduleWeek(over = {}, onStep){
    מחדש לאותה שעה. הביטול קודם לתזמון בכוונה: שני פוסטים לאותו יום
    הם גרוע יותר מפוסט אחד עם שעות ישנות. */
 export async function syncWeek(over = {}, onStep){
+  if (RETIRED) throw new Error(RETIRED_MSG);
   const rows = stale();
   if (!rows.length) return { ok: [], failed: [] };
   const week = wid();
@@ -180,6 +189,7 @@ export const queuedThisWeek = () => {
 };
 
 export async function auto(){
+  if (RETIRED) return retire();
   if (!ready || running || !autoOn() || !S.isOwner || !locked()) return;
   // שבוע שכבר שוגר פעם — גם אם כל הפוסטרים שלו בוטלו ביד — לא משוגר מחדש
   // לבד. אחרת ביטול של הפוסטר האחרון היה מחזיר את כל השבוע לתור.
@@ -224,6 +234,27 @@ async function cancelDay(q, d){
   } catch (e){ status("wkStatus", "bad", "הביטול נכשל: " + e.message); }
 }
 
+/* כל מה שעוד מחכה בתור — מכל שבוע — מבוטל. בלי לבנות כלום במקומו. */
+async function retire(){
+  if (!ready || running || !S.isOwner) return;
+  const soon = Date.now() + CANCEL_AHEAD_MS;
+  const rows = [...queued].filter(([, q]) => q.status !== "cancelled" && q.status !== "published" && Number(q.at) > soon);
+  if (!rows.length) return;
+  running = true;
+  let n = 0; const failed = [];
+  try {
+    for (const [id, q] of rows){
+      try {
+        await api("/publish/cancel", { postId: id, at: q.at, fbPostId: q.fbPostId, fbPhotoId: q.fbPhotoId });
+        await setDoc(doc(db, "posts", id), { status: "cancelled", igPending: false }, { merge: true });
+        n++;
+      } catch (e){ failed.push(`${q.date || id} — ${e.message}`); }
+    }
+    status("wkStatus", failed.length ? "warn" : "ok", `${n} פוסטרים ישנים בוטלו ולא ייצאו.` +
+      (failed.length ? ` ${failed.length} לא בוטלו: ${failed[0]}. כדאי למחוק ידנית במתכנן של מטא.` : ""));
+  } finally { running = false; renderPlan(); }
+}
+
 /* מה שבתור נקרא בזמן אמת: כך שורת הסנכרון מופיעה גם כשמישהו אחר
    שינה את השיבוץ ממכשיר אחר. */
 export function subscribe(){
@@ -257,6 +288,7 @@ function renderPlan(){
   const box = $("wkPlan");
   if (!box) return;
   clear(box);
+  if (RETIRED) box.append(el("p", { class: "notice warn", text: RETIRED_MSG }));
   if (!locked()){
     box.append(el("p", { class: "small", text: "השבוע עוד לא ננעל. נעל אותו בלשונית השיבוץ, ואז אפשר לשגר." }));
     return;
@@ -309,6 +341,10 @@ export function render(){ renderPlan(); }
 
 export function bind(){
   if (!$("wkPlan")) return;
+  if (RETIRED){
+    for (const id of ["wkSend", "wkPreview"]) if ($(id)) $(id).hidden = true;
+    if ($("wkAuto")) $("wkAuto").closest("label").hidden = true;
+  }
 
   const photoSel = $("wkPhoto");
   // הרשימה נבנית מחדש כשהספרייה משתנה — אחרת מי שמייבא מהדרייב אחרי
