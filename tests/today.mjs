@@ -224,6 +224,27 @@ try {
   ok("נעילת השבוע הבא מפרסמת אותו לבד", p.weeks["2026-09-27"] && p.weeks["2026-09-27"][5] === "08:00–11:00", JSON.stringify(p.weeks["2026-09-27"]));
   ok("והשבוע הנוכחי נשאר בדף (שישי-שבת לא נמחקים)", p.weeks["2026-09-20"][4] === "09:30–13:00" && p.from === "2026-09-20", p.from);
   ok("אין מערך בתוך מערך", !JSON.stringify(p.weeks).includes("[["));
+
+  // 7א. הדבקת שעות לשבוע (מהפלייר): משמרות קיימות נשמרות עם השיבוצים, והשעות מתפרסמות לבד
+  await page.evaluate(() => { document.getElementById("pasteBox").open = true; });
+  await page.waitForTimeout(100);
+  const pre = await page.inputValue("#weekPaste");
+  ok("השדה נפתח עם השעות של השבוע", pre.split("\n").length === 7 && pre.split("\n")[3] === "09:30–12:30", JSON.stringify(pre));
+  await page.fill("#weekPaste", "סגור\nבוקר\n\n\n\n\n");
+  await page.click("#weekPasteApply");
+  ok("טעות נעצרת עם שם היום", /שני/.test(await page.textContent("#pasteStatus")), await page.textContent("#pasteStatus"));
+  await page.fill("#weekPaste", ["יום א 16:00-19:00", "09:30-12:30, 16:00-19:00", "סגור", "יום ד 09:30 - 12:30 16:00 - 19:00",
+    "09:30–12:30, 16:00–19:30", "שישי: 09:00-12:00", "16:00-19:00"].join("\n"));
+  const nd = dialogs.length;
+  await page.click("#weekPasteApply");
+  await page.waitForTimeout(2200);
+  ok("יש אישור עם סיכום לפני העדכון", dialogs.length === nd + 1 && /חמישי: 09:30–12:30, 16:00–19:30/.test(dialogs[nd]), dialogs[nd]);
+  const wk = await week(CUR);
+  const byDay = [0,1,2,3,4,5,6].map(i => wk.shifts.filter(s => s.day === i).sort((a, b) => a.start.localeCompare(b.start)).map(s => s.start + "–" + s.end).join(", "));
+  ok("השעות של השבוע הן בדיוק מה שהודבק", JSON.stringify(byDay) === JSON.stringify(["16:00–19:00", "09:30–12:30, 16:00–19:00", "", "09:30–12:30, 16:00–19:00", "09:30–12:30, 16:00–19:30", "09:00–12:00", "16:00–19:00"]), JSON.stringify(byDay));
+  ok("המשמרת של רביעי שמרה את המזהה שלה", wk.shifts.some(s => s.id === "d" && s.day === 3 && s.start === "09:30"));
+  p = await pub();
+  ok("דף העגלה קיבל את השעות החדשות לבד", p.weeks["2026-09-20"][4] === "09:30–12:30, 16:00–19:30" && p.weeks["2026-09-20"][2] === "", JSON.stringify(p.weeks["2026-09-20"]));
   ok("בלי שגיאות בקונסולה", errors.length === 0, errors.slice(0, 2).join(" | "));
 
   // 8. דף העגלה קורא לפי תאריך

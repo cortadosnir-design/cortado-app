@@ -272,6 +272,46 @@ async function removeShift(id, s){
   await purgeSignups([id]);
   saveWeek({ shifts: shiftsOf().filter(x => x.id !== id) });
 }
+/* ===== הדבקת שעות לשבוע =====
+   שבע שורות, ראשון עד שבת — למשל מהפלייר. משמרת קיימת נשמרת (עם השיבוצים
+   שלה) ורק השעות שלה משתנות; נמחקות רק משמרות שכבר אין להן שורה. */
+const weekLines = () => [0,1,2,3,4,5,6].map(i => shiftsOf().filter(s => s.day === i)
+  .map(s => `${s.start}–${s.end}`).join(", ") || "סגור");
+export function parseWeekText(text){
+  const lines = String(text || "").split(/\r?\n/).map(x => x.trim());
+  // שורות ריקות בסוף הן ימים סגורים, אלא אם יש יותר משבע — אז הן רק רווח.
+  while (lines.length > 7 && !lines[lines.length - 1]) lines.pop();
+  if (lines.length !== 7) return { error: `צריך 7 שורות, מראשון עד שבת. יש ${lines.length}.` };
+  const days = [], bad = [];
+  lines.forEach((raw, i) => {
+    // "יום א 09:00-12:00" או "ראשון: 09:00-12:00" — מה שלפני הספרה הראשונה הוא תווית.
+    const body = /\d/.test(raw) ? raw.slice(raw.search(/\d/)) : "";
+    const rs = parseDayHours(body.replace(/\s*[–-]\s*/g, "–").replace(/\s+ו?(?=\d)/g, ", "));
+    // מה שנכתב ולא נקרא הוא טעות, לא "סגור" — עוצרים ואומרים איפה.
+    if ((body && !rs.length) || (!body && raw && !/סגור/.test(raw))) bad.push(DAYS[i]);
+    days.push(rs);
+  });
+  if (bad.length) return { error: "לא הבנתי את השעות ב" + bad.join(", ") + ". כתוב כמו 09:00–12:00." };
+  return { days };
+}
+async function applyWeekText(btn){
+  const r = parseWeekText($("weekPaste").value);
+  if (r.error){ status("pasteStatus", "warn", r.error); return; }
+  const cur = shiftsOf(), next = [], gone = [];
+  for (let i = 0; i < 7; i++){
+    const old = cur.filter(s => s.day === i);
+    r.days[i].forEach(([start, end], k) => next.push(old[k] ? { ...old[k], start, end } : { id: newId(), day: i, start, end, need: 1 }));
+    old.slice(r.days[i].length).forEach(s => gone.push(s.id));
+  }
+  const summary = r.days.map((rs, i) => `${DAYS[i]}: ${rs.length ? rs.map(([a, b]) => `${a}–${b}`).join(", ") : "סגור"}`).join("\n");
+  const who = S.signups.filter(u => gone.includes(u.shift)).length;
+  if (!confirm(`לעדכן את השבוע לשעות האלה?\n\n${summary}\n\nהשעות יתפרסמו לבד בדף העגלה ובפייסבוק.` +
+    (who ? `\n${who} שיבוצים במשמרות שנמחקות יימחקו.` : ""))) return;
+  return withBusy(btn, async () => {
+    await purgeSignups(gone);
+    await saveWeek({ shifts: next }, "pasteStatus");
+  });
+}
 async function purgeSignups(ids){
   await Promise.all(S.signups.filter(u => ids.includes(u.shift))
     .map(u => deleteDoc(doc(db, "signups", u.id)).catch(() => {})));
@@ -737,4 +777,7 @@ export function init(){
     } catch { status("mgrStatus", "bad", "לא הצלחתי לקרוא את שבוע שעבר."); }
   }));
   $("approveBtn").addEventListener("click", (e) => approve(e.currentTarget));
+  // נפתח עם השעות של השבוע המוצג, כך שאפשר לערוך שורה אחת ולא רק להדביק הכול.
+  $("pasteBox").addEventListener("toggle", (e) => { if (e.target.open) $("weekPaste").value = weekLines().join("\n"); });
+  $("weekPasteApply").addEventListener("click", (e) => applyWeekText(e.currentTarget));
 }

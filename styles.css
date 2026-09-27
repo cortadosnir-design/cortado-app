@@ -642,6 +642,7 @@ body.sheeton{overflow:hidden}
 .tsync .warnc{color:var(--warn);font-weight:600}
 .tsync .badc{color:var(--bad);font-weight:600}
 .tsync button{min-height:44px;margin-inline-start:auto}
+#weekPaste{width:100%;font-family:var(--mono);font-size:16px;line-height:1.6}
 .regform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .regform input{width:100%;font-variant-numeric:tabular-nums}
 .tswap{display:flex;align-items:center;gap:8px;flex:1 1 100%;border-bottom:1px solid var(--line);padding:4px 0}
