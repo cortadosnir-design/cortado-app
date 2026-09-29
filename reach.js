@@ -42,7 +42,7 @@ function renderGroups(){
     if (isDone) done++;
     const row = el("div", { class: "grouprow" + (isDone ? " done" : "") });
     row.append(el("label", { class: "toggle" },
-      el("input", { type: "checkbox", checked: isDone || undefined, disabled: !S.isOwner || undefined,
+      el("input", { type: "checkbox", "aria-label": "טופל השבוע: " + g.name, checked: isDone || undefined, disabled: !S.isOwner || undefined,
         onchange: (e) => saveReach({ done: { ...(r.done || {}), [key(i)]: e.target.checked } }) }),
       el("span", {})));
     const main = el("div", { class: "grow" },
@@ -95,7 +95,7 @@ function renderCompetitors(){
     tb.append(tr);
   });
   tbl.append(tb);
-  box.append(el("div", { class: "scroll" }, tbl));
+  box.append(el("div", { class: "scroll", tabindex: "0", role: "region", "aria-label": "טבלה" }, tbl));
   box.append(el("p", { class: "small", text: "נתוני בסיס מספטמבר 2026. לא מתעדכן אוטומטית — בקש ממני רענון כשתרצה." }));
 }
 

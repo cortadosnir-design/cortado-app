@@ -327,7 +327,7 @@ export function renderLog(){
       el("td", { class: "num", text: dm(fromYmd(l.date)) }), el("td", { text: l.by || "" }),
       el("td", { class: "num", text: l.customers == null ? "—" : String(l.customers) }),
       el("td", { class: "num", text: l.peak || "—" }), el("td", { text: l.weather || "—" }), el("td", { text: l.promo || "" }))));
-    rec.append(el("div", { class: "scroll" }, el("table", { class: "t" },
+    rec.append(el("div", { class: "scroll", tabindex: "0", role: "region", "aria-label": "טבלת דיווחים" }, el("table", { class: "t" },
       el("thead", {}, el("tr", {}, ...["תאריך","מי דיווח","לקוחות","עומס","מזג אוויר","מבצע"].map(h => el("th", { text: h })))), tb)));
   }
 }

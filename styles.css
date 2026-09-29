@@ -48,7 +48,7 @@ header.top h1{display:flex;align-items:center;gap:8px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:var(--shadow)}
 .two>*{min-width:0}
 .help{font-size:14px;color:var(--muted)}
-.help summary{min-height:36px;display:flex;align-items:center;gap:6px}
+.help summary{min-height:44px;display:flex;align-items:center;gap:6px}
 .help summary::before{content:"?";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--sunken);font-weight:700;font-size:12px}
 .help p{margin-top:6px}
 .card.center{align-items:flex-start}
@@ -98,7 +98,7 @@ select.slot:hover{color:var(--ink);border-color:var(--accent)}
    הכיוון, ו-text-align מחזיר את השורה לצד של שם היום. */
 .hours dd{margin:0;direction:ltr;unicode-bidi:isolate;text-align:right}
 .hours dd.closed{color:var(--muted)}
-details summary{cursor:pointer;color:var(--muted);font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:15px;min-height:44px;display:flex;align-items:center;gap:6px}
 .foot{margin-top:auto;display:flex;justify-content:space-between;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
 [hidden]{display:none!important}
 
@@ -190,7 +190,7 @@ button.icon.del:hover{background:var(--bad-soft);color:var(--bad)}
 .planshift select{padding:8px 6px;min-height:44px}
 /* שעות תמיד במספרים לטיניים ומשמאל לימין, גם בממשק עברי */
 .planshift select.timesel{font-family:var(--mono);font-size:16px;direction:ltr;text-align:center}
-button.icon{border:none;background:none;color:var(--muted);padding:6px 8px;min-width:32px;min-height:32px;font-size:15px;line-height:1}
+button.icon{border:none;background:none;color:var(--muted);padding:6px 8px;min-width:44px;min-height:44px;font-size:16px;line-height:1}
 button.icon:hover{color:var(--bad)}
 
 /* ===== לוח קריאייטיב ===== */
@@ -206,10 +206,10 @@ button.icon:hover{color:var(--bad)}
   padding:6px 2px;min-height:0;border:1px solid transparent;border-radius:12px;
   background:none;font-weight:500}
 .wday .wname{font-size:12px;color:var(--muted);line-height:1}
-.wday .wnum{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1}
+.wday .wnum{font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1}
 .wday.cart .wname{color:var(--ink);font-weight:700}
 .wday.today{border-color:var(--accent);background:var(--accent-soft)}
-.wday.gone{opacity:.45}
+.wday.gone .wname,.wday.gone .wnum{text-decoration:line-through}
 
 .wtile{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;
   background:var(--sunken);display:flex;align-items:center;justify-content:center;font-size:17px}
@@ -233,7 +233,7 @@ button.icon:hover{color:var(--bad)}
 .slotrow .wtile.sm{width:46px;flex:none;border-radius:8px;font-size:16px}
 .slotrow.done{border-color:var(--ok-soft)}
 .slotrow.empty{border-style:dashed}
-.slotrow.gone{opacity:.55}
+.slotrow.gone{background:var(--sunken);color:var(--muted)}
 .slotrow .grow{min-width:0;display:block}
 .hint{padding-inline:2px}
 
@@ -261,7 +261,8 @@ label.gate{border-inline-start:3px solid var(--accent);padding-inline-start:10px
 .cliplist{display:flex;flex-direction:column;gap:4px}
 .cliprow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
 .cliprow:last-child{border-bottom:none}
-.cliprow.used{opacity:.5}
+.cliprow.used{color:var(--muted)}
+.cliprow.used .grow>span:first-child{text-decoration:line-through}
 .cliprow button{flex:none;white-space:nowrap}
 .angle{display:flex;gap:6px;align-items:center}
 .angle input{flex:1}
@@ -277,7 +278,7 @@ label.gate{border-inline-start:3px solid var(--accent);padding-inline-start:10px
 .grouplist{display:flex;flex-direction:column;gap:2px}
 .grouprow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
 .grouprow:last-child{border-bottom:none}
-.grouprow.done{opacity:.5}
+.grouprow.done{background:var(--ok-soft);border-radius:10px}
 .grouprow a{color:var(--accent);font-weight:600}
 .grouprow button{flex:none;white-space:nowrap}
 .moves{display:flex;flex-direction:column;gap:10px}
@@ -297,7 +298,7 @@ input.tiny{width:78px;padding:6px 8px;flex:none}
 .track i{display:block;height:100%;background:var(--accent);border-radius:999px}
 table.t tr.me{background:var(--accent-soft)}
 table.t tr.me a{color:var(--accent)}
-.chip button.icon{margin-inline-start:2px;padding:0 2px}
+.chip button.icon{margin-inline-start:2px;padding:0 2px;min-width:32px;min-height:32px}
 
 @media (max-width:560px){
   .availrow{flex-direction:column;align-items:stretch;gap:6px}
@@ -338,7 +339,7 @@ table.t tr.me a{color:var(--accent)}
 .zshift{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;
   display:flex;flex-direction:column;gap:8px;border-inline-start:4px solid var(--line)}
 .zshift.mine{border-inline-start-color:var(--ok);background:var(--ok-soft)}
-.zshift.full{opacity:.62}
+.zshift.full{background:var(--sunken)}
 .zshift .row{display:flex;justify-content:space-between;align-items:center}
 .zshift .join{width:100%;padding:12px}
 .notice.ok2{background:var(--ok-soft);color:var(--ok)}
@@ -346,7 +347,8 @@ table.t tr.me a{color:var(--accent)}
 /* ===== רשימת העובדים והקישורים ===== */
 .rosterrow{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}
 .rosterrow:last-child{border-bottom:none}
-.rosterrow.off{opacity:.55}
+.rosterrow.off{background:var(--sunken)}
+.rosterrow.off b{text-decoration:line-through}
 .rosterrow .mono{font-size:12px;color:var(--muted)}
 .rosterrow .actions{gap:6px}
 .rosterrow .actions button,.rosterrow .actions a{font-size:13px;padding:5px 10px}
@@ -359,7 +361,7 @@ table.t tr.me a{color:var(--accent)}
 .launchrow{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .launchrow:last-child{border-bottom:none}
 .launchicon{flex:none;font-size:17px;line-height:1.4;width:22px;text-align:center}
-.launchrow.pending{opacity:.5}
+.launchrow.pending{color:var(--muted)}
 .launchrow.ok b{color:var(--ok)}
 .launchrow.fail b{color:var(--warn)}
 .launchrow .actions{flex:none;gap:6px}
@@ -378,16 +380,17 @@ table.t tr.me a{color:var(--accent)}
 .now{background:var(--accent);color:var(--accent-ink);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
 .now .nowhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .now .nowtitle{font-family:var(--display);font-size:20px;line-height:1.2}
-.now .nowsub{font-size:14px;opacity:.85}
-.now .nowday{font-size:13px;opacity:.75;font-weight:600}
+.now .nowsub{font-size:15px}
+.now .nowday{font-size:14px;font-weight:600}
 .now .actions{align-items:center}
 .now button{border-color:transparent;background:var(--accent-ink);color:var(--accent);min-height:44px}
 .now button.ghost{background:transparent;color:var(--accent-ink);border-color:rgba(255,255,255,.35)}
 .steps4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;list-style:none;margin:0;padding:0}
-.steps4 li{font-size:12px;opacity:.55;display:flex;flex-direction:column;gap:5px;text-align:center}
-.steps4 li::before{content:"";display:block;height:4px;border-radius:99px;background:currentColor;opacity:.5}
-.steps4 li.done{opacity:.85}
-.steps4 li.cur{opacity:1;font-weight:700}
+.steps4 li{font-size:13px;display:flex;flex-direction:column;gap:5px;text-align:center}
+.steps4 li::before{content:"";display:block;height:4px;border-radius:99px;background:currentColor;opacity:.35}
+.steps4 li.done::before{opacity:.7}
+.steps4 li.done::after{content:" ✓"}
+.steps4 li.cur{font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .steps4 li.cur::before{opacity:1}
 @media (max-width:700px){.now .nowtitle{font-size:19px}}
 
@@ -464,7 +467,7 @@ table.t tr.me a{color:var(--accent)}
   font-size:13px;line-height:1.2;cursor:default}
 .wxday.wx-good{background:var(--ok-soft);color:var(--ok)}
 .wxday.wx-bad{background:var(--bad-soft);color:var(--bad)}
-.wxd{font-weight:700;font-size:12px;opacity:.75}
+.wxd{font-weight:700;font-size:12px}
 .wxi{font-size:17px;line-height:1.1}
 .wxt{font-weight:600;font-variant-numeric:tabular-nums}
 .wxnote{grid-column:1/-1;margin:2px 0 0;color:var(--muted)}
@@ -519,12 +522,12 @@ body.sheeton{overflow:hidden}
 .igtags{font-size:14px;color:var(--accent);word-break:break-word}
 
 .more{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:10px}
-.more>summary{cursor:pointer;color:var(--muted);font-size:14px;min-height:40px;
+.more>summary{cursor:pointer;color:var(--muted);font-size:15px;min-height:44px;
   display:flex;align-items:center}
 
 /* ===== גרסה ועדכון =====
    בלי הפס הזה הדפדפן ממשיך להגיש את הגרסה הישנה והאפליקציה "נראית אותו דבר". */
-.build{font-size:11px;opacity:.55;letter-spacing:0}
+.build{font-size:12px;color:var(--muted);letter-spacing:0}
 .newver{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
   background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
   padding:10px 14px;margin-bottom:4px;font-size:15px}
@@ -599,10 +602,10 @@ body.sheeton{overflow:hidden}
 .dsgrid .check{grid-column:span 2}
 .dsgrid input[type=color]{height:32px;padding:2px}
 .dsgrid input[type=range]{width:100%}
-.kindhead{margin:12px 0 4px;font-weight:700;opacity:.7}
+.kindhead{margin:12px 0 4px;font-weight:700;color:var(--muted)}
 .asset img.trans{background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 50%/16px 16px;object-fit:contain}
 .asset .aname{font-size:12px;padding:2px 4px;width:100%;min-width:0}
-.kindtag{font-size:11px;opacity:.6}
+.kindtag{font-size:12px;color:var(--muted)}
 .layer{border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 8px;margin:6px 0}
 .layhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .layhead b{flex:1;font-size:13px}
@@ -614,7 +617,7 @@ body.sheeton{overflow:hidden}
 .wkplan { display: grid; gap: 2px; margin: 10px 0; }
 .wkrow { display: grid; grid-template-columns: 5em 1fr auto; gap: 10px; align-items: baseline;
   padding: 7px 10px; border-radius: 8px; background: var(--card-2, rgba(0,0,0,.03)); }
-.wkrow.off { opacity: .45; }
+.wkrow.off { color: var(--muted); background: var(--sunken); }
 .wkrow > button.link { grid-column: 1 / -1; justify-self: start; min-height: 32px; }
 .wkrow span:last-child { text-align: left; }
 
@@ -648,3 +651,26 @@ body.sheeton{overflow:hidden}
 .tswap{display:flex;align-items:center;gap:8px;flex:1 1 100%;border-bottom:1px solid var(--line);padding:4px 0}
 .tswap b{flex:1}
 .tchips .grow{flex:1 1 100%}
+
+/* ===== נגישות ===== */
+.skip{position:absolute;inset-inline-start:12px;top:-60px;z-index:50;background:var(--ink);color:var(--ground);
+  padding:10px 16px;border-radius:10px;font-weight:700;text-decoration:none}
+.skip:focus{top:12px}
+#main:focus{outline:none}
+[tabindex="-1"]:focus{outline:none}
+/* הניווט התחתון בטלפון לא מכסה את מה שבפוקוס */
+html{scroll-padding-top:12px;scroll-padding-bottom:calc(var(--nav-h) + 16px)}
+a:focus-visible,summary:focus-visible,textarea:focus-visible,[tabindex="0"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.now :focus-visible{outline-color:var(--accent-ink)}
+button,a,summary,input,select,label{touch-action:manipulation}
+#signOut{min-height:44px;padding-inline:8px}
+@media (forced-colors: active){
+  .toggle input{border:1px solid CanvasText}
+  .toggle input:checked{background:Highlight}
+  .now{border:2px solid CanvasText}
+}
+.pill:empty,.chip:empty{display:none}
+/* summary בתור flex מאבד את המשולש של הדפדפן. מחזירים סימן פתוח/סגור. */
+details:not(.help):not(#teamAdd)>summary::before{content:"◂";font-size:12px;width:1em;flex:none}
+details[open]:not(.help):not(#teamAdd)>summary::before{content:"▾"}
+summary::-webkit-details-marker{display:none}

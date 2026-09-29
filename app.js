@@ -27,7 +27,7 @@ function selectTab(name){
   if (OWNER_TABS.includes(name) && !S.isOwner) name = "shifts";
   for (const t of TABS){
     const btn = $("tab-" + t), panel = $("p-" + t);
-    if (btn) btn.setAttribute("aria-selected", String(t === name));
+    if (btn){ btn.setAttribute("aria-selected", String(t === name)); btn.tabIndex = t === name ? 0 : -1; }
     if (panel) panel.hidden = t !== name;
   }
   try { localStorage.setItem("cortado-tab", name); } catch {}
@@ -38,6 +38,24 @@ function selectTab(name){
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
+// מקלדת: חיצים, Home, End בין הלשוניות (תבנית ה-tabs של WAI-ARIA). ב-RTL חץ שמאלה = הבא.
+$("tabs").addEventListener("keydown", (e) => {
+  const vis = TABS.filter(t => { const b = $("tab-" + t); return b && !b.hidden; });
+  const cur = vis.indexOf((document.activeElement.id || "").replace("tab-", ""));
+  if (cur < 0) return;
+  const step = { ArrowLeft: 1, ArrowRight: -1, Home: -cur, End: vis.length - 1 - cur }[e.key];
+  if (step === undefined) return;
+  e.preventDefault();
+  const next = vis[(cur + step + vis.length) % vis.length];
+  selectTab(next); $("tab-" + next).focus();
+});
+// בטלפון הניווט צמוד לתחתית. מי שמתקדם בטאב לא אמור להגיע לפקד שמוסתר מתחתיו.
+document.addEventListener("focusin", (e) => {
+  const nav = $("tabs");
+  if (!nav || nav.contains(e.target) || getComputedStyle(nav).position !== "fixed") return;
+  const r = e.target.getBoundingClientRect(), top = nav.getBoundingClientRect().top;
+  if (r.bottom > top - 8) window.scrollBy(0, r.bottom - top + 16);
+});
 on("tab", (name) => { selectTab(name); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); });
 
 /* ===== ניווט בין שבועות ===== */

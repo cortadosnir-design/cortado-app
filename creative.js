@@ -176,11 +176,11 @@ function renderMemory(){
   samples.forEach((s, i) => src.append(el("blockquote", { class: "quote" },
     el("span", { text: s.text }),
     el("span", { class: "small muted", text: " · פוסט שלך" }),
-    el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => dropAt("samples", i) }))));
+    el("button", { class: "icon", title: "הסר", "aria-label": "הסר את הדוגמה", text: "✕", onclick: () => dropAt("samples", i) }))));
   examples.forEach((e, i) => src.append(el("blockquote", { class: "quote" },
     el("span", { text: e.after }),
     el("span", { class: "small muted", text: " · תיקון שלך" + (e.at ? " " + dm(new Date(e.at)) : "") }),
-    el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => dropAt("examples", i) }))));
+    el("button", { class: "icon", title: "הסר", "aria-label": "הסר את התיקון", text: "✕", onclick: () => dropAt("examples", i) }))));
   box.append(src);
 
   const group = (kind, title, cls) => {
@@ -189,7 +189,7 @@ function renderMemory(){
     const chips = el("div", { class: "summary" });
     if (!list.length) chips.append(el("span", { class: "small", text: "—" }));
     list.forEach(t => chips.append(el("span", { class: "chip " + cls },
-      el("span", { text: t }), el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => dropRule(kind, t) }))));
+      el("span", { text: t }), el("button", { class: "icon", title: "הסר", "aria-label": "הסר: " + t, text: "✕", onclick: () => dropRule(kind, t) }))));
     wrap.append(chips);
     return wrap;
   };
@@ -569,7 +569,7 @@ function renderBrief(){
     clear(thumbs);
     brief.photos.forEach((u, i) => thumbs.append(el("div", { class: "thumb" },
       el("img", { src: u, alt: "" }),
-      el("button", { class: "icon", title: "הסר", text: "✕",
+      el("button", { class: "icon", title: "הסר", "aria-label": `הסר תמונה ${i + 1}`, text: "✕",
         onclick: () => {
           brief.photos = brief.photos.filter((_, j) => j !== i);
           briefFull = briefFull.filter((_, j) => j !== i);   // שתי הרשימות באותו סדר
@@ -1272,7 +1272,7 @@ function renderClips(){
       el("span", { class: "pill " + (c.state === "shot" ? "ok" : c.state === "idea" ? "warn" : ""), text: CLIP_STATE[c.state] || "" })));
     if (c.state === "idea") row.append(el("button", { text: "צולם ✓", onclick: () => setClip(c.id, "shot") }));
     if (c.state === "shot") row.append(el("button", { class: "primary", text: "לפוסט", onclick: () => useClip(c) }));
-    row.append(el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => saveClips(clips.filter(x => x.id !== c.id)) }));
+    row.append(el("button", { class: "icon", title: "הסר", "aria-label": "הסר את הקליפ " + c.title, text: "✕", onclick: () => saveClips(clips.filter(x => x.id !== c.id)) }));
     box.append(row);
   });
 }

@@ -98,7 +98,7 @@ function renderDraft(){
         oninput: (e) => { draft.categories[i].amount = e.target.value === "" ? null : Number(e.target.value); renderTotals(); } }),
       el("input", { type: "number", step: "0.1", value: c.qty ?? "", "aria-label": "כמות",
         oninput: (e) => { draft.categories[i].qty = e.target.value === "" ? null : Number(e.target.value); renderTotals(); } }),
-      el("button", { class: "icon", type: "button", text: "✕", title: "הסר",
+      el("button", { class: "icon", type: "button", text: "✕", title: "הסר", "aria-label": "הסר את השורה",
         onclick: () => { draft.categories.splice(i, 1); renderDraft(); } })));
   });
   box.append(cats);
@@ -202,7 +202,7 @@ export function render(){
     el("td", { class: "num", text: c.unitShare == null ? "—" : c.unitShare + "%" }),
     el("td", { class: "num", text: shekel(c.avg) }),
     el("td", { class: "num" }, el("span", { class: "pill " + (c.pull >= 1.2 ? "ok" : c.pull <= 0.8 ? "warn" : ""), text: c.pull == null ? "—" : c.pull.toFixed(2) })))));
-  clear($("salesCats")).append(el("div", { class: "scroll" }, el("table", { class: "t" },
+  clear($("salesCats")).append(el("div", { class: "scroll", tabindex: "0", role: "region", "aria-label": "טבלה" }, el("table", { class: "t" },
     el("thead", {}, el("tr", {}, ...["מחלקה", "₪", "% מהכסף", "יחידות", "% מהיחידות", "ממוצע", "מדד"].map(h => el("th", { text: h })))), tb)));
 
   clear($("salesDays")).append(bars(wd.map(e => e.avgTotal), DAYS.map(d => d.slice(0, 3)), shekel, "צריך דוחות מכמה ימים."));
@@ -225,10 +225,10 @@ export function render(){
       el("td", { class: "num", text: r.customers ?? "—" }),
       el("td", { class: "num", text: shekel(d.avgTicket) }),
       el("td", { class: "num", text: r.items ?? "—" }),
-      el("td", {}, el("button", { class: "icon", type: "button", text: "✕", title: "מחק דוח",
+      el("td", {}, el("button", { class: "icon", type: "button", text: "✕", title: "מחק דוח", "aria-label": `מחק את הדוח מ-${r.date}`,
         onclick: async () => { if (confirm(`למחוק את הדוח מ-${r.date}?`)) { try { await deleteDoc(doc(db, "sales", r.id)); } catch {} } } }))));
   });
-  clear($("salesRecent")).append(el("div", { class: "scroll" }, el("table", { class: "t" },
+  clear($("salesRecent")).append(el("div", { class: "scroll", tabindex: "0", role: "region", "aria-label": "טבלה" }, el("table", { class: "t" },
     el("thead", {}, el("tr", {}, ...["תאריך", "מכירות", "לקוחות", "ללקוח", "פריטים", ""].map(h => el("th", { text: h })))), rt)));
 }
 

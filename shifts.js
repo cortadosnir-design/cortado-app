@@ -416,7 +416,7 @@ function renderApproval(){
       el("td", {}, el("span", { class: "pill " + cls, text: txt }))));
   }
   tbl.append(tb);
-  box.append(el("div", { class: "scroll" }, tbl));
+  box.append(el("div", { class: "scroll", tabindex: "0", role: "region", "aria-label": "מי זמין מול מה שצריך" }, tbl));
 
   if (S.availability.some(a => a.note)){
     const notes = el("div", { class: "notes" });
@@ -596,7 +596,7 @@ function renderBoard(){
         const mine = S.me && p.uid === S.me.uid;
         list.append(el("div", { class: "person" },
           el("span", { class: "nm", text: whoOf(p) }),
-          (mine || S.isOwner) && ph !== "locked" ? el("button", { class: "icon", title: "הסר", text: "✕", onclick: () => leave(p.id) }) : null));
+          (mine || S.isOwner) && ph !== "locked" ? el("button", { class: "icon", title: "הסר", "aria-label": "הסר את " + whoOf(p) + " מהמשמרת", text: "✕", onclick: () => leave(p.id) }) : null));
       });
       for (let k = people.length; k < need; k++)
         list.append(canAssign ? assignSlot(s, cands) : el("div", { class: "slot", text: "מקום פנוי" }));
