@@ -23,8 +23,9 @@ function owner(){
 
   if (!shifts.length && ph !== "locked") return {
     step: 0, title: "בונים את השבוע",
-    sub: "סמן איזה ימים העגלה פתוחה, וכמה אנשים צריך בכל משמרת.",
-    primary: ["לימי הפעילות", () => scrollTo("mgrCard")],
+    sub: "לחיצה אחת ממלאת לפי השעות הקבועות. אחר כך אפשר לשנות יום-יום.",
+    primary: ["מלא לפי שעות הפתיחה", () => click("#fillTemplate")],
+    ghost: ["ידנית", () => scrollTo("mgrCard")],
   };
 
   if (ph === "availability" || ph === "review"){

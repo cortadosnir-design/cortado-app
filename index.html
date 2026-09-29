@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-29.2">
-<meta name="theme-color" content="#F5F0E8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#17140F" media="(prefers-color-scheme: dark)">
+  <meta name="app-build" content="2026-09-29.3">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16130F" media="(prefers-color-scheme: dark)">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
@@ -101,7 +101,6 @@
         </div>
         <p class="small">כל שינוי בשעות מתפרסם לבד בדף העגלה ובפייסבוק. גוגל: העתקה והדבקה, עד שה-API יאושר.</p>
         <div id="launchList" class="launchlist"></div>
-        <div class="actions"><button id="launchCopy">העתק את השעות</button></div>
         <div class="status" id="launchStatus" role="status"></div>
         <details data-api hidden id="fbConnect">
           <summary>חיבור עמוד פייסבוק (פעם אחת)</summary>
@@ -126,13 +125,16 @@
         <h2>איזה ימים פתוחים השבוע?</h2>
         <p class="small" id="planSummary"></p>
         <div id="planner" class="plangrid"></div>
+        <div class="actions" id="phaseBar"></div>
+        <div class="status" id="mgrStatus" role="status"></div>
+        <!-- כלים שמשתמשים בהם פעם בשבוע: סגורים עד שצריך, שהמסך יישאר נקי -->
+        <details class="tools" id="hoursTools">
+        <summary>מילוי מהיר ושעות קבועות</summary>
         <div class="actions">
           <button id="fillTemplate">מלא לפי שעות הפתיחה</button>
           <button id="copyPrevWeek">כמו שבוע שעבר</button>
           <button id="applyAll">אותן שעות בכל הימים</button>
         </div>
-        <div class="actions" id="phaseBar"></div>
-        <div class="status" id="mgrStatus" role="status"></div>
         <details id="pasteBox">
           <summary>הדבק שעות לשבוע הזה</summary>
           <p class="small">שורה ליום, מראשון עד שבת, למשל <span dir="ltr">09:30–12:30, 16:00–19:00</span>. "סגור" או שורה ריקה = סגור. שיבוצים של משמרות שנשארות לא נמחקים.</p>
@@ -154,6 +156,7 @@
             <button id="copyHours">העתק טקסט</button>
           </div>
         </details>
+        </details>
       </section>
     </section>
 
@@ -168,6 +171,8 @@
       <div class="card" id="weeklyCard" hidden data-owner data-api>
         <div class="calhead"><h2>פוסטר השבוע</h2></div>
         <p class="small">ברגע שהשבוע נעול — פוסטר לכל יום, עם השעות של אותו שבוע והיום מודגש, מתפרסם ביום שלו. פייסבוק מתזמן לבד. יום שהשעה שלו כבר עברה מתפרסם מיד ולא מדולג.</p>
+        <details class="tools" id="wkSettings">
+        <summary>הגדרות</summary>
         <div class="row">
           <label for="wkTime">שעת השיגור<input id="wkTime" type="time" value="08:00"></label>
           <label for="wkTarget">מידה<select id="wkTarget">
@@ -176,11 +181,12 @@
             <option value="ig_story">סטורי 9:16</option>
           </select></label>
           <label for="wkPhoto">הצילום ברצועה<select id="wkPhoto"></select></label>
-          <label for="wkTag">המשפט על הצילום<input id="wkTag" type="text" maxlength="42" placeholder="כוס קפה, וזמן שלא בוער"></label>
+          <label for="wkTag">המשפט על הצילום<input id="wkTag" type="text" autocomplete="off" maxlength="42" placeholder="כוס קפה, וזמן שלא בוער"></label>
         </div>
         <label class="check"><input id="wkClosed" type="checkbox"> לפרסם גם בימים סגורים</label>
         <label class="check"><input id="wkAuto" type="checkbox" checked> לשגר אוטומטית ברגע שהשבוע נעול, ולסנכרן לבד כשהשעות משתנות</label>
         <label class="check"><input id="wkIg" type="checkbox"> לפרסם גם באינסטגרם (כרגע פייסבוק בלבד)</label>
+        </details>
         <div id="wkPlan"></div>
         <div class="actions">
           <button id="wkPreview">הכן תצוגה מקדימה</button>
@@ -683,10 +689,10 @@
             <summary id="teamAddSummary">+ הוסף עובד</summary>
             <p class="small">קישור אישי לכל עובד. בלי חשבון, בלי סיסמה.</p>
             <div class="teamform">
-              <label for="tName">שם<input id="tName" type="text" placeholder="כמו שמופיע במשמרות"></label>
-              <label for="tPhone">טלפון<input id="tPhone" type="tel" dir="ltr" placeholder="050-0000000"></label>
-              <label for="tEmail">מייל (לא חובה)<input id="tEmail" type="email" dir="ltr"></label>
-              <label for="tRole">תפקיד<input id="tRole" type="text" placeholder="בריסטה"></label>
+              <label for="tName">שם<input id="tName" name="tName" type="text" autocomplete="off" placeholder="כמו שמופיע במשמרות"></label>
+              <label for="tPhone">טלפון<input id="tPhone" name="tPhone" type="tel" autocomplete="off" inputmode="tel" dir="ltr" placeholder="050-0000000"></label>
+              <label for="tEmail">מייל (לא חובה)<input id="tEmail" name="tEmail" type="email" autocomplete="off" spellcheck="false" dir="ltr"></label>
+              <label for="tRole">תפקיד<input id="tRole" name="tRole" type="text" autocomplete="off" placeholder="בריסטה"></label>
               <button class="primary" id="tSave">הוסף עובד</button>
             </div>
           </details>

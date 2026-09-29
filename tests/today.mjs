@@ -145,7 +145,7 @@ try {
   ok("השעות לא זזו כשהחלפנו אנשים", (await pub()).weeks["2026-09-20"][3] === "09:30–12:30");
 
   // 5ג. שעות קבועות: נערכות באפליקציה
-  await page.evaluate(() => { document.getElementById("regBox").open = true; });
+  await page.evaluate(() => { document.getElementById("hoursTools").open = true; document.getElementById("regBox").open = true; });
   const reg0 = await page.inputValue("#regForm input[data-day='3']");
   ok("השעות הקבועות מוצגות לעריכה", reg0 === "09:30–12:30", reg0);
   await page.fill("#regForm input[data-day='0']", "08:00-11:00");
@@ -226,7 +226,7 @@ try {
   ok("אין מערך בתוך מערך", !JSON.stringify(p.weeks).includes("[["));
 
   // 7א. הדבקת שעות לשבוע (מהפלייר): משמרות קיימות נשמרות עם השיבוצים, והשעות מתפרסמות לבד
-  await page.evaluate(() => { document.getElementById("pasteBox").open = true; });
+  await page.evaluate(() => { document.getElementById("hoursTools").open = true; document.getElementById("pasteBox").open = true; });
   await page.waitForTimeout(100);
   const pre = await page.inputValue("#weekPaste");
   ok("השדה נפתח עם השעות של השבוע", pre.split("\n").length === 7 && pre.split("\n")[3] === "09:30–12:30", JSON.stringify(pre));

@@ -761,7 +761,13 @@ export function init(){
   });
   $("fillTemplate").addEventListener("click", async (e) => withBusy(e.currentTarget, async () => {
     const next = templateShifts();
-    if (!next.length){ status("mgrStatus", "warn", "אין שעות פתיחה מוגדרות לשבוע הזה."); return; }
+    if (!next.length){
+      // אין שעות קבועות: פותחים בדיוק את המקום שבו מגדירים אותן, במקום הודעה שאף אחד לא רואה.
+      status("mgrStatus", "warn", "אין שעות פתיחה קבועות. הגדר אותן כאן פעם אחת.");
+      $("hoursTools").open = true; $("regBox").open = true;
+      $("regBox").scrollIntoView({ block: "center" });
+      return;
+    }
     if (shiftsOf().length && !confirm("להחליף את המשמרות של השבוע בשעות הפתיחה הקבועות?")) return;
     await purgeSignups(S.signups.map(u => u.shift));
     await saveWeek({ shifts: next });

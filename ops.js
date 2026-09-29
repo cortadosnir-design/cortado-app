@@ -47,6 +47,8 @@ function renderRoster(){
   }
   // דרך Shifts כדי שגם מי שמילא זמינות אחרי כניסה עם גוגל ייספר כאן,
   // ולא יסומן "עוד לא שלח" בזמן שהמסך השני אומר שכולם שלחו.
+  // טופס ההוספה נפתח לבד רק כשאין אף עובד. כשיש צוות, הוא סגור עד שלוחצים.
+  if (!editingMember && !$("tName").value) $("teamAdd").open = false;
   const sentSet = Shifts.sentKeys();
   const collecting = !S.week || !S.week.phase || S.week.phase === "availability" || S.week.phase === "review";
   const list = [...S.roster].sort((a,b) =>
@@ -65,17 +67,22 @@ function renderRoster(){
     const acts = el("div", { class: "actions" });
     if (wa) acts.append(el("a", { class: "btn wa", href: wa, target: "_blank", rel: "noopener", text: "שלח בוואטסאפ" }));
     else acts.append(el("button", { text: "שתף", onclick: () => shareInvite(r) }));
-    acts.append(el("button", { text: "העתק קישור", onclick: (e) => copyText(link, e.currentTarget, "העתק קישור") }));
-    acts.append(el("button", { class: "link", text: "עריכה", onclick: () => {
+    // פעולה אחת גלויה (לשלוח את הקישור). כל השאר תחת "עוד", שהשורה תישאר נקייה.
+    const more = el("div", { class: "morelist" });
+    const moreBox = el("details", { class: "rowmore" }, el("summary", { text: "עוד", "aria-label": `עוד פעולות ל${r.name || "עובד"}` }), more);
+    acts.append(moreBox);
+    more.append(el("button", { text: "העתק קישור", onclick: (e) => copyText(link, e.currentTarget, "העתק קישור") }));
+    more.append(el("button", { text: "עריכה", onclick: () => {
       editingMember = r.token;
       $("tName").value = r.name || ""; $("tPhone").value = r.phone || "";
       $("tEmail").value = r.email || ""; $("tRole").value = r.role || "";
       $("tSave").textContent = "שמור"; $("teamAdd").open = true; $("teamAddSummary").textContent = "עריכת " + (r.name || "עובד"); $("tName").focus();
+      moreBox.open = false;
     } }));
-    acts.append(el("button", { class: "link", text: r.active === false ? "הפעל" : "השבת",
+    more.append(el("button", { text: r.active === false ? "הפעל" : "השבת",
       onclick: () => updateDoc(doc(db, "roster", r.token), { active: r.active === false })
         .catch(() => status("teamStatus", "bad", "העדכון נכשל.")) }));
-    acts.append(el("button", { class: "link", text: "קישור חדש", title: "מבטל את הקישור הישן",
+    more.append(el("button", { text: "קישור חדש", title: "מבטל את הקישור הישן",
       onclick: (e) => resetToken(r, e.currentTarget) }));
     row.append(acts);
     t.append(row);

@@ -142,8 +142,6 @@ export function init(){
   const fs = $("fbStatus"); if (fs) fs.addEventListener("click", (e) => fbStatus(e.currentTarget));
   const btn = $("launchBtn");
   if (btn) btn.addEventListener("click", (e) => launch(e.currentTarget));
-  const cp = $("launchCopy");
-  if (cp) cp.addEventListener("click", (e) => copyText(hoursText(), e.currentTarget, "העתק את השעות"));
   render();
   on("week", render);
   on("weekchanged", render);
