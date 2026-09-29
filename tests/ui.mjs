@@ -227,8 +227,8 @@ console.log("\n8. תקציב פיירסטור");
   await p.close();
 }
 
-/* ── 9. מצב כהה ── */
-console.log("\n9. מצב כהה");
+/* ── 9. טלפון במצב כהה: האפליקציה נשארת לבנה (בקשת המייסדת, 29.9) ── */
+console.log("\n9. טלפון במצב כהה → נשאר בהיר");
 {
   const p = await fresh({ scheme: "dark", dpr: 2 });
   await p.evaluate(() => window.C.newPost());
@@ -240,11 +240,10 @@ console.log("\n9. מצב כהה");
       barBg: lum(g(".sheetbar","backgroundColor")), igBg: lum(g(".igimg","backgroundColor")),
       capInk: lum(g("#igText","color")) };
   });
-  ok("הרקע כהה", c.bodyBg < 70, `${Math.round(c.bodyBg)}`);
-  ok("שכבת הכתיבה כהה ולא לבנה", c.sheetBg < 90, `${Math.round(c.sheetBg)}`);
-  ok("סרגל הפעולות כהה", c.barBg < 90, `${Math.round(c.barBg)}`);
-  ok("מסגרת התמונה כהה", c.igBg < 90, `${Math.round(c.igBg)}`);
-  ok("הטקסט בהיר על רקע כהה", c.capInk > 150, `${Math.round(c.capInk)}`);
+  ok("הרקע לבן", c.bodyBg > 245, `${Math.round(c.bodyBg)}`);
+  ok("שכבת הכתיבה בהירה", c.sheetBg > 200, `${Math.round(c.sheetBg)}`);
+  ok("סרגל הפעולות בהיר", c.barBg > 200, `${Math.round(c.barBg)}`);
+  ok("הטקסט כהה על רקע בהיר", c.capInk < 90, `${Math.round(c.capInk)}`);
   await p.evaluate(() => document.getElementById("closeComposer").click());
   await p.waitForTimeout(200);
   await p.close();

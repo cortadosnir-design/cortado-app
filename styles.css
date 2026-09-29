@@ -1,5 +1,5 @@
 :root{
-  color-scheme:light dark;
+  color-scheme:light;  /* תמיד בהיר, גם כשהטלפון במצב כהה */
   /* לבן, נקי, הרבה אוויר. חלודה (#A8441A, מהזהות) רק למה שלוחצים עליו. כל הזוגות עברו AA. */
   --ground:#FFFFFF; --surface:#FFFFFF; --sunken:#F5F2EF; --ink:#2B2420; --muted:#6B625B; --line:#E8E2DC;
   --accent:#A8441A; --accent-ink:#FFFFFF; --accent-soft:#FCEFE8;
@@ -8,12 +8,6 @@
   --nav-h:0px;
   --display:"Secular One","Assistant",system-ui,sans-serif; --body:"Assistant",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --ground:#16130F; --surface:#201B16; --sunken:#2A241E; --ink:#F2ECE5; --muted:#ABA197; --line:#3E362F;
-  --accent:#F0A77E; --accent-ink:#2A140A; --accent-soft:#3B2A20;
-  --shadow:none;
-  --ok:#7CC89A; --ok-soft:#1D3326; --warn:#E2B566; --warn-soft:#3A2E17; --bad:#F09088; --bad-soft:#3D1F1C;
-}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
