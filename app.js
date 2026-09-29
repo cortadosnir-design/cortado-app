@@ -27,7 +27,9 @@ function selectTab(name){
   if (OWNER_TABS.includes(name) && !S.isOwner) name = "shifts";
   for (const t of TABS){
     const btn = $("tab-" + t), panel = $("p-" + t);
-    if (btn){ btn.setAttribute("aria-selected", String(t === name)); btn.tabIndex = t === name ? 0 : -1; }
+    // "הפצה" גרה בתוך "קריאייטיב" (סרגל של 5 לכל היותר), אז הכפתור שלה הוא של קריאייטיב.
+    const on_ = t === name || (t === "creative" && name === "reach");
+    if (btn){ btn.setAttribute("aria-selected", String(on_)); btn.tabIndex = on_ ? 0 : -1; }
     if (panel) panel.hidden = t !== name;
   }
   try { localStorage.setItem("cortado-tab", name); } catch {}
@@ -38,6 +40,10 @@ function selectTab(name){
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
+document.querySelectorAll(".subnav .subbtn").forEach(b => {
+  b.setAttribute("aria-pressed", String(b.closest("section").id === "p-" + b.dataset.view));
+  b.addEventListener("click", () => { selectTab(b.dataset.view); document.querySelector(`#p-${b.dataset.view} .subbtn[data-view="${b.dataset.view}"]`).focus(); });
+});
 // מקלדת: חיצים, Home, End בין הלשוניות (תבנית ה-tabs של WAI-ARIA). ב-RTL חץ שמאלה = הבא.
 $("tabs").addEventListener("keydown", (e) => {
   const vis = TABS.filter(t => { const b = $("tab-" + t); return b && !b.hidden; });

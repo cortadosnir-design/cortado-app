@@ -4,7 +4,7 @@
 // גרסת הבנייה. מוצגת בכותרת, וזהה ל-VERSION ב-sw.js (יש בדיקה שמוודאת).
 // **מעלים אותה בכל דחיפה שמשנה קבצים** — אחרת ה-Service Worker לא מתחלף
 // והדפדפן ממשיך להגיש את הגרסה הישנה.
-export const APP_VERSION = "2026-09-29.1";
+export const APP_VERSION = "2026-09-29.2";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD75yNOaZM6prmFAm2iyeLNcgzuQl-gh4Y",
@@ -39,4 +39,7 @@ export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
 // מיקום העגלה, לתחזית מזג האוויר. קואורדינטות מקורבות של קיבוץ שניר.
 // אם התחזית נראית לא מדויקת: פותחים את Google Maps על העגלה, לוחצים ימני
 // על הנקודה, ומעתיקים את שני המספרים לכאן.
+// הטלפון של העגלה (מופיע גם בדף הנחיתה). עובד שלא יכול להגיע כותב לכאן בוואטסאפ בלחיצה אחת.
+export const OWNER_PHONE = "054-312-5466";
+
 export const PLACE = { lat: 33.24, lon: 35.63, name: "קיבוץ שניר" };

@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js";
+import { firebaseConfig, OWNER_PHONE } from "./config.js";
 // playbook.js הוא העוגן היחיד לחגים, והוא חסר תלויות — אפשר לייבא אותו
 // כאן בלי לגרור את core.js (שמאתחל אימות ו-Firestore עם התמדה, ודף
 // העובד לא צריך אותם). הרשימה שהייתה כאן כבר סטתה: חסרו בה שלושה חגים,
@@ -32,6 +32,14 @@ function el(tag, attrs = {}, ...kids){
   for (const k of kids) if (k != null) e.append(typeof k === "string" ? document.createTextNode(k) : k);
   return e;
 }
+// וואטסאפ לעגלה, עם ההודעה כבר כתובה. 050… → 97250…
+const waOwner = (text) => {
+  let p = String(OWNER_PHONE || "").replace(/[^\d]/g, "");
+  if (p.startsWith("0")) p = "972" + p.slice(1);
+  return p.length >= 11 ? `https://wa.me/${p}?text=${encodeURIComponent(text)}` : null;
+};
+// שעת הסגירה לזמינות, כפי שהמנהלת קבעה (weeks.availBy, זמן מקומי "YYYY-MM-DDTHH:MM").
+const deadline = () => { const s = week && week.availBy; const d = s ? new Date(s) : null; return d && !isNaN(d) ? d : null; };
 const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
 const say = (kind, msg) => { const n = $("zstatus"); n.className = "status " + (kind||""); n.textContent = msg || ""; };
 
@@ -254,6 +262,12 @@ const shiftLine = (day) => {
 
 function renderAvailability(main){
   main.append(el("p", { class: "zlead", text: "סמן מתי אתה יכול. זה לא שיבוץ — רק זמינות." }));
+  const dl = deadline();
+  if (dl){
+    const when = `${DAYS[dl.getDay()]} ${dm(dl)} ב-${pad(dl.getHours())}:${pad(dl.getMinutes())}`;
+    main.append(el("div", { class: "notice" + (dl < new Date() ? "" : " info"), id: "zdeadline",
+      text: dl < new Date() ? `הזמן לשליחה (${when}) עבר, אבל עוד אפשר לשלוח.` : `שלחו עד ${when}.` }));
+  }
   if (mine) main.append(el("div", { class: "notice ok2", text: "כבר שלחת. אפשר לשנות ולשלוח שוב." }));
   const anyShift = shiftsOf().length;
   if (anyShift) main.append(el("p", { class: "zlead small", text: "מתחת לכל יום כתובות שעות המשמרת שתוכננו, ובסוגריים כמה אנשים דרושים." }));
@@ -340,8 +354,14 @@ function renderFinal(main){
   if (!mineShifts.length){ main.append(el("div", { class: "card center" }, el("p", { text: "אין לך משמרות השבוע." }))); $("zbar").hidden = true; return; }
   for (const s of mineShifts){
     const d = addDays(weekStart, s.day);
-    main.append(el("div", { class: "zshift mine" },
-      el("div", { class: "row" }, el("b", { text: DAYS[s.day] + " " + dm(d) }), el("span", { class: "mono", text: `${s.start}–${s.end}` }))));
+    const card = el("div", { class: "zshift mine" },
+      el("div", { class: "row" }, el("b", { text: DAYS[s.day] + " " + dm(d) }), el("span", { class: "mono", text: `${s.start}–${s.end}` })));
+    // משמרת שעוד לא נגמרה: לחיצה אחת פותחת וואטסאפ לעגלה עם כל הפרטים.
+    // המנהלת מוצאת מחליף מ"מישהו לא מגיע" במסך "היום", שכבר מציע מי סימן "יכול".
+    const end = new Date(d); const [eh, em] = String(s.end).split(":").map(Number); end.setHours(eh || 0, em || 0, 0, 0);
+    const wa = end > new Date() && waOwner(`היי, זה ${me && me.name || ""}. לא אוכל להגיע למשמרת ב${DAYS[s.day]} ${dm(d)}, ${s.start}–${s.end}.`);
+    if (wa) card.append(el("a", { class: "btn cant", href: wa, target: "_blank", rel: "noopener", text: "לא אוכל להגיע" }));
+    main.append(card);
   }
   $("zbar").hidden = true;
 }

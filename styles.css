@@ -674,3 +674,20 @@ button,a,summary,input,select,label{touch-action:manipulation}
 details:not(.help):not(#teamAdd)>summary::before{content:"◂";font-size:12px;width:1em;flex:none}
 details[open]:not(.help):not(#teamAdd)>summary::before{content:"▾"}
 summary::-webkit-details-marker{display:none}
+
+/* ===== תזכורות זמינות (בתוך שורת "עכשיו") ===== */
+.remind{display:flex;flex-direction:column;gap:6px;background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px}
+.remindrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:44px;border-bottom:1px solid var(--line)}
+.remindrow:last-child{border-bottom:none}
+.remindrow b{flex:1 1 90px}
+.remindrow .small{color:var(--muted)}
+.remindrow input[type=datetime-local]{flex:1 1 180px;min-width:0}
+.remind button,.remind a.btn{background:var(--surface);color:var(--ink);border:1px solid var(--line);min-height:44px}
+.remind a.btn.wa{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.remind :focus-visible{outline-color:var(--accent)}
+.zshift a.btn.cant{align-self:flex-start;min-height:44px;margin-top:6px;color:var(--bad);border-color:var(--line)}
+
+/* תוכן | הפצה — שני מסכים תחת כפתור אחד בסרגל */
+.subnav{display:flex;gap:4px;background:var(--sunken);border-radius:12px;padding:4px;align-self:flex-start}
+.subnav .subbtn{border:none;background:transparent;min-height:40px;padding:8px 18px;color:var(--muted)}
+.subnav .subbtn[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}

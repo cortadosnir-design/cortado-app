@@ -4,6 +4,9 @@ import { S, DAYS, $, el, clear, dm, ymd, on, emit } from "./core.js";
 import { phase, shiftsOf, openDays, sentKeys, hasSent } from "./shifts.js";
 import { weekProgress } from "./creative.js";
 import { googleMarked } from "./launch.js";
+import * as Remind from "./remind.js";
+
+let remindOpen = false;   // הפאנל של "הזכר ל-N" פתוח?
 
 const STEPS = ["ימים", "זמינות", "שיבוץ", "נעול"];
 
@@ -33,14 +36,21 @@ function owner(){
     const total = active.length || sent.size;
     const n = active.length ? active.length - missing.length : sent.size;
     const all = active.length && !missing.length;
+    const dl = Remind.deadline();
+    const late = dl && dl < new Date();
     return {
       step: 1, title: `${n}/${total} שלחו זמינות`,
       sub: all ? "כולם שלחו. אפשר לאשר ולפתוח לשיבוץ." :
            missing.length ? "עוד לא: " + missing.map(r => r.name || "ללא שם").slice(0, 4).join(", ") + (missing.length > 4 ? " ועוד" : "") :
            "שלח לצוות את הקישורים האישיים.",
-      nudge: cur && today >= 2 && !all ? `כבר יום ${DAYS[today]}. כדאי לאשר היום, שהצוות יספיק להשתבץ.` : "",
-      primary: all ? ["אשר ופתח לשיבוץ", () => click("#approveBtn")] : ["שלח תזכורת", () => emit("tab", "team")],
-      ghost: all ? null : ["אשר בכל זאת", () => click("#approveBtn")],
+      nudge: all ? "" :
+             late ? `זמן הסגירה (${Remind.whenText(dl)}) עבר. אפשר לאשר עם מי ששלח.` :
+             dl ? `נסגר ${Remind.whenText(dl)}.` :
+             cur && today >= 2 ? `כבר יום ${DAYS[today]}. כדאי לאשר היום, שהצוות יספיק להשתבץ.` : "",
+      primary: all || !missing.length ? ["אשר ופתח לשיבוץ", () => click("#approveBtn")]
+             : [remindOpen ? "סגור" : `הזכר ל-${missing.length}`, () => { remindOpen = !remindOpen; render(); }],
+      ghost: all || !missing.length ? null : ["אשר בכל זאת", () => click("#approveBtn")],
+      extra: !all && missing.length && remindOpen ? Remind.panel(render) : null,
     };
   }
 
@@ -123,6 +133,7 @@ export function render(){
   if (v.primary) acts.append(el("button", { text: v.primary[0], onclick: v.primary[1] }));
   if (v.ghost) acts.append(el("button", { class: "ghost", text: v.ghost[0], onclick: v.ghost[1] }));
   box.append(acts);
+  if (v.extra) box.append(v.extra);
 }
 
 export function init(){
