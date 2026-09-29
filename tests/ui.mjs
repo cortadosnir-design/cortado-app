@@ -311,6 +311,43 @@ console.log("\n15. מעקב אחרי העדכון הידני בגוגל");
   ok("googleAt על מסמך השבוע נקרא כ'סומן'", wrote.marked === true);
   await p.close();
 }
+/* ── 15ב. משוך מגוגל: קוראים, מראים, ורק באישור כותבים ── */
+console.log("\n15ב. משוך מגוגל");
+{
+  const p = await fresh();
+  const r = await p.evaluate(async () => {
+    const pad = (n) => String(n).padStart(2, "0");
+    const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const ws = window.S.weekStart, cur = "w" + ymd(ws);
+    const shifts = [{ id: "s1", day: 1, start: "06:30", end: "15:00", need: 1 }];
+    window.__store.weeks = { [cur]: { phase: "locked", shifts } };
+    window.S.week = window.__store.weeks[cur];
+    // גוגל: שני 09:00–12:00, שבת 09:00–12:00 ו-16:00–19:00, שאר הימים סגור. יום שני הבא סגור בחג.
+    const nextMon = new Date(ws); nextMon.setDate(nextMon.getDate() + 8);
+    const regular = [[], ["09:00–12:00"], [], [], [], [], ["09:00–12:00", "16:00–19:00"]];
+    window.__api["/hours/fromgoogle"] = { regular, dated: { [ymd(nextMon)]: [] }, text: [] };
+    const btn = [...document.querySelectorAll("#launchList button")].find(b => b.textContent === "משוך מגוגל");
+    if (!btn) return { btn: false };
+    const writesBefore = window.__writes.length;
+    btn.click(); await new Promise(res => setTimeout(res, 300));
+    const rows = document.querySelectorAll("#googlePlan .gplanrow").length;
+    const wroteBeforeApprove = window.__writes.length - writesBefore;
+    [...document.querySelectorAll("#googlePlan button")].find(b => b.textContent === "עדכן דף ופייסבוק").click();
+    await new Promise(res => setTimeout(res, 300));
+    const w = window.__store.weeks[cur], n = window.__store.weeks["w" + ymd(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7))];
+    return { btn: true, rows, wroteBeforeApprove, ov: w.hoursOverride, shifts: w.shifts, googleSig: !!w.googleSig,
+      nextMon: n && n.hoursOverride && n.hoursOverride["1"], status: document.getElementById("launchStatus").textContent };
+  });
+  ok("כפתור 'משוך מגוגל' בשורת גוגל", r.btn);
+  ok("מראה קודם מה ישתנה", r.rows >= 3, String(r.rows));
+  ok("לא כותב כלום לפני אישור", r.wroteBeforeApprove === 0, String(r.wroteBeforeApprove));
+  ok("אחרי אישור: השעות של גוגל על השבוע", r.ov && r.ov["1"].ranges[0] === "09:00–12:00" && r.ov["6"].ranges.length === 2 && r.ov["0"].closed === true, JSON.stringify(r.ov));
+  ok("המשמרות לא זזו", r.shifts && r.shifts.length === 1 && r.shifts[0].start === "06:30", JSON.stringify(r.shifts));
+  ok("גוגל מסומנת כמעודכנת", r.googleSig);
+  ok("חג בשבוע הבא: סגור לפי התאריך, לא לפי השבוע הרגיל", r.nextMon && r.nextMon.closed === true, JSON.stringify(r.nextMon));
+  ok("הודעה ברורה", /עודכן לפי גוגל/.test(r.status), r.status);
+  await p.close();
+}
 /* ── 16. מה שהאפליקציה עושה לבד ── */
 console.log("\n16. סימוני סטטוס שנעשים לבד");
 {

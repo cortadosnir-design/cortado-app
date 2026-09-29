@@ -649,3 +649,8 @@ details.rowmore[open]>summary{background:var(--sunken)}
 /* כלים משניים בכרטיס (מילוי מהיר, הדבקה, שעות קבועות) */
 details.tools{border-top:1px solid var(--line);padding-top:4px}
 details.tools>.actions,details.tools>details{margin-top:8px}
+
+/* משוך מגוגל: מה ישתנה */
+.gplan{display:flex;flex-direction:column;gap:2px;margin:6px 0}
+.gplanrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.gplanrow b{min-width:90px}

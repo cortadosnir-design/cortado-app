@@ -93,3 +93,21 @@ if (f2) process.exitCode = 1;
   console.log(`\n${pass2} עברו · ${fail2} נכשלו`);
   if (fail2) process.exitCode = 1;
 }
+
+/* ── שעות מגוגל: periods של Places API → טווחים לכל יום ── */
+{
+  console.log("\nשעות מגוגל (Places API)");
+  const a = wsrc.indexOf("const hm = (t)"), z = wsrc.indexOf("async function readGoogleHours");
+  const placeRanges = new Function(wsrc.slice(a, z) + "\nreturn placeRanges;")();
+  const P = (d, oh, om, ch, cm, date) => ({ open: { day: d, hour: oh, minute: om, ...(date ? { date } : {}) }, close: { day: d, hour: ch, minute: cm } });
+  const r = placeRanges([P(1, 9, 0, 12, 0), P(6, 9, 0, 12, 0), P(6, 16, 0, 19, 30), P(0, 7, 5, 14, 0, { year: 2026, month: 10, day: 4 })]);
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  ok("יום עם טווח אחד", r.byDay[1].join() === "09:00–12:00", r.byDay[1].join());
+  ok("שני טווחים באותו יום, דקות נשמרות", r.byDay[6].join(", ") === "09:00–12:00, 16:00–19:30", r.byDay[6].join(", "));
+  ok("יום בלי period = סגור", r.byDay[2].length === 0);
+  ok("אפס מוביל בדקות", r.byDay[0][0] === "07:05–14:00", r.byDay[0][0]);
+  ok("לפי תאריך כשגוגל שולחת תאריך", r.byDate["2026-10-04"] && r.byDate["2026-10-04"][0] === "07:05–14:00");
+  ok("בלי close = כל היום", placeRanges([{ open: { day: 3, hour: 0, minute: 0 } }]).byDay[3][0] === "00:00–23:59");
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}

@@ -62,6 +62,7 @@ export default {
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
         case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(await withMeta(env), body), cors);
         case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
+        case "/hours/fromgoogle":  requireOwner(owner); return json(await readGoogleHours(env), cors);
         case "/status":            requireOwner(owner); return json(await status(await withMeta(env)), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
         default: return json({ error: "not_found" }, cors, 404);
@@ -1133,6 +1134,50 @@ async function setGoogleHours(env, b){
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw fail("google_error", d.error?.message || "גוגל דחתה את העדכון.", 502);
   return { ok: true, days: periods.length };
+}
+
+/* ===== קריאת השעות מגוגל (Places API) =====
+   גוגל היא המקור: קוראים את מה שכתוב בפרופיל העסק, והאפליקציה מפיצה משם
+   לדף הנחיתה ולפייסבוק. קריאה לא דורשת את אישור Business Profile — רק
+   מפתח Places API. מכסה חינמית של 1,000 קריאות בחודש; לוחצים פעם בשבוע. */
+const PLACE_ID = "ChIJMcNCVNy7HhUR3MsbDmZj5Yo";
+const hm = (t) => `${String(t.hour || 0).padStart(2, "0")}:${String(t.minute || 0).padStart(2, "0")}`;
+const ymdOf = (d) => `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+// periods של גוגל → טווחים לכל יום. יום בלי period = סגור. בלי close = פתוח 24 שעות.
+function placeRanges(periods){
+  const byDay = [[], [], [], [], [], [], []], byDate = {};
+  for (const p of periods || []){
+    if (!p.open) continue;
+    const r = `${hm(p.open)}–${p.close ? hm(p.close) : "23:59"}`;
+    byDay[p.open.day].push(r);
+    if (p.open.date) (byDate[ymdOf(p.open.date)] ||= []).push(r);
+  }
+  return { byDay, byDate };
+}
+async function readGoogleHours(env){
+  if (!env.PLACES_API_KEY) throw fail("not_configured",
+    "חסר מפתח Places API בשרת (PLACES_API_KEY). ההוראות ב-worker/README.md.", 501);
+  const r = await fetch(`https://places.googleapis.com/v1/places/${env.GOOGLE_PLACE_ID || PLACE_ID}?languageCode=he`, {
+    headers: { "X-Goog-Api-Key": env.PLACES_API_KEY, "X-Goog-FieldMask": "regularOpeningHours,currentOpeningHours" },
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw fail("google_error", d.error?.message || "גוגל לא החזירה שעות.", 502);
+  const reg = d.regularOpeningHours, cur = d.currentOpeningHours;
+  if (!reg && !cur) throw fail("google_error", "בפרופיל בגוגל לא מוגדרות שעות פתיחה.", 404);
+  // regular: שבוע רגיל. dated: שבעת הימים הקרובים, כולל חגים וסגירות מיוחדות.
+  // קבוצת תאריכים ריקה ב-dated = אותו יום סגור (גוגל מדווחת את כל 7 הימים).
+  // בלי תאריכים בכלל (גוגל לא תמיד שולחת) — לא מסיקים "סגור כל השבוע", רק נשארים עם regular.
+  const dated = {};
+  const { byDate } = cur ? placeRanges(cur.periods) : { byDate: {} };
+  if (Object.keys(byDate).length){
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+    for (let i = 0; i < 7; i++){
+      const x = new Date(today + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + i);
+      const k = x.toISOString().slice(0, 10);
+      dated[k] = byDate[k] || [];
+    }
+  }
+  return { regular: placeRanges((reg || cur).periods).byDay, dated, text: (reg || cur).weekdayDescriptions || [] };
 }
 
 async function setFacebookHours(env, b){

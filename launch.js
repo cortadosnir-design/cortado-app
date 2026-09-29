@@ -1,6 +1,6 @@
 // שעות הפתיחה בכל מקום. מאז hoursync.js זה קורה לבד בכל שינוי; הכרטיס
 // הזה מראה איפה כל ערוץ עומד, ומשאיר כפתור "עדכן עכשיו" למקרה שמשהו נכשל.
-import { S, $, el, clear, dm, status, copyText, withBusy, api, on } from "./core.js";
+import { S, $, el, clear, dm, fromYmd, DAYS, status, copyText, withBusy, api, on } from "./core.js";
 import { hoursText, wid } from "./shifts.js";
 import * as H from "./hoursync.js";
 
@@ -14,10 +14,35 @@ const googleWhen = () => {
   const t = S.week && S.week.googleAt;
   return t && t.seconds ? dm(new Date(t.seconds * 1000)) : "";
 };
-async function markGoogle(btn){
+/* ===== משוך מגוגל: קוראים, מראים מה ישתנה, ורק באישור מפיצים ===== */
+async function pullGoogle(btn){
+  const box = clear($("googlePlan"));
   await withBusy(btn, async () => {
-    try { await H.markGoogle(wid(), S.week); status("launchStatus", "ok", "סומן. שורת 'עכשיו' תפסיק לנדנד על גוגל, עד השינוי הבא בשעות."); }
-    catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+    let r;
+    try { status("launchStatus", "", "קורא את השעות מגוגל…"); r = await H.planFromGoogle(); }
+    catch (e){ status("launchStatus", "bad", e.message); return; }
+    if (!r.changes){
+      await Promise.all(r.plan.map(w => H.markGoogle(w.id).catch(() => {})));
+      status("launchStatus", "ok", "השעות כבר זהות למה שכתוב בגוגל. אין מה לעדכן.");
+      render(); return;
+    }
+    status("launchStatus", "", "");
+    const list = el("div", { class: "gplan" });
+    for (const w of r.plan) for (const x of w.rows)
+      list.append(el("div", { class: "gplanrow" },
+        el("b", { text: `${DAYS[x.day]} ${dm(fromYmd(x.date))}` }),
+        el("span", { class: "mono", text: x.to.length ? x.to.join(", ") : "סגור" }),
+        el("span", { class: "small", text: "עכשיו: " + (x.from.length ? x.from.join(", ") : "סגור") })));
+    box.append(el("p", { class: "small", text: `בגוגל כתוב אחרת ב-${r.changes} ימים:` }), list,
+      el("div", { class: "actions" },
+        el("button", { class: "primary", text: "עדכן דף ופייסבוק", onclick: (e) => withBusy(e.currentTarget, async () => {
+          try {
+            await H.applyFromGoogle(r.plan);
+            clear(box);
+            status("launchStatus", "ok", "עודכן לפי גוגל. דף הנחיתה ופייסבוק מתעדכנים עכשיו.");
+          } catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
+        }) }),
+        el("button", { text: "ביטול", onclick: () => clear(box) })));
   });
 }
 
@@ -52,7 +77,7 @@ function channels(){
 function googleRow(){
   return googleMarked()
     ? ["ok", `סומן כמעודכן${googleWhen() ? " ב-" + googleWhen() : ""}.`]
-    : ["manual", "הדבקה ידנית עד שגוגל תאשר את ה-API. אחרי כל שינוי בשעות."];
+    : ["manual", "שינית שעות בגוגל? \"משוך מגוגל\" מעדכן מכאן את דף הנחיתה ופייסבוק."];
 }
 
 function render(){
@@ -65,11 +90,12 @@ function render(){
     if (key === "page")
       actions = el("div", { class: "actions" },
         el("a", { class: "btn", href: "cafe/#visit", target: "_blank", rel: "noopener", text: "פתח את דף הנחיתה" }));
-    if (key === "google" && state === "manual")
+    // גוגל היא המקור: משנים שם, ו"משוך מגוגל" מפיץ לדף ולפייסבוק. זה גם מסמן את גוגל כמעודכנת.
+    if (key === "google")
       actions = el("div", { class: "actions" },
-        el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }),
+        state === "manual" ? el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }) : null,
         el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }),
-        el("button", { class: "primary", text: "עדכנתי ✓", onclick: (e) => markGoogle(e.currentTarget) }));
+        el("button", { class: "primary", text: "משוך מגוגל", onclick: (e) => pullGoogle(e.currentTarget) }));
     box.append(row(key, state, note, actions));
   }
 }

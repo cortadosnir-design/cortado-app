@@ -162,15 +162,50 @@ export async function publish(id, data = weeks[id]){
 
 /* ===== חריגה ליום אחד ===== */
 /** כותב (או מוחק, עם null) חריגת שעות ליום אחד. מחזיר את מה שהיה, בשביל "בטל". */
+const dataOf = (id) => weeks[id] !== undefined ? weeks[id] : (id === weekId(S.weekStart) ? S.week : null);
+// setDoc עם merge לא יודע למחוק מפתח בתוך מפה, ולכן המפה נכתבת כולה —
+// updateDoc מחליף את השדה. מסמך שעוד לא קיים (שבוע בלי משמרות) נוצר.
+async function writeOverrides(id, next, extra = {}){
+  const data = dataOf(id);
+  const body = { phase: (data && data.phase) || "availability", hoursOverride: next, updatedAt: serverTimestamp(), ...extra };
+  if (data) await updateDoc(doc(db, "weeks", id), body);
+  else await setDoc(doc(db, "weeks", id), body, { merge: true });
+}
 export async function setOverride(id, day, value){
-  const data = weeks[id] !== undefined ? weeks[id] : (id === weekId(S.weekStart) ? S.week : null);
+  const data = dataOf(id);
   const prev = (data && data.hoursOverride && data.hoursOverride[day]) || null;
   const next = { ...((data && data.hoursOverride) || {}) };
   if (value) next[String(day)] = value; else delete next[String(day)];
-  // setDoc עם merge לא יודע למחוק מפתח בתוך מפה, ולכן המפה נכתבת כולה —
-  // updateDoc מחליף את השדה. מסמך שעוד לא קיים (שבוע בלי משמרות) נוצר.
-  const body = { phase: (data && data.phase) || "availability", hoursOverride: next, updatedAt: serverTimestamp() };
-  if (data) await updateDoc(doc(db, "weeks", id), body);
-  else await setDoc(doc(db, "weeks", id), body, { merge: true });
+  await writeOverrides(id, next);
   return prev;
+}
+
+/* ===== גוגל כמקור =====
+   קוראים את השעות מהפרופיל בגוגל וכותבים אותן כשעות מיוחדות (hoursOverride) על
+   השבוע הנוכחי והבא. המשמרות והשיבוצים לא זזים. מכאן הסנכרון הרגיל מפיץ לבד
+   לדף הנחיתה ולפייסבוק. שעה ששונתה אחר כך באפליקציה ("היום") גוברת — העריכה
+   האחרונה מנצחת. */
+const valueOf = (ranges) => ranges.length ? { ranges } : { closed: true };
+/** מה גוגל אומרת, מול מה שמפורסם עכשיו. לא כותב כלום. */
+export async function planFromGoogle(){
+  const g = await api("/hours/fromgoogle", {});
+  const plan = [];
+  for (const id of [currentWid(), nextWid()]){
+    const ws = startOf(id), data = dataOf(id);
+    const now = hoursByDayOf(data), next = {}, rows = [];
+    for (let i = 0; i < 7; i++){
+      const date = ymd(addDays(ws, i));
+      const ranges = (g.dated && g.dated[date]) || (g.regular && g.regular[i]) || [];
+      next[String(i)] = valueOf(ranges);
+      if (ranges.join(", ") !== now[i].join(", ")) rows.push({ day: i, date, from: now[i], to: ranges });
+    }
+    const after = { ...(data || {}), hoursOverride: next };
+    plan.push({ id, next, rows, sig: sigOf(after) });
+  }
+  return { plan, changes: plan.reduce((n, w) => n + w.rows.length, 0), text: g.text || [] };
+}
+/** מחיל את מה ש-planFromGoogle החזיר. הסנכרון הרגיל מפרסם אחרי שנייה. */
+export async function applyFromGoogle(plan){
+  for (const w of plan)
+    await writeOverrides(w.id, w.next, { googleAt: serverTimestamp(), googleSig: w.sig });
 }

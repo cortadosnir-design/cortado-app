@@ -114,8 +114,9 @@ await page.evaluate(() => { window.__api = {}; });
   const rows = await page.evaluate(() => [...document.querySelectorAll(".launchrow")].map(r => r.className.replace("launchrow ", "") + ": " + r.querySelector("b").textContent));
   note("תוצאות: " + rows.join(" · "));
   const manual = rows.filter(r => r.startsWith("manual")).length;
-  note(`${manual} ערוצים נשארים ידניים (העתק → פתח → הדבק → חזור → "עדכנתי ✓" = ~5 נגיעות לכל אחד, מחוץ לאפליקציה)`);
-  await tap("#launchList button.primary");           // עדכנתי ✓
+  note(`${manual} ערוצים ידניים. גוגל היא המקור: "משוך מגוגל" קורא משם ומפיץ לדף ולפייסבוק`);
+  await page.evaluate(() => { window.__api["/hours/fromgoogle"] = { regular: [[],[],[],[],[],[],[]], dated: {}, text: [] }; });
+  await tap("#launchList button.primary");           // משוך מגוגל
   await shot("launched");
 }
 

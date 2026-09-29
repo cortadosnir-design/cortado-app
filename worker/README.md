@@ -14,7 +14,8 @@
 | `FB_APP_ID`, `FB_APP_SECRET` | secret | "חבר עמוד" — החלפת טוקן זמני בטוקן עמוד ארוך |
 | `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `IG_USER_ID` | (לא חובה) | "חבר עמוד" שומר אותם לבד ב-Firestore (`secrets/meta`). מה שמוגדר כאן מנצח |
 | `FIREBASE_SA` | secret | **התור של אינסטגרם** — ראה למטה |
-| `GB_*` (ארבעה) | secret | שעות בגוגל, אחרי אישור ה-API |
+| `PLACES_API_KEY` | secret | **"משוך מגוגל"** — קריאת השעות מהפרופיל בגוגל. ראה למטה |
+| `GB_*` (ארבעה) | secret | כתיבת שעות לגוגל, אחרי אישור ה-API (לא נחוץ כשגוגל היא המקור) |
 
 ## תזמון פוסטים (`/publish/schedule` + הקרון)
 
@@ -41,6 +42,25 @@
 בלי הסוד: פייסבוק מתוזמן כרגיל; אינסטגרם מתפרסם רק כשלוחצים "תזמן" על
 פוסט שזמנו כבר הגיע (פרסום מיידי). האפליקציה אומרת את זה במפורש.
 
+### הסוד `PLACES_API_KEY` — פעם אחת, ידנית
+
+"משוך מגוגל" קורא את שעות הפתיחה מהפרופיל בגוגל (Places API) ומפיץ לדף
+הנחיתה ולפייסבוק. קריאה לא צריכה את האישור של Business Profile, רק מפתח.
+מכסה חינמית: 1,000 קריאות בחודש. לחיצה פעם בשבוע רחוקה מזה.
+
+1. https://console.cloud.google.com → למעלה: **New project** (פרויקט נפרד, לא `cortado-ops`,
+   כדי ש-Firebase יישאר בתוכנית החינמית).
+2. **Billing** → לחבר חשבון חיוב. גוגל דורשת כרטיס גם לשימוש חינמי.
+3. APIs & Services → Library → **Places API (New)** → Enable.
+4. APIs & Services → Credentials → **Create credentials → API key**.
+   אחר כך: Edit → API restrictions → Restrict key → לסמן רק **Places API (New)**.
+5. בטיחות, כדי שלא יהיה חיוב אף פעם: APIs & Services → Places API (New) → **Quotas** →
+   להגביל ל-50 בקשות ביום.
+6. Cloudflare → Workers & Pages → cortado-api → Settings → Variables and Secrets →
+   **Add** → Type: *Secret*, name: `PLACES_API_KEY`, value: המפתח.
+
+מזהה המקום של העגלה כבר בקוד. עסק אחר: משתנה `GOOGLE_PLACE_ID`.
+
 ## נקודות קצה
 
 | נתיב | מה |
@@ -51,5 +71,6 @@
 | `/insights/posts` | מושך חשיפה, לייקים ושיתופים ממטא לפוסטים שפורסמו |
 | `/publish/schedule` | פוסט + תמונה + זמן → פייסבוק מתוזמן, אינסטגרם בתור |
 | `/publish/state` | מה מחובר: פייסבוק, אינסטגרם, התור |
-| `/hours/facebook` `/hours/google` | שעות פתיחה |
+| `/hours/facebook` `/hours/google` | שעות פתיחה: כתיבה |
+| `/hours/fromgoogle` | שעות פתיחה: קריאה מהפרופיל בגוגל (`PLACES_API_KEY`) |
 | `/status` `/setup/pages` | חיבור העמוד |
