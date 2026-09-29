@@ -1,4 +1,4 @@
-// תזכורות זמינות, שעת סגירה, "לא אוכל להגיע", וסרגל של 5.
+// תזכורות זמינות, שעת סגירה, "לא אוכל להגיע", וסרגל של 5 לכל היותר.
 // האפליקציה האמיתית (app.js וכל המודולים) על Firestore מזויף, ודף העובד על Firebase מזויף.
 //   node tests/remind.mjs
 import { readFileSync, writeFileSync, unlinkSync } from "fs";
@@ -37,13 +37,6 @@ await page.waitForSelector("#tabs:not([hidden])", { timeout: 8000 });
 await page.evaluate(() => { window.__api = {}; });
 const tabs = await page.evaluate(() => [...document.querySelectorAll("#tabs [role=tab]")].filter(t => !t.hidden).length);
 ok(tabs <= 5, "עד 5 כפתורים בסרגל", String(tabs));
-await page.click("#tab-creative"); await page.waitForTimeout(200);
-await page.click('#p-creative .subbtn[data-view="reach"]'); await page.waitForTimeout(250);
-ok(await page.evaluate(() => !document.getElementById("p-reach").hidden && document.getElementById("p-creative").hidden), "\"הפצה\" נפתחת מתוך קריאייטיב");
-ok(await page.evaluate(() => document.getElementById("tab-creative").getAttribute("aria-selected") === "true"), "כפתור קריאייטיב נשאר מסומן בהפצה");
-ok(await page.evaluate(() => document.querySelector('#p-reach .subbtn[data-view="reach"]').getAttribute("aria-pressed") === "true"), "המתג מראה איפה נמצאים");
-await page.click('#p-reach .subbtn[data-view="creative"]'); await page.waitForTimeout(200);
-ok(await page.evaluate(() => !document.getElementById("p-creative").hidden), "וחזרה לתוכן");
 
 console.log("\nתזכורות זמינות");
 await page.click("#tab-shifts"); await page.waitForTimeout(200);

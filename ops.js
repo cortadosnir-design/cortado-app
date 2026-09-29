@@ -1,11 +1,10 @@
-// תפעול: צוות, הרשאות, תזכורות, יומן משמרת ותובנות.
-import { S, emit, on, db, DAYS, $, el, clear, pad, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId, fmt1,
-  status, copyText, waLink, withBusy, api, whoOf, track, makeToken, zLink,
+// תפעול: צוות, הרשאות, תזכורות, ויומן משמרת.
+import { S, emit, on, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, sundayOf, toMin, weekId,
+  status, copyText, waLink, withBusy, whoOf, track, makeToken, zLink,
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch } from "./core.js";
 import * as Weather from "./weather.js";
 import * as Shifts from "./shifts.js";
 
-const MIN_ENTRIES = 5;
 const WEATHER = ["","נעים","חם","שרב","גשום","קר","רוח"];
 let editingMember = null, remState = null, remWeek = null, unsubRem = null, remGen = 0;
 
@@ -272,60 +271,7 @@ function drawReminders(){
 }
 
 /* ===== יומן משמרת ===== */
-const peakHour = () => {
-  const counts = new Array(24).fill(0);
-  S.logs.forEach(l => { if (l.peak) counts[+l.peak.slice(0,2)]++; });
-  const max = Math.max(...counts);
-  return max ? counts.indexOf(max) : null;
-};
-
-function bars(values, labels, fmt, emptyText){
-  const wrap = el("div", {});
-  const max = Math.max(0, ...values.filter(v => v != null));
-  if (!max){ wrap.append(el("p", { class: "small", text: emptyText })); return wrap; }
-  const row = el("div", { class: "bars" }), xl = el("div", { class: "xlab" });
-  values.forEach((v,i) => {
-    const h = v ? Math.max(2, v / max * 100) : 0;
-    const b = el("div", { class: "bar", title: `${labels[i]}: ${v == null ? "אין נתונים" : fmt(v)}` });
-    const lab = el("b", { text: v == null ? "" : fmt(v) }); lab.style.bottom = `calc(${h}% + 2px)`;
-    const fill = el("i"); fill.style.height = h + "%";
-    b.append(lab, fill); row.append(b); xl.append(el("span", { text: labels[i] }));
-  });
-  wrap.append(row, xl); return wrap;
-}
-
 export function renderLog(){
-  if (!$("logKpis")) return;
-  const withC = S.logs.filter(l => l.customers != null);
-  const byDay = new Map();
-  withC.forEach(l => { const d = fromYmd(l.date).getDay(); const e = byDay.get(d) || { sum: 0, n: 0 }; e.sum += l.customers; e.n++; byDay.set(d, e); });
-  const peak = peakHour();
-
-  const k = clear($("logKpis"));
-  let best = null; for (const [d,e] of byDay) if (!best || e.sum/e.n > best[1]) best = [d, e.sum/e.n];
-  [[S.logs.length, "דיווחים"],
-   [withC.length ? fmt1(withC.reduce((a,l) => a + l.customers, 0) / withC.length) : "—", "ממוצע לקוחות"],
-   [best ? DAYS[best[0]] : "—", "היום העמוס"],
-   [peak != null ? `${pad(peak)}:00` : "—", "שעת עומס"]]
-    .forEach(([v,l]) => k.append(el("div", { class: "kpi" }, el("div", { class: "v", text: String(v) }), el("div", { class: "l", text: l }))));
-
-  clear($("chartDays")).append(bars(DAYS.map((_,d) => byDay.has(d) ? byDay.get(d).sum / byDay.get(d).n : null), DAYS.map(d => d.slice(0,3)), fmt1, "עוד אין דיווחים עם מספר לקוחות."));
-  const hrs = []; for (let h = 6; h <= 20; h++) hrs.push(h);
-  const counts = new Array(24).fill(0); S.logs.forEach(l => { if (l.peak) counts[+l.peak.slice(0,2)]++; });
-  clear($("chartHours")).append(bars(hrs.map(h => counts[h] || null), hrs.map(String), String, "עוד לא סומנו שעות עומס."));
-
-  const rc = clear($("reco"));
-  if (withC.length >= MIN_ENTRIES){
-    if (peak != null) rc.append(el("p", { text: `העומס מגיע בדרך כלל ב-${pad(peak)}:00. כדאי לפרסם בסביבות ${pad(Math.max(6, peak-2))}:00.` }));
-    const ranked = [...byDay].map(([d,e]) => [d, e.sum/e.n]).sort((a,b) => a[1]-b[1]);
-    if (ranked.length >= 2) rc.append(el("p", { text: `${DAYS[ranked[0][0]]} הכי שקט (${fmt1(ranked[0][1])} לקוחות), ${DAYS[ranked[ranked.length-1][0]]} הכי עמוס (${fmt1(ranked[ranked.length-1][1])}). כדאי לכוון מבצע ל${DAYS[ranked[0][0]]}.` }));
-    const yes = withC.filter(l => l.promo), no = withC.filter(l => !l.promo);
-    if (yes.length >= 2 && no.length >= 2){
-      const a = yes.reduce((s,l) => s+l.customers, 0)/yes.length, b = no.reduce((s,l) => s+l.customers, 0)/no.length;
-      rc.append(el("p", { text: a > b ? `במשמרות עם מבצע היו ${fmt1(a-b)} לקוחות יותר בממוצע.` : `מבצעים עוד לא הראו עלייה (${fmt1(a)} מול ${fmt1(b)}).` }));
-    }
-  } else rc.append(el("p", { text: `אחרי ${MIN_ENTRIES} דיווחים יופיעו כאן המלצות. יש ${withC.length}.` }));
-
   const rw = $("recentWrap"), rec = clear($("recent"));
   rw.hidden = !S.logs.length;
   if (S.logs.length){
@@ -423,16 +369,4 @@ export function init(){
     } catch { status("logStatus", "bad", "השמירה נכשלה. נסה שוב."); }
   }));
 
-  $("aiInsights").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
-    try {
-      status("insightsStatus", "", "מנתח…");
-      const r = await api("/ai/insights", {
-        logs: S.logs.slice(0, 40).map(l => ({ date: l.date, customers: l.customers, peak: l.peak, weather: l.weather, promo: l.promo })),
-        posts: S.posts.filter(p => p.performance).slice(0, 20).map(p => ({ date: p.date, time: p.time, format: p.format, pillar: p.pillar, performance: p.performance })),
-      });
-      const box = clear($("aiReco"));
-      (Array.isArray(r.insights) ? r.insights : []).forEach(t => box.append(el("p", { text: String(t) })));
-      status("insightsStatus", "ok", "");
-    } catch (err){ status("insightsStatus", "bad", err.message); }
-  }));
 }

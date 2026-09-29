@@ -7,43 +7,34 @@ import * as Shifts from "./shifts.js";
 import * as Creative from "./creative.js";
 import * as Drive from "./drive.js";
 import * as Weekly from "./weekly.js";
-import * as Reach from "./reach.js";
+import * as Learn from "./learn.js";
 import * as Ops from "./ops.js";
-import * as People from "./people.js";
 import * as Launch from "./launch.js";
 import * as Now from "./now.js";
 import * as Today from "./today.js";
 import * as Hours from "./hoursync.js";
 import * as Weather from "./weather.js";
-import * as Analyze from "./analyze.js";
 import * as Sales from "./sales.js";
 import { APP_VERSION } from "./config.js";
 
-const TABS = ["shifts","creative","reach","sales","log","team"];
-const OWNER_TABS = ["creative","reach","sales","team"];
+const TABS = ["shifts","creative","sales","log","team"];
+const OWNER_TABS = ["creative","sales","team"];
 
 function selectTab(name){
   if (!TABS.includes(name)) name = "shifts";
   if (OWNER_TABS.includes(name) && !S.isOwner) name = "shifts";
   for (const t of TABS){
     const btn = $("tab-" + t), panel = $("p-" + t);
-    // "הפצה" גרה בתוך "קריאייטיב" (סרגל של 5 לכל היותר), אז הכפתור שלה הוא של קריאייטיב.
-    const on_ = t === name || (t === "creative" && name === "reach");
-    if (btn){ btn.setAttribute("aria-selected", String(on_)); btn.tabIndex = on_ ? 0 : -1; }
+    if (btn){ btn.setAttribute("aria-selected", String(t === name)); btn.tabIndex = t === name ? 0 : -1; }
     if (panel) panel.hidden = t !== name;
   }
   try { localStorage.setItem("cortado-tab", name); } catch {}
-  if (name === "team"){ Ops.loadReminders(); People.render(); }
-  if (name === "creative") Creative.render();
-  if (name === "reach") Reach.render();
+  if (name === "team") Ops.loadReminders();
+  if (name === "creative"){ Creative.render(); Learn.autoPull(); }
   if (name === "sales") Sales.render();
 }
 
 TABS.forEach(t => { const b = $("tab-" + t); if (b) b.addEventListener("click", () => selectTab(t)); });
-document.querySelectorAll(".subnav .subbtn").forEach(b => {
-  b.setAttribute("aria-pressed", String(b.closest("section").id === "p-" + b.dataset.view));
-  b.addEventListener("click", () => { selectTab(b.dataset.view); document.querySelector(`#p-${b.dataset.view} .subbtn[data-view="${b.dataset.view}"]`).focus(); });
-});
 // מקלדת: חיצים, Home, End בין הלשוניות (תבנית ה-tabs של WAI-ARIA). ב-RTL חץ שמאלה = הבא.
 $("tabs").addEventListener("keydown", (e) => {
   const vis = TABS.filter(t => { const b = $("tab-" + t); return b && !b.hidden; });
@@ -110,7 +101,7 @@ getRedirectResult(auth).catch(() => {});
 
 function startSubs(){
   Shifts.subscribe();
-  if (S.isOwner){ Creative.subscribe(); Reach.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); Weekly.subscribe(); }
+  if (S.isOwner){ Creative.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); Weekly.subscribe(); }
   Ops.subscribe();
 }
 
@@ -199,14 +190,11 @@ Shifts.init();
 Creative.init();
 Drive.bind();
 Weekly.bind();
-Reach.init();
 Ops.init();
-People.init();
 Launch.init();
 Now.init();
 Today.init();
 Weather.init();
-Analyze.init();
 Sales.init();
 Shifts.render();
 Ops.renderLog();

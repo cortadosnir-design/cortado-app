@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- גרסת הבנייה, זהה ל-APP_VERSION ב-config.js ול-VERSION ב-sw.js.
        app.js משווה אליה ומזהה מצב שבו הדפדפן הגיש HTML חדש עם JS ישן. -->
-  <meta name="app-build" content="2026-09-29.4">
+  <meta name="app-build" content="2026-09-29.5">
 <meta name="theme-color" content="#FFFFFF">
 <title>קורטדו אופרציה</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -161,10 +161,6 @@
 
     <!-- ═══════════ קריאייטיב ═══════════ -->
     <section id="p-creative" class="tabpanel" role="tabpanel" aria-labelledby="tab-creative" hidden>
-      <div class="subnav" role="group" aria-label="קריאייטיב">
-        <button type="button" class="subbtn" data-view="creative">תוכן</button>
-        <button type="button" class="subbtn" data-view="reach">הפצה</button>
-      </div>
       <!-- השבוע מתחיל מהחומר, לא מהלוח. מה שקרה בעגלה נכנס כאן, ומכאן נבנות המשבצות. -->
       <!-- הפוסטר השבועי: נעילת השבוע → שבעה פוסטרים, אחד ליום, עם היום מודגש. -->
       <div class="card" id="weeklyCard" hidden data-owner data-api>
@@ -477,85 +473,6 @@
       </div>
     </section>
 
-    <!-- ═══════════ הפצה וצמיחה ═══════════ -->
-    <section id="p-reach" class="tabpanel" role="tabpanel" aria-labelledby="tab-creative" hidden>
-      <div class="subnav" role="group" aria-label="קריאייטיב">
-        <button type="button" class="subbtn" data-view="creative">תוכן</button>
-        <button type="button" class="subbtn" data-view="reach">הפצה</button>
-      </div>
-      <div class="card">
-        <h2>שלושת המהלכים הגדולים</h2>
-        <div id="bigMoves" class="moves"></div>
-      </div>
-
-      <div class="card">
-        <div class="calhead">
-          <h2>קבוצות פייסבוק</h2>
-          <span class="pill" id="groupProgress"></span>
-        </div>
-        <p class="small">העתק, פתח את הקבוצה, הדבק. והכי שווה: <b>לענות</b> לשאלות המלצה.</p>
-        <details class="help"><summary>למה זה ידני</summary><p>מטא סגרה פרסום לקבוצות דרך API. אין כלי חוקי שעושה את זה אוטומטית, אז זו רשימת עבודה שבועית.</p></details>
-        <div class="form">
-          <label for="groupTier">עדיפות
-            <select id="groupTier">
-              <option value="0">הכל</option>
-              <option value="1">1 — קודם כל אלה</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-            </select>
-          </label>
-          <button class="primary" id="copyWeekBlurb">העתק את טקסט השבוע</button>
-          <button id="copyHoursReach">העתק שעות</button>
-        </div>
-        <div id="groupList" class="grouplist"></div>
-        <div class="status" id="groupStatus" role="status"></div>
-      </div>
-
-      <div class="two">
-        <div class="card">
-          <h2>מתי לפרסם</h2>
-          <div id="timingBox"></div>
-        </div>
-        <div class="card">
-          <h2>דירקטוריות ומפות</h2>
-          <div id="dirList" class="grouplist"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>מדידת ביצועים</h2>
-        <p class="small">המספרים של כל פוסט שפורסם. אחרי 8 מדידות המערכת לומדת את השעות שלכם.</p>
-        <div class="autorow" id="perfAuto"></div>
-        <div id="perfSummary"></div>
-        <div id="perfList" class="perflist"></div>
-        <div class="status" id="perfStatus" role="status"></div>
-      </div>
-
-      <div class="two">
-        <details class="card fold">
-          <summary>איפה אנחנו מול האזור</summary>
-          <div id="compList"></div>
-        </details>
-        <details class="card fold">
-          <summary>יעדים וספירת עוקבים</summary>
-          <div id="milestones"></div>
-          <div class="status" id="growthStatus" role="status"></div>
-        </details>
-      </div>
-
-      <div class="two">
-        <details class="card fold">
-          <summary>האשטגים</summary>
-          <div id="tagBox"></div>
-        </details>
-        <details class="card fold">
-          <summary>חשבונות לתייג</summary>
-          <p class="small">לתייג בכל פוסט. ככה הם מוצאים תוכן לשתף.</p>
-          <div id="ampBox" class="grouplist"></div>
-        </details>
-      </div>
-    </section>
-
     <!-- ═══════════ יומן ═══════════ -->
     <!-- ═══════════ מכירות ═══════════ -->
     <section id="p-sales" class="tabpanel" role="tabpanel" aria-labelledby="tab-sales" hidden>
@@ -585,20 +502,9 @@
           <div id="salesCats"></div>
         </div>
 
-        <div class="two">
-          <div class="card">
-            <h2>לפי יום בשבוע</h2>
-            <div id="salesDays"></div>
-          </div>
-          <div class="card">
-            <h2>לאורך הזמן</h2>
-            <div id="salesTrend"></div>
-          </div>
-        </div>
-
         <div class="card">
-          <h2>מה אפשר ללמוד מזה</h2>
-          <div class="reco" id="salesFindings"></div>
+          <h2>לפי יום בשבוע</h2>
+          <div id="salesDays"></div>
         </div>
 
         <div class="card">
@@ -609,7 +515,6 @@
     </section>
 
     <section id="p-log" class="tabpanel" role="tabpanel" aria-labelledby="tab-log" hidden>
-      <div class="two">
         <div class="card">
           <h2>דיווח סוף משמרת</h2>
           <p class="small">דקה בסוף כל משמרת.</p>
@@ -627,38 +532,6 @@
           <div class="actions"><button class="primary" id="lSave">שמור דיווח</button></div>
           <div class="status" id="logStatus" role="status"></div>
         </div>
-        <div class="card" id="insights">
-          <h2>תובנות</h2>
-          <div class="kpis" id="logKpis"></div>
-          <h3 class="sub">ממוצע לקוחות לפי יום</h3>
-          <div id="chartDays"></div>
-          <h3 class="sub">שעות העומס</h3>
-          <div id="chartHours"></div>
-          <div class="reco" id="reco"></div>
-          <div class="actions" data-api hidden><button id="aiInsights">✨ נתח לי את הנתונים</button></div>
-          <div class="status" id="insightsStatus" role="status"></div>
-          <div class="reco" id="aiReco"></div>
-        </div>
-      </div>
-      <div class="card" data-api hidden>
-        <h2>שאל את הנתונים</h2>
-        <p class="small">קובץ אקסל (xlsx) או CSV, או הנתונים שכבר יש באפליקציה. שואלים בעברית, מקבלים תשובה עם מספרים מתוך הנתונים.</p>
-        <div class="actions">
-          <label class="btn-file"><input id="anaFile" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">📄 העלה קובץ</label>
-          <button id="anaLogs" type="button">📋 יומן המשמרות</button>
-          <button id="anaSales" type="button">💰 דוחות המכירות</button>
-        </div>
-        <p class="small" id="anaInfo"></p>
-        <div id="anaAsk" hidden>
-          <div class="chips" id="anaQuick"></div>
-          <div class="ask-row">
-            <input id="anaQ" type="text" placeholder="למשל: איזה יום הכי חזק ולמה?" autocomplete="off">
-            <button class="primary" id="anaGo" type="button">✨ שאל</button>
-          </div>
-        </div>
-        <div class="status" id="anaStatus" role="status"></div>
-        <div id="anaAnswers"></div>
-      </div>
       <div class="card" id="recentWrap" hidden>
         <h2>דיווחים אחרונים</h2>
         <div id="recent"></div>
@@ -667,14 +540,6 @@
 
     <!-- ═══════════ צוות ═══════════ -->
     <section id="p-team" class="tabpanel" role="tabpanel" aria-labelledby="tab-team" hidden>
-      <!-- מי עשה כמה. הנתונים היו שם מהיום הראשון, אף אחד לא קרא אותם לפי אדם. -->
-      <div class="card">
-        <div class="calhead"><h2>מי עשה כמה</h2><button id="peopleLoad">טען</button></div>
-        <p class="small">שמונה השבועות האחרונים: משמרות, שעות, ואחוז הדיווח בסוף משמרת.</p>
-        <div class="status" id="peopleStatus" role="status"></div>
-        <div id="peopleTable"></div>
-      </div>
-
       <div class="two">
         <div class="card">
           <h2>תזכורות למחר</h2>

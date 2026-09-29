@@ -1,5 +1,5 @@
 // הפילוח של דוחות ה-Z, על הקוד האמיתי. המספרים לקוחים מדוח אמיתי של העגלה.
-import { derive, totals, byCategory, byWeekday, trend, findings, asTable, round } from "../sales-stats.js";
+import { derive, totals, byCategory, byWeekday, trend, round } from "../sales-stats.js";
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n)) : (fail++, console.log("  ✗ " + n + "  " + x));
 console.log("\n21. פילוח מכירות");
@@ -44,16 +44,6 @@ ok("כל יום בשבוע קיבל שתי משמרות", wd.every(e => e.shifts
 const tr = trend(week);
 ok("מגמה: שבוע אחרון מול הקודם", tr && tr.n === 7 && tr.pct > 0, JSON.stringify(tr));
 ok("מגמה דורשת שני חלונות", trend([Z]) === null);
-
-const f = findings([Z]);
-ok("תובנה על תנועה מול כסף", f.some(x => /קפה/.test(x) && /כריכים/.test(x)), f[0]);
-ok("תובנה על היעדר מזומן", f.some(x => /מזומן/.test(x)));
-ok("בלי דוחות אין תובנות", findings([]).length === 0);
-
-const tbl = asTable([Z]);
-ok("טבלה לשאלות חופשיות: עמודה לכל מחלקה", tbl.columns.length === 11 + 6 * 2, String(tbl.columns.length));
-ok("שורה אחת לכל דוח", tbl.rows.length === 1 && tbl.rows[0][0] === "2026-09-20");
-ok("סכום מחלקה נכנס לעמודה שלו", tbl.rows[0][tbl.columns.indexOf("כריכים (₪)")] === "402");
 
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 process.exit(fail ? 1 : 0);

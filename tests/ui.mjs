@@ -340,49 +340,6 @@ console.log("\n16. סימוני סטטוס שנעשים לבד");
   ok("'כולם תוזמנו ✓' מסמן את כל המוכנים", st.length === 1 && st[0] === "scheduled", st.join(","));
   await p.close();
 }
-/* ── 17. שאל את הנתונים ── */
-console.log("\n17. שאל את הנתונים");
-{
-  const p = await fresh();
-  await p.evaluate(() => { document.getElementById("p-log").hidden = false; });
-  await p.evaluate(() => { window.__api["/ai/analyze"] = { answer: "יום שישי הכי חזק: 55 לקוחות.", table: { columns: ["יום", "לקוחות"], rows: [["שישי", "55"], ["ראשון", "42"]] }, followups: ["ומה עם השעות?"] }; });
-  await p.setInputFiles("#anaFile", { name: "קופה.csv", mimeType: "text/csv",
-    buffer: Buffer.from("\uFEFFתאריך,יום,לקוחות\n2026-09-04,שישי,55\n2026-09-06,ראשון,42\n", "utf8") });
-  await p.waitForFunction(() => !document.getElementById("anaAsk").hidden);
-  const info = await p.textContent("#anaInfo");
-  ok("הקובץ נקרא ומוצג", /2 שורות/.test(info) && /3 עמודות/.test(info), info);
-  await p.fill("#anaQ", "איזה יום הכי חזק?");
-  await p.press("#anaQ", "Enter");
-  await p.waitForSelector(".ana-item");
-  const call = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/ai/analyze"));
-  ok("נשלחו כותרות, שורות ופרופיל", call && call.body.columns.length === 3 && call.body.rows.length === 2 && call.body.profile.length === 3 && call.body.question === "איזה יום הכי חזק?", JSON.stringify(call && Object.keys(call.body)));
-  ok("פרופיל מזהה עמודת מספרים", call && call.body.profile[2].type === "number" && call.body.profile[2].max === 55);
-  const a = await p.textContent(".ana-a");
-  ok("התשובה מוצגת", /55/.test(a), a);
-  ok("הטבלה מוצגת", await p.locator(".ana-table tbody tr").count() === 2);
-  ok("שאלת המשך היא כפתור", await p.locator(".ana-item .chip").count() === 1);
-  ok("שדה השאלה התרוקן", (await p.inputValue("#anaQ")) === "");
-  // כישלון ברשת: הודעה בעברית, לא קריסה
-  await p.evaluate(() => { window.__api["/ai/analyze"] = { fail: "הגעת למכסה החינמית של Gemini." }; });
-  await p.fill("#anaQ", "ומה עכשיו?"); await p.click("#anaGo");
-  await p.waitForFunction(() => document.getElementById("anaStatus").classList.contains("bad"));
-  ok("שגיאה מוצגת בעברית", /מכסה/.test(await p.textContent("#anaStatus")));
-  // יומן המשמרות ריק → הסבר, לא שליחה
-  await p.click("#anaLogs");
-  ok("יומן ריק מסביר מה לעשות", /דיווח/.test(await p.textContent("#anaStatus")));
-  // קובץ אקסל אמיתי, דרך שדה הקובץ, בדפדפן אמיתי
-  await p.setInputFiles("#anaFile", { name: "מכירות.xlsx",
-    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: XLSX });
-  await p.waitForFunction(() => /מכירות\.xlsx/.test(document.getElementById("anaInfo").textContent));
-  const xi = await p.textContent("#anaInfo");
-  ok("xlsx נקרא בדפדפן", /2 שורות/.test(xi) && /תאריך, לקוחות/.test(xi), xi);
-  // xls ישן: הסבר, לא ניסיון קריאה
-  await p.setInputFiles("#anaFile", { name: "ישן.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("old") });
-  await p.waitForFunction(() => document.getElementById("anaStatus").classList.contains("bad"));
-  ok("xls ישן מוסבר, לא נקרא", /xlsx|CSV/.test(await p.textContent("#anaStatus")));
-  await p.close();
-}
-
 /* ── 18. תזמון בנגיעה אחת ── */
 console.log("\n18. תזמון ופרסום מהקומפוזר");
 {
@@ -417,12 +374,10 @@ console.log("\n18. תזמון ופרסום מהקומפוזר");
   ok("ממתין לאינסטגרם לא נסגר כ'פורסם'", after === "scheduled", after);
   await p.close();
 }
-/* ── 21. הפצה: מספרים שנמשכים לבד ── */
-console.log("\n21. משיכת מספרים ממטא");
+/* ── 21. למידה ברקע: מספרים ממטא (learn.js) ── */
+console.log("\n21. משיכת מספרים ממטא ברקע");
 {
   const p = await fresh();
-  await p.evaluate(() => { document.getElementById("p-reach").hidden = false; });
-  // שני פוסטים שפורסמו דרך האפליקציה, אחד ישן עם מספר גבוה שכבר נשמר
   await p.evaluate(() => {
     window.__api["/insights/posts"] = (b) => ({ posts: b.posts.map(x => ({ id: x.id, reach: 120, likes: 9, saves: 3 })) });
     window.__store.posts = {
@@ -431,7 +386,7 @@ console.log("\n21. משיכת מספרים ממטא");
       c: { week: "wtest", date: "2026-09-03", time: "10:00", status: "done", text: "ידני", network: ["facebook"] },
     };
     window.S.posts = Object.entries(window.__store.posts).map(([id, x]) => ({ id, ...x }));
-    window.R.render();
+    window.Ln.autoPull();
   });
   await p.waitForTimeout(600);
   const call = await p.evaluate(() => window.__apiCalls.find(c => c.path === "/insights/posts"));
@@ -439,17 +394,9 @@ console.log("\n21. משיכת מספרים ממטא");
   const after = await p.evaluate(() => ({ a: window.__store.posts.a.performance, b: window.__store.posts.b.performance }));
   ok("פוסט בלי מספרים התמלא", after.a && after.a.reach === 120 && after.a.auto === true, JSON.stringify(after.a));
   ok("מספר גבוה שכבר נשמר לא נדרס", after.b.reach === 500, String(after.b.reach));
-  // שורה אוטומטית היא תצוגה, שורה ידנית היא שדות
-  await p.waitForTimeout(300);
-  const shape = await p.evaluate(() => ({ nums: document.querySelectorAll(".perfnums").length,
-    inputs: document.querySelectorAll("#perfList input").length }));
-  ok("פוסט אוטומטי מוצג בלי שדות", shape.nums === 2, String(shape.nums));
-  ok("פוסט ידני שומר על ההקלדה", shape.inputs === 3, String(shape.inputs));
-  // כפתור העתקה אחד, לא אחד לכל קבוצה
-  const copies = await p.evaluate(() => [...document.querySelectorAll("#p-reach button")].filter(b => /העתק את טקסט השבוע/.test(b.textContent)).length);
-  ok("כפתור העתקה אחד לכל הקבוצות", copies === 1, String(copies));
   await p.close();
 }
+
 /* ── 23. דוח Z: צילום, אישור, שמירה, פילוח ── */
 console.log("\n23. דוח Z ופילוח מכירות");
 {
@@ -516,12 +463,6 @@ console.log("\n23. דוח Z ופילוח מכירות");
   ok("טבלת מחלקות", rows === 6, String(rows));
   const first = await p.locator("#salesCats tbody tr").first().textContent();
   ok("המחלקה המכניסה ביותר בראש", /כריכים/.test(first), first);
-  ok("תובנות מחושבות מופיעות", await p.locator("#salesFindings p").count() >= 2);
-  // הפילוח זמין לשאלות חופשיות
-  await p.evaluate(() => { document.getElementById("p-log").hidden = false; });
-  await p.click("#anaSales");
-  await p.waitForFunction(() => !document.getElementById("anaAsk").hidden);
-  ok("דוחות המכירות נטענים ל'שאל את הנתונים'", /דוחות המכירות/.test(await p.textContent("#anaInfo")));
   await p.close();
 }
 /* ── 22. שיגור כל המוכנים בלחיצה אחת ── */

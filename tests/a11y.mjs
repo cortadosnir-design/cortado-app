@@ -66,15 +66,10 @@ await page.evaluate(() => {
 await page.waitForTimeout(300);
 
 const TABS = await page.evaluate(() => [...document.querySelectorAll("#tabs [role=tab]")].filter(t => !t.hidden).map(t => t.id.replace("tab-", "")));
-// "הפצה" היא מסך בתוך קריאייטיב (מתג תוכן | הפצה), לא כפתור בסרגל.
-const VIEWS = [...TABS, "reach"];
-const go = async (t) => t === "reach"
-  ? (await page.click("#tab-creative"), await page.click('#p-creative .subbtn[data-view="reach"]'))
-  : page.click("#tab-" + t);
 for (const scheme of ["light", "dark"]){
   await page.emulateMedia({ colorScheme: scheme });
-  for (const t of VIEWS){
-    await go(t); await page.waitForTimeout(350);
+  for (const t of TABS){
+    await page.click("#tab-" + t); await page.waitForTimeout(350);
     await axe(page, `${t} (${scheme === "dark" ? "כהה" : "בהיר"})`);
     if (scheme === "light") await taps(page, t);
   }
@@ -83,8 +78,8 @@ await page.emulateMedia({ colorScheme: "light" });
 
 console.log("\nזום 400% (רוחב 320)");
 await page.setViewportSize({ width: 320, height: 700 });
-for (const t of VIEWS){
-  await go(t); await page.waitForTimeout(250);
+for (const t of TABS){
+  await page.click("#tab-" + t); await page.waitForTimeout(250);
   const w = await page.evaluate(() => document.documentElement.scrollWidth);
   ok(w <= 321, `בלי גלילה לצדדים · ${t}`, w > 321 ? `${w}px` : "");
 }

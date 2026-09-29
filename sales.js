@@ -3,7 +3,7 @@
 // כי OCR על נייר תרמי הוא הערכה, והמספרים האלה הולכים לרואה החשבון.
 import { S, db, $, el, clear, status, withBusy, api, track, DAYS, fromYmd, dm,
   doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp } from "./core.js";
-import { derive, totals, byCategory, byWeekday, trend, findings, asTable, round } from "./sales-stats.js";
+import { derive, totals, byCategory, byWeekday, trend, round } from "./sales-stats.js";
 
 const MAX_PX = 1600, QUALITY = 0.86;   // דוח Z הוא טקסט צפוף: מקטינים, אבל לא עד כדי טשטוש
 const MIN_PX = 700;                    // מתחת לזה נייר תרמי כבר לא נקרא — שווה להגיד את זה
@@ -206,16 +206,11 @@ export function render(){
     el("thead", {}, el("tr", {}, ...["מחלקה", "₪", "% מהכסף", "יחידות", "% מהיחידות", "ממוצע", "מדד"].map(h => el("th", { text: h })))), tb)));
 
   clear($("salesDays")).append(bars(wd.map(e => e.avgTotal), DAYS.map(d => d.slice(0, 3)), shekel, "צריך דוחות מכמה ימים."));
-  const last = [...reports].filter(r => r.date && r.total != null).sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
-  clear($("salesTrend")).append(bars(last.map(r => r.total), last.map(r => dm(fromYmd(r.date))), shekel, "צריך עוד דוח אחד לפחות."));
 
   const tn = clear($("salesTrendNote"));
   if (tr && tr.pct != null)
     tn.append(el("p", { class: tr.pct >= 0 ? "status ok" : "status warn",
       text: `${tr.n} המשמרות האחרונות: ${shekel(tr.recent)} בממוצע, מול ${shekel(tr.prev)} ב-${tr.n} שלפניהן. ${tr.pct >= 0 ? "+" : ""}${tr.pct}%` }));
-
-  const f = clear($("salesFindings"));
-  findings(reports).forEach(x => f.append(el("p", { text: x })));
 
   const rt = el("tbody");
   reports.slice(0, 20).forEach(r => { const d = derive(r);
@@ -233,7 +228,6 @@ export function render(){
 }
 
 // הטבלה המלאה, לשאלות חופשיות ב"שאל את הנתונים".
-export const table = () => asTable(S.sales || []);
 
 /* ===== חיווט ===== */
 export function init(){

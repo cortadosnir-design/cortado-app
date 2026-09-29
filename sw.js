@@ -1,13 +1,13 @@
 // מטמון בסיסי כדי שהאפליקציה תיפתח מהר, וגם כשאין רשת.
 // חייב להיות זהה ל-APP_VERSION ב-config.js. tests/version.mjs נופל אם לא.
-const VERSION = "2026-09-29.4";
+const VERSION = "2026-09-29.5";
 const CACHE = "cortado-shell-" + VERSION;
 // כל מודול ש-app.js מייבא חייב להיות כאן. weather/season/people נשכחו,
 // ולכן פתיחה קרה בלי רשת שברה את גרף המודולים — בדיוק המקרה שבשבילו
 // ה-Service Worker קיים. tests/version.mjs מוודא שהרשימה מלאה.
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./playbook.js", "./card.js", "./drive.js", "./weekly.js", "./qr.js",
-  "./shifts.js", "./creative.js", "./reach.js", "./ops.js", "./launch.js", "./now.js", "./remind.js", "./today.js", "./hoursync.js", "./analyze.js",
-  "./table.js", "./xlsx.js", "./sales.js", "./sales-stats.js", "./weather.js", "./season.js", "./people.js",
+  "./shifts.js", "./creative.js", "./ops.js", "./launch.js", "./now.js", "./remind.js", "./learn.js", "./today.js", "./hoursync.js",
+  "./sales.js", "./sales-stats.js", "./weather.js", "./season.js",
   "./z.html", "./z.js", "./config.js", "./manifest.webmanifest", "./hours.html",
   "./icon-192.png", "./icon-512.png", "./logo.png", "./poster.jpg"];
 // בכוונה בלי skipWaiting אוטומטי: החלפה באמצע חיים מגישה קבצים חדשים
