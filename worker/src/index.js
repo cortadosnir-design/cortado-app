@@ -1156,7 +1156,7 @@ function placeRanges(periods){
 }
 async function readGoogleHours(env){
   if (!env.PLACES_API_KEY) throw fail("not_configured",
-    "חסר מפתח Places API בשרת (PLACES_API_KEY). ההוראות ב-worker/README.md.", 501);
+    "עוד אין מפתח לגוגל בשרת. צריך ליצור מפתח Places API ולהוסיף אותו ב-Cloudflare כסוד בשם PLACES_API_KEY.", 501);
   const r = await fetch(`https://places.googleapis.com/v1/places/${env.GOOGLE_PLACE_ID || PLACE_ID}?languageCode=he`, {
     headers: { "X-Goog-Api-Key": env.PLACES_API_KEY, "X-Goog-FieldMask": "regularOpeningHours,currentOpeningHours" },
   });

@@ -48,8 +48,10 @@
 הנחיתה ולפייסבוק. קריאה לא צריכה את האישור של Business Profile, רק מפתח.
 מכסה חינמית: 1,000 קריאות בחודש. לחיצה פעם בשבוע רחוקה מזה.
 
-1. https://console.cloud.google.com → למעלה: **New project** (פרויקט נפרד, לא `cortado-ops`,
-   כדי ש-Firebase יישאר בתוכנית החינמית).
+1. https://console.cloud.google.com → למעלה: **New project** (פרויקט נפרד, **לא** `cortado-ops`).
+   שתי סיבות: Firebase נשאר בתוכנית החינמית, ובעיקר — המפתח של Firebase (ב-`config.js`)
+   גלוי לכל מבקר באתר ואין עליו הגבלת API (נבדק 29.9: הוא מגיע עד Places ונעצר רק כי
+   השירות כבוי בפרויקט). הפעלת Places ב-`cortado-ops` הייתה נותנת לכל אחד להשתמש בו על חשבונך.
 2. **Billing** → לחבר חשבון חיוב. גוגל דורשת כרטיס גם לשימוש חינמי.
 3. APIs & Services → Library → **Places API (New)** → Enable.
 4. APIs & Services → Credentials → **Create credentials → API key**.
