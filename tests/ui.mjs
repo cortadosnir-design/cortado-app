@@ -36,11 +36,16 @@ const XLSX = await (async () => {
 })();
 
 const b = await chromium.launch();
+/* שעון קבוע בדפדפן: יום רביעי בצהריים. הבדיקות כאן נשענות על "היום" באמצע השבוע
+   המוצג (יש עוד משבצות לפנינו, מחר עדיין באותו שבוע). עם השעון האמיתי הן נפלו בכל
+   שישי ושבת, וחסמו את הפריסה בלי קשר למה שנדחף. */
+const NOW = new Date("2026-10-07T12:00:00Z");
 const errors = [];
 async function fresh(opts = {}){
   if (typeof opts === "number") opts = { w: opts };
   const p = await b.newPage({ viewport: { width: opts.w || 390, height: opts.h || 844 },
     colorScheme: opts.scheme || "light", deviceScaleFactor: opts.dpr || 1 });
+  await p.clock.setFixedTime(NOW);
   p.on("pageerror", e => errors.push("JS: " + e.message));
   p.on("console", m => { const t = m.text();
     if (m.type() === "error" && !t.includes("ERR_CERT")) errors.push("CONSOLE: " + t); });
@@ -394,7 +399,7 @@ console.log("\n18. תזמון ופרסום מהקומפוזר");
   await p.waitForTimeout(700);
   const sent = await p.evaluate(() => (window.__apiCalls.find(c => c.path === "/publish/schedule") || {}).body);
   ok("נשלח לשרת עם טקסט והאשטגים", !!sent && sent.text.includes("אורנה") && sent.text.includes("#"), sent && sent.text.slice(0, 30));
-  ok("נשלח עם זמן עתידי", !!sent && sent.at > Date.now() - 86400000);
+  ok("נשלח עם זמן עתידי", !!sent && sent.at > NOW.getTime() - 86400000);
   const doc = await p.evaluate(() => Object.values(window.__store.posts)[0]);
   ok("הפוסט סומן מתוזמן ונשמר מזהה פייסבוק", doc.status === "scheduled" && doc.fbPostId === "fb_1", doc.status);
   ok("אינסטגרם מסומן כממתין בתור", doc.igPending === true);
