@@ -72,6 +72,7 @@ function now(){
    של השבוע הבא ביום חמישי הציג ביום שישי את שעות השישי של השבוע הבא,
    וסגירה מוקדמת של היום לא הייתה משנה את "פתוח עכשיו". */
 let byWeek = {};
+let tableIsNext = false;
 const p2 = (n) => String(n).padStart(2, "0");
 function weekKey(t, plus){
   const x = new Date(Date.UTC(t.y, t.mo - 1, t.day + plus));
@@ -84,7 +85,8 @@ const hoursOn = (t, plus) => {
 };
 function renderStatus(){
   const t = now();
-  tbody.querySelectorAll("tr").forEach(tr => tr.classList.toggle("today", +tr.dataset.d === t.d));
+  // "היום" מסומן רק כשהטבלה היא של השבוע הנוכחי. בטבלה של השבוע הבא, שבת היא שבת הבאה.
+  tbody.querySelectorAll("tr").forEach(tr => tr.classList.toggle("today", !tableIsNext && +tr.dataset.d === t.d));
   const el = document.getElementById("status"), label = el.querySelector("span");
   el.classList.remove("open");
   const todays = hoursOn(t, 0);
@@ -113,7 +115,13 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
     if (w) byWeek[k] = w;
   }
   // הטבלה: השבוע שבו אנחנו נמצאים, אם פורסם; אחרת מה שבשדה days.
-  const key = weekKey(now(), 0);
+  // אחרי שעת הסגירה האחרונה של השבוע, אם השבוע הבא כבר פורסם, מציגים אותו: מי שנכנס במוצאי שבת
+  // רוצה לדעת מתי פתוח מחר. בלי זה לו"ז שפורסם בשבת "לא הופיע" עד חצות.
+  const t = now(), nextKey = weekKey(t, 7);
+  let key = weekKey(t, 0);
+  const left = byWeek[key] && byWeek[key].some((ranges, d) => d > t.d ? ranges.length : d === t.d && ranges.some(([, end]) => end > t.m));
+  tableIsNext = !!(byWeek[key] && byWeek[nextKey] && !left);
+  if (tableIsNext) key = nextKey;
   let range = fields.range && fields.range.stringValue;
   if (byWeek[key]){
     hours = byWeek[key];
