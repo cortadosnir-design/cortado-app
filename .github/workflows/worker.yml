@@ -16,3 +16,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: worker
           command: deploy
+      # FIREBASE_SA: חשבון השירות שהשרת צריך כדי לכתוב ל-Firestore (/hours/bot, התור של אינסטגרם,
+      # זיהוי מנהלים). זה אותו JSON שכבר שמור כאן כ-FIREBASE_SERVICE_ACCOUNT ופורס את האתר.
+      # מועתק לשרת פעם אחת, כסוד, ולא מודפס. אם כבר קיים שם: לא נוגעים. אושר על ידי הבעלים, 3.10.2026.
+      - name: FIREBASE_SA on cortado-api (copied once from the repo secret, never printed)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          AUTH="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          ACC=$(curl -s -H "$AUTH" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[]?.id')
+          [ "$(echo "$ACC" | grep -c .)" = 1 ] || { echo "::error::expected exactly one Cloudflare account for this token"; exit 1; }
+          API="https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/cortado-api/secrets"
+          has() { curl -s -H "$AUTH" "$API" | jq -r '.result[]?.name' | grep -x FIREBASE_SA >/dev/null; }
+          if has; then echo "::notice::FIREBASE_SA already set on cortado-api, left as is"; exit 0; fi
+          printf '%s' "$SA" | jq -e '.type == "service_account" and .project_id == "cortado-ops" and (.private_key | length > 100)' >/dev/null 2>&1 \
+            || { echo "::error::FIREBASE_SERVICE_ACCOUNT is empty or is not a cortado-ops service account JSON"; exit 1; }
+          OK=$(printf '%s' "$SA" | jq -Rs '{name:"FIREBASE_SA",text:.,type:"secret_text"}' \
+            | curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" -d @- "$API" | jq -r '.success')
+          [ "$OK" = true ] && has || { echo "::error::could not set FIREBASE_SA on cortado-api"; exit 1; }
+          echo "::notice::FIREBASE_SA set on cortado-api"
