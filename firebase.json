@@ -1,6 +1,10 @@
 {
   "hosting": {
     "public": ".",
+    "redirects": [
+      { "source": "/cafe", "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/", "type": 301 },
+      { "source": "/cafe/:path*", "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/:path", "type": 301 }
+    ],
     "ignore": [
       "firebase.json",
       "_config.yml",
