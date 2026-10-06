@@ -1085,15 +1085,16 @@ async function fsQuery(env, colName, wheres){
    Google Business Profile הוא הערוץ מספר 1 לחיפוש "קפה ליד": מי שנוסע לבניאס
    רואה את הכרטיס בגוגל, לא את עמוד הפייסבוק. שעות שגויות שם שולחות אנשים לעגלה סגורה.
 
-   הנתיב מוכן, אבל דורש אישור ידני מגוגל ל-Business Profile API. עד שיאושר
-   הוא מחזיר not_configured והאפליקציה ממשיכה להציע הדבקה ידנית.
+   מוכן, אבל דורש אישור ידני מגוגל ל-Business Profile API. עד שיאושר
+   setGoogleHours מחזיר not_configured, והבוט שולח לבעלים טקסט להדבקה ידנית.
 
    ביום שהאישור מגיע (הקוטה עולה מ-0 ל-300 QPM), צריך להגדיר ב-Cloudflare:
      GB_LOCATION     — locations/12345678901234567890
      GB_CLIENT_ID    — מ-OAuth client ב-Cloud Console
      GB_CLIENT_SECRET
      GB_REFRESH_TOKEN — נוצר פעם אחת בהסכמת הבעלים, לא פג
-   ואז זה עובד בלי שינוי קוד. */
+   ואז כל פרסום מריץ בדיקה בלי כתיבה ("גוגל מציג עכשיו X, אחרי הפרסום Y").
+   רק אחרי שהבעלים ראה שהבדיקה נכונה: GB_LIVE=1, ומאז גוגל מתעדכן לבד. */
 const GB_API = "https://mybusinessbusinessinformation.googleapis.com/v1";
 const GB_DAYS = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
 
@@ -1124,30 +1125,67 @@ function gbTime(hhmm){
   return o;
 }
 
-async function setGoogleHours(env, b){
+/* גוגל מקבל שעות לפי תאריך (specialHours) לכל יום שפורסם, מהיום ועד 14 יום קדימה. השעות הקבועות (regularHours)
+   לא משתנות: שינוי של שבוע אחד לא הופך לשעות של כל השבועות. שעות מיוחדות של תאריכים אחרים (חג שהבעלים הגדיר
+   בגוגל, יום שעוד לא פורסם) נשארות כמו שהן.
+   בלי GB_LIVE=1 זו בדיקה בלי כתיבה: מחזיר מה גוגל מציג עכשיו ומה היה נכתב. */
+const GB_WINDOW = 14;
+function googleDates(weeks, today){
+  const out = [];
+  for (let i = 0; i < GB_WINDOW; i++){
+    const date = plusDays(today, i), line = weeks?.[sundayOfYmd(date)]?.[new Date(date + "T12:00:00Z").getUTCDay()];
+    if (line == null) continue;
+    out.push({ date, ranges: String(line).split(",").map(x => x.trim()).filter(Boolean).map(r => r.split("–").map(x => x.trim())) });
+  }
+  return out;
+}
+const gbDate = (ymd) => ({ year: +ymd.slice(0, 4), month: +ymd.slice(5, 7), day: +ymd.slice(8, 10) });
+const ymdOf = (d) => `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+const gbHm = (t) => `${String(t?.hours || 0).padStart(2, "0")}:${String(t?.minutes || 0).padStart(2, "0")}`;
+function specialPeriods(days){
+  return days.flatMap(({ date, ranges }) => ranges.length
+    ? ranges.slice(0, 2).map(([o, c]) => ({ startDate: gbDate(date), endDate: gbDate(date), openTime: gbTime(o), closeTime: gbTime(c) }))
+    : [{ startDate: gbDate(date), endDate: gbDate(date), closed: true }]);
+}
+// תאריך → "09:00–12:00, 17:00–19:00" או "סגור", כדי להשוות ולהציג
+function byDate(periods){
+  const m = {};
+  for (const p of periods || []){
+    const d = ymdOf(p.startDate);
+    m[d] = p.closed ? "סגור" : [m[d] === "סגור" ? "" : m[d], `${gbHm(p.openTime)}–${gbHm(p.closeTime)}`].filter(Boolean).sort().join(", ");
+  }
+  return m;
+}
+async function setGoogleHours(env, { weeks, today }){
   for (const k of ["GB_LOCATION","GB_CLIENT_ID","GB_CLIENT_SECRET","GB_REFRESH_TOKEN"])
     if (!env[k]) throw fail("not_configured",
       "גוגל עוד לא מחוברת. ה-API של Business Profile דורש אישור מגוגל, ואחריו ארבעה משתנים בשרת.", 501);
-
-  // hours הוא מערך של 7 ימים, כל אחד עד שני טווחים: [["08:00","14:00"], ...]
-  const periods = [];
-  (Array.isArray(b.hours) ? b.hours : []).forEach((ranges, i) => {
-    (ranges || []).slice(0, 2).forEach(([open, close]) => {
-      if (!open || !close) return;
-      periods.push({ openDay: GB_DAYS[i], closeDay: GB_DAYS[i], openTime: gbTime(open), closeTime: gbTime(close) });
-    });
-  });
-  if (!periods.length) throw fail("bad_request", "אין אף יום פתוח לעדכן.");
-
-  const token = await gbAccessToken(env);
-  const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=regularHours`, {
-    method: "PATCH",
-    headers: { authorization: "Bearer " + token, "content-type": "application/json" },
-    body: JSON.stringify({ regularHours: { periods } }),
+  const days = googleDates(weeks, today);
+  if (!days.length) throw fail("bad_request", "אין אף יום שפורסם לעדכן.");
+  const token = await gbAccessToken(env), auth = { authorization: "Bearer " + token };
+  const read = async () => {
+    const r = await fetch(`${GB_API}/${env.GB_LOCATION}?readMask=specialHours`, { headers: auth });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw fail("google_error", d.error?.message || "לא הצלחתי לקרוא את השעות מגוגל.", 502);
+    return d.specialHours?.specialHourPeriods || [];
+  };
+  const mine = new Set(days.map(x => x.date)), periods = specialPeriods(days);
+  const before = await read();
+  const keep = before.filter(p => { const d = ymdOf(p.startDate); return d >= today && !mine.has(d); });
+  const want = byDate(periods), now = byDate(before);
+  const diff = days.map(x => x.date).filter(d => (now[d] || "לפי השעות הקבועות") !== want[d])
+    .map(d => `${d.slice(8)}.${+d.slice(5, 7)}: עכשיו ${now[d] || "לפי השעות הקבועות"} → ${want[d]}`);
+  if (env.GB_LIVE !== "1") return { dry: true, text: diff.length ? diff.join("\n") : "גוגל כבר מציג את השעות האלה" };
+  const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=specialHours`, {
+    method: "PATCH", headers: { ...auth, "content-type": "application/json" },
+    body: JSON.stringify({ specialHours: { specialHourPeriods: [...periods, ...keep] } }),
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw fail("google_error", d.error?.message || "גוגל דחתה את העדכון.", 502);
-  return { ok: true, days: periods.length };
+  let check;
+  try { const got = byDate(await read()); const bad = [...mine].filter(x => got[x] !== want[x]); check = bad.length ? `גוגל מציג שעות אחרות ב-${bad.join(", ")}` : "ok"; }
+  catch (e){ check = "לא הצלחתי לקרוא חזרה מגוגל: " + hebrew(e.message); }
+  return { ok: true, days: days.length, check };
 }
 
 /* ===== קריאת השעות מגוגל (Places API) =====
@@ -1311,8 +1349,11 @@ async function publishRolling(env, weeks, today){
     try { out.facebookCheck = await checkFacebookHours(meta, sent); }
     catch (e){ out.facebookCheck = "לא הצלחתי לקרוא חזרה מפייסבוק: " + hebrew(e.message); }
   } catch (e){ out.facebook = e.code === "not_configured" ? "עמוד הפייסבוק עוד לא מחובר." : hebrew(e.message); }
-  try { await setGoogleHours(env, { hours: r.pairs }); out.google = "ok"; }
-  catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }
+  try {
+    const g = await setGoogleHours(env, { weeks, today });
+    if (g.dry) Object.assign(out, { google: "dry", googleDry: g.text });
+    else Object.assign(out, { google: "ok", googleCheck: g.check });
+  } catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }
   return out;
 }
 async function botHours(env, request){

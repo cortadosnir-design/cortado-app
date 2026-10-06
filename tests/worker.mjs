@@ -284,3 +284,54 @@ if (f2) process.exitCode = 1;
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
+
+/* ── גוגל לפי תאריך (specialHours), עם בדיקה בלי כתיבה ── */
+{
+  console.log("\nגוגל לפי תאריך");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("const GB_API"), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function setGoogleHours(")) + 2;
+  const helpers = wsrc.slice(wsrc.indexOf("const plusDays ="), wsrc.indexOf("\n", wsrc.indexOf("const sundayOfYmd =")));
+  const calls = [];
+  let shown = [];
+  const fakeFetch = async (url, init = {}) => {
+    calls.push([init.method || "GET", String(url), typeof init.body === "string" ? JSON.parse(init.body) : null]);
+    if (String(url).includes("oauth2")) return Response.json({ access_token: "t", expires_in: 3600 });
+    if (init.method === "PATCH") { shown = JSON.parse(init.body).specialHours.specialHourPeriods; return Response.json({}); }
+    return Response.json({ specialHours: { specialHourPeriods: shown } });
+  };
+  const g = new Function("fail", "hebrew", "fetch", helpers + "\n" + wsrc.slice(a, z) + "\nreturn { setGoogleHours, googleDates, specialPeriods };")(
+    (c, m, s) => Object.assign(new Error(m), { code: c, status: s }), (m) => m, fakeFetch);
+  const GB = { GB_LOCATION: "locations/1", GB_CLIENT_ID: "c", GB_CLIENT_SECRET: "s", GB_REFRESH_TOKEN: "r" };
+  // חמישי 8.10: השבוע הנוכחי פורסם, הבא עוד לא
+  const weeks = { "2026-10-04": ["", "16:30–19:00", "16:30–19:00", "16:30–19:00", "16:30–19:00", "09:00–12:00", "09:00–13:00, 16:00–19:00"] };
+  const days = g.googleDates(weeks, "2026-10-08");
+  ok("רק ימים שפורסמו, מהיום קדימה", JSON.stringify(days.map(x => x.date)) === JSON.stringify(["2026-10-08", "2026-10-09", "2026-10-10"]), JSON.stringify(days.map(x => x.date)));
+  const per = g.specialPeriods(days);
+  ok("שבת עם שני טווחים = שתי תקופות באותו תאריך", per.filter(x => x.startDate.day === 10).length === 2 && per.find(x => x.startDate.day === 10).openTime.hours === 9);
+  ok("יום סגור = closed", JSON.stringify(g.specialPeriods([{ date: "2026-10-11", ranges: [] }])) === JSON.stringify([{ startDate: { year: 2026, month: 10, day: 11 }, endDate: { year: 2026, month: 10, day: 11 }, closed: true }]));
+
+  // בלי GB_LIVE: קוראים בלבד, ומחזירים מה ישתנה
+  shown = [{ startDate: { year: 2026, month: 10, day: 10 }, endDate: { year: 2026, month: 10, day: 10 }, openTime: { hours: 16 }, closeTime: { hours: 19 } },
+    { startDate: { year: 2026, month: 12, day: 25 }, endDate: { year: 2026, month: 12, day: 25 }, closed: true },
+    { startDate: { year: 2026, month: 10, day: 1 }, endDate: { year: 2026, month: 10, day: 1 }, closed: true }];
+  const dry = await g.setGoogleHours(GB, { weeks, today: "2026-10-08" });
+  ok("בדיקה בלי כתיבה: אין PATCH", dry.dry === true && !calls.some(c => c[0] === "PATCH"));
+  ok("ומה ישתנה, יום יום", /08\.10: עכשיו לפי השעות הקבועות → 16:30–19:00/.test(dry.text) && /10\.10: עכשיו 16:00–19:00 → 09:00–13:00, 16:00–19:00/.test(dry.text), dry.text);
+
+  // GB_LIVE=1: כותבים את החלון, שומרים חג עתידי, מוחקים עבר, וקוראים חזרה
+  const live = await g.setGoogleHours({ ...GB, GB_LIVE: "1" }, { weeks, today: "2026-10-08" });
+  const patch = calls.find(c => c[0] === "PATCH");
+  ok("רק specialHours, לא השעות הקבועות", /updateMask=specialHours$/.test(patch[1]) && !("regularHours" in patch[2]));
+  const sent = patch[2].specialHours.specialHourPeriods.map(x => `${x.startDate.month}/${x.startDate.day}`);
+  ok("החג ב-25.12 נשאר, 1.10 שעבר ירד", sent.includes("12/25") && !sent.includes("10/1") && sent.filter(x => x === "10/10").length === 2, sent.join(" "));
+  ok("קריאה חוזרת תואמת", live.check === "ok" && live.days === 3);
+  shown = []; // גוגל "בלע" את העדכון
+  const g2 = new Function("fail", "hebrew", "fetch", helpers + "\n" + wsrc.slice(a, z) + "\nreturn { setGoogleHours };")((c, m) => Object.assign(new Error(m), { code: c }), (m) => m,
+    async (url, init = {}) => (String(url).includes("oauth2") ? Response.json({ access_token: "t" }) : init.method === "PATCH" ? Response.json({}) : Response.json({ specialHours: { specialHourPeriods: [] } })));
+  const bad = await g2.setGoogleHours({ ...GB, GB_LIVE: "1" }, { weeks, today: "2026-10-08" });
+  ok("קריאה חוזרת לא תואמת → נאמר במפורש", /גוגל מציג שעות אחרות ב-2026-10-08/.test(bad.check), bad.check);
+  let nc = ""; try { await g.setGoogleHours({}, { weeks, today: "2026-10-08" }); } catch (e){ nc = e.code; }
+  ok("בלי המשתנים: not_configured (הבוט שולח טקסט להדבקה)", nc === "not_configured");
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
