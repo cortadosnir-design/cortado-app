@@ -48,6 +48,10 @@ export default {
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
+      // שעות פתיחה יוצאות רק דרך שולה (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
+      // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור — גם בלי כניסה, ולכן לפני האימות.
+      if (url.pathname === "/hours/facebook" || url.pathname === "/hours/google")
+        throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך שולה בוואטסאפ.", 410);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -65,10 +69,6 @@ export default {
         case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
         case "/publish/cancel":    requireOwner(owner); return json(await cancelPost(await withMeta(env), body), cors);
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
-        // שעות פתיחה יוצאות רק דרך שולה (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
-        // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור.
-        case "/hours/facebook":
-        case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך שולה בוואטסאפ.", 410);
         case "/hours/fromgoogle":  requireOwner(owner); return json(await readGoogleHours(env), cors);
         case "/status":            requireOwner(owner); return json(await status(await withMeta(env)), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
@@ -185,7 +185,11 @@ async function requireUser(request, env){
   if (!token) throw fail("unauthenticated", "חסר טוקן כניסה.", 401);
   const [h, p, s] = token.split(".");
   if (!h || !p || !s) throw fail("unauthenticated", "טוקן לא תקין.", 401);
-  const header = JSON.parse(b64urlDecode(h)), payload = JSON.parse(b64urlDecode(p));
+  let header, payload, sig;
+  // טוקן משובש הוא 401, לא 500: JSON.parse ו-atob זורקים על קלט זבל.
+  try { header = JSON.parse(b64urlDecode(h)); payload = JSON.parse(b64urlDecode(p)); sig = b64urlToBytes(s); } catch {}
+  if (!sig || !header || !payload || typeof header !== "object" || typeof payload !== "object")
+    throw fail("unauthenticated", "טוקן לא תקין.", 401);
   const now = Math.floor(Date.now() / 1000);
   if (payload.aud !== env.FIREBASE_PROJECT_ID || payload.iss !== `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`)
     throw fail("unauthenticated", "הטוקן לא שייך לפרויקט הזה.", 401);
@@ -201,14 +205,15 @@ async function requireUser(request, env){
     jwkCache = { at: Date.now(), keys: (await r.json()).keys };
   }
   let jwk = jwkCache.keys.find(k => k.kid === header.kid);
-  if (!jwk){ // גוגל מחליפה מפתחות: מרעננים פעם אחת לפני שנכשלים
+  // גוגל מחליפה מפתחות: מרעננים לפני שנכשלים — אבל לכל היותר פעם בדקה, אחרת כל kid מומצא מושך את הרשימה מחדש.
+  if (!jwk && Date.now() - jwkCache.at > 60e3){
     const r = await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
     jwkCache = { at: Date.now(), keys: (await r.json()).keys };
     jwk = jwkCache.keys.find(k => k.kid === header.kid);
   }
   if (!jwk) throw fail("unauthenticated", "מפתח חתימה לא מוכר.", 401);
   const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
-  const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlToBytes(s), new TextEncoder().encode(`${h}.${p}`));
+  const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sig, new TextEncoder().encode(`${h}.${p}`));
   if (!ok) throw fail("unauthenticated", "חתימת הטוקן לא תקינה.", 401);
   return { uid: payload.sub, email: payload.email, name: payload.name };
 }
@@ -785,7 +790,7 @@ async function graph(env, path, params, method = "POST"){
   const r = await fetch(`${GRAPH}/${path}${inQuery ? "?" + q : ""}`,
     method === "GET" ? {} : inQuery ? { method } : { method, body: q });
   const data = await r.json();
-  if (!r.ok || data.error) throw fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502);
+  if (!r.ok || data.error) throw Object.assign(fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502), { meta: data.error || {} });
   return data;
 }
 /* ===== תזמון: פוסט אחד, שתי רשתות, נגיעה אחת =====
@@ -855,7 +860,14 @@ async function schedulePost(env, b){
   else if (!env.IG_USER_ID) out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת";
   else if (!when){
     try { out.igPostId = await igPublishFromPhoto(env, out.fbPhotoId, text); }
-    catch (e){ out.igError = hebrew(e.message); }
+    // אינסטגרם לא תמיד מוכן לפרסם קונטיינר שנוצר הרגע (9007 / 2207027): אז הפוסט בוודאות לא עלה,
+    // והקרון ינסה שוב — רק אינסטגרם, פייסבוק כבר עלה. כל שגיאה אחרת (או timeout) יכולה לבוא אחרי
+    // שהפוסט כבר חי, ולכן אין ניסיון חוזר עיוור: השגיאה מוצגת, כמו קודם.
+    catch (e){
+      out.igError = hebrew(e.message);
+      const notReady = e.meta && (e.meta.code === 9007 || e.meta.error_subcode === 2207027);
+      if (notReady && id && env.FIREBASE_SA) out.igPending = true;
+    }
   } else if (!env.FIREBASE_SA) out.igSkipped = "תזמון לאינסטגרם דורש את FIREBASE_SA בשרת";
   else out.igPending = true;
 
@@ -870,6 +882,7 @@ async function schedulePost(env, b){
 // כתובת CDN טרייה של תמונה שכבר בעמוד → קונטיינר → פרסום. הכתובת חתומה ופגה,
 // לכן שולפים אותה ברגע הפרסום ולא בזמן התזמון.
 async function igPublishFromPhoto(env, photoId, caption){
+  photoId = graphId(photoId);   // נכנס לנתיב של Graph
   if (!photoId) throw fail("bad_request", "אין תמונה לאינסטגרם.");
   const ph = await graph(env, photoId, { fields: "images" }, "GET");
   const src = (ph.images || []).slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0];
@@ -890,16 +903,27 @@ async function publishDue(env){
   const results = [];
   for (const d of dueNow(pending)){
     const text = [d.fields.text || "", (d.fields.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
-    try {
-      const igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
-      await fsPatch(env, `posts/${d.id}`, { igPending: false, igPostId, igError: "" });
-      results.push({ id: d.id, ok: true });
-    } catch (e){
-      // עוד ניסיון או שניים בעשר הדקות הבאות; אחרי זה יוצא מהתור, והסיבה גלויה באפליקציה
+    // תפיסה לפני פרסום: igPending יורד בכתיבה מותנית ב-updateTime של השאילתה. קרון מקביל שתפס
+    // קודם — הכתיבה כאן נדחית ומדלגים. כך רישום שנכשל אחרי הפרסום לא מחזיר את הפוסט לתור.
+    try { await fsPatch(env, `posts/${d.id}`, { igPending: false, igClaimedAt: new Date() }, d.updateTime); }
+    catch (x){ console.error("cron: claim", d.id, x.message); results.push({ id: d.id, ok: false, skipped: true }); continue; }
+    let igPostId;
+    try { igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text); }
+    catch (e){
+      // עוד ניסיון או שניים בעשר הדקות הבאות; אחרי זה יוצא מהתור, והסיבה גלויה באפליקציה.
+      // רישום שנכשל לא עוצר את שאר התור.
       const tries = Number(d.fields.igTries || 0) + 1;
-      await fsPatch(env, `posts/${d.id}`, { igTries: tries, igError: hebrew(e.message), igPending: tries < 3 });
+      await fsPatch(env, `posts/${d.id}`, { igTries: tries, igError: hebrew(e.message), igPending: tries < 3 })
+        .catch(x => console.error("cron", d.id, x.message));
       results.push({ id: d.id, ok: false, error: e.message });
+      continue;
     }
+    // יצא לאינסטגרם. הפוסט כבר מחוץ לתור (נתפס למעלה), ולכן רישום שנכשל כאן רק מאבד את המזהה —
+    // לא מפרסם שוב. כישלון ברישום בענף השגיאה, לעומת זאת, משאיר אותו מחוץ לתור בלי ניסיון נוסף.
+    const done = { igPending: false, igPostId, igError: "" };
+    const saved = await fsPatch(env, `posts/${d.id}`, done).catch(() => fsPatch(env, `posts/${d.id}`, done))
+      .catch(x => (console.error("cron: published but not recorded", d.id, igPostId, x.message), false));
+    results.push({ id: d.id, ok: true, ...(saved ? {} : { unrecorded: true }) });
   }
   return { checked: pending.length, results };
 }
@@ -913,19 +937,23 @@ async function publishDue(env){
    2. מנקים קודם את התור של אינסטגרם. אחרת הקרון היה מפרסם תמונה של
       פוסט שכבר לא קיים בפייסבוק, עם שעות ישנות. */
 async function cancelPost(env, b){
-  const at = Number(b.at || 0);
+  const id = docId(b.postId);
+  // הזמן והמזהים נלקחים מהמסמך שנשמר בתזמון, לא מהבקשה: מזהה חופשי כאן הוא DELETE על כל אובייקט
+  // שטוקן העמוד נוגע בו. בלי חשבון שירות אין מסמך, ונשארת רק בדיקת הצורה של graphId.
+  const d = !env.FIREBASE_SA ? b : id ? await fsGet(env, `posts/${id}`) : null;
+  if (!d) throw fail("not_found", "הפוסט לא נמצא בתור.", 404);
+  const at = Number(d.publishAt || d.at || 0);
   if (!at || at <= Date.now() + 60 * 1000)
     throw fail("bad_request", "אפשר לבטל רק פוסט שזמנו עוד לא הגיע.");
 
-  const id = docId(b.postId);
   // התור נסגר ראשון: גם אם המחיקה בפייסבוק תיכשל, אינסטגרם לא יפרסם ישן.
   if (id && env.FIREBASE_SA){
     try { await fsPatch(env, `posts/${id}`, { igPending: false, status: "cancelled" }); } catch {}
   }
 
   const out = { deleted: [], failed: [] };
-  for (const pid of [b.fbPostId, b.fbPhotoId].filter(Boolean)){
-    try { await graph(env, String(pid), {}, "DELETE"); out.deleted.push(String(pid)); }
+  for (const pid of [d.fbPostId, d.fbPhotoId].map(graphId).filter(Boolean)){
+    try { await graph(env, pid, {}, "DELETE"); out.deleted.push(pid); }
     catch (e){ out.failed.push(hebrew(e.message)); }
   }
   return out;
@@ -952,13 +980,24 @@ const metricOf = (data, name) => {
   return row ? num((row.values && row.values[0] && row.values[0].value) ?? row.value) : 0;
 };
 
+// מטא הוציאה את post_impressions_unique משימוש בכל הגרסאות; המחליף הוא post_total_media_view_unique.
+// הישן נשאר כגיבוי, וכל כישלון נרשם בלוג — קודם הוא נבלע, והחשיפה בפייסבוק הייתה תמיד 0.
+const FB_REACH = ["post_total_media_view_unique", "post_impressions_unique"];
+async function fbReach(env, postId){
+  for (const m of FB_REACH){
+    try { return metricOf(await graph(env, `${postId}/insights`, { metric: m }, "GET"), m); }
+    catch (e){ console.error("fb insights", m, postId, e.message); }
+  }
+  return 0;
+}
 async function fbPostNumbers(env, postId){
-  const [ins, eng] = await Promise.all([
-    graph(env, `${postId}/insights`, { metric: "post_impressions_unique" }, "GET").catch(() => ({})),
-    graph(env, postId, { fields: "likes.summary(true),comments.summary(true),shares" }, "GET").catch(() => ({})),
+  const [reach, eng] = await Promise.all([
+    fbReach(env, postId),
+    graph(env, postId, { fields: "likes.summary(true),comments.summary(true),shares" }, "GET")
+      .catch(e => (console.error("fb post", postId, e.message), {})),
   ]);
   return {
-    reach: metricOf(ins, "post_impressions_unique"),
+    reach,
     likes: num(eng.likes && eng.likes.summary && eng.likes.summary.total_count),
     saves: num(eng.shares && eng.shares.count),      // לפייסבוק אין "שמירות"; שיתוף הוא המקבילה
   };
@@ -1043,27 +1082,42 @@ function fromFs(f){
   if ("mapValue" in f) return Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, fromFs(x)]));
   return undefined;
 }
-async function fsPatch(env, path, fields){
+/* הטקסט הגולמי של Firestore מכיל נתיבים ואת המייל של חשבון השירות. הוא הולך ללוג;
+   למשתמש יוצא נוסח כללי (בעברית, ולכן hebrew() לא היה מסנן אותו).
+   conflict: כתיבה מותנית (fsPatch עם updateTime) נדחתה כי מישהו כתב בינתיים. */
+async function fsFail(r, msg){
+  const raw = await r.text().catch(() => "");
+  console.error("firestore", r.status, raw.slice(0, 500));
+  return Object.assign(fail("firestore", msg, 502),
+    { conflict: [404, 409, 412].includes(r.status) || /FAILED_PRECONDITION|ALREADY_EXISTS/.test(raw) });
+}
+// updateTime: לכתוב רק אם המסמך לא השתנה מאז שנקרא (מ-fsGet, ._updateTime). false: רק אם הוא לא קיים.
+async function fsPatch(env, path, fields, updateTime){
   const tok = await saToken(env);
   const mask = Object.keys(fields).map(k => "updateMask.fieldPaths=" + encodeURIComponent(k)).join("&");
-  const r = await fetch(`${fsBase(env)}/${path}?${mask}`, { method: "PATCH",
+  const pre = updateTime ? "&currentDocument.updateTime=" + encodeURIComponent(updateTime)
+    : updateTime === false ? "&currentDocument.exists=false" : "";
+  const r = await fetch(`${fsBase(env)}/${path}?${mask}${pre}`, { method: "PATCH",
     headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
     body: JSON.stringify({ fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, toFs(v)])) }) });
-  if (!r.ok) throw fail("firestore", "העדכון ב-Firestore נכשל: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok) throw await fsFail(r, "העדכון ב-Firestore נכשל.");
   return true;
 }
 async function fsGet(env, path){
   const tok = await saToken(env);
   const r = await fetch(`${fsBase(env)}/${path}`, { headers: { authorization: "Bearer " + tok } });
   if (r.status === 404) return null;
-  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok) throw await fsFail(r, "הקריאה מ-Firestore נכשלה.");
   const d = await r.json();
-  return Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)]));
+  const out = Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)]));
+  // לא נספר (non-enumerable), כדי שלא ייכתב חזרה עם המסמך בטעות.
+  Object.defineProperty(out, "_updateTime", { value: d.updateTime });
+  return out;
 }
 async function fsList(env, col){
   const tok = await saToken(env);
   const r = await fetch(`${fsBase(env)}/${col}?pageSize=300`, { headers: { authorization: "Bearer " + tok } });
-  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok) throw await fsFail(r, "הקריאה מ-Firestore נכשלה.");
   return ((await r.json()).documents || []).map(d => Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)])));
 }
 async function fsQuery(env, colName, wheres){
@@ -1073,11 +1127,12 @@ async function fsQuery(env, colName, wheres){
   const r = await fetch(`${fsBase(env)}:runQuery`, { method: "POST",
     headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
     body: JSON.stringify({ structuredQuery: { from: [{ collectionId: colName }], where, limit: 50 } }) });
-  if (!r.ok) throw fail("firestore", "השאילתה ב-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok) throw await fsFail(r, "השאילתה ב-Firestore נכשלה.");
   const rows = await r.json();
   return rows.filter(x => x.document).map(x => ({
     id: x.document.name.split("/").pop(),
     fields: Object.fromEntries(Object.entries(x.document.fields || {}).map(([k, v]) => [k, fromFs(v)])),
+    updateTime: x.document.updateTime,
   }));
 }
 
@@ -1366,22 +1421,30 @@ async function botHours(env, request){
   const out = { page: "", facebook: "", google: "" };
 
   // 1. דף הנחיתה. המסמך מחזיק את השבוע הנוכחי ואת הבא, כל אחד בשמו.
+  // קריאה-מיזוג-כתיבה מותנית: שני פרסומים במקביל (הקרון והוובהוק) לא דורסים שבוע זה של זה.
+  // כתיבה שנדחתה כי המסמך השתנה בינתיים — קוראים שוב וממזגים מחדש, עד שלוש פעמים.
   let map = null;
   try {
-    const cur = (await fsGet(env, "public/hours")) || {};
-    const keep = plusDays(p.cur, -7);
-    map = {};
-    for (const [k, v] of Object.entries(cur.weeks || {}))
-      if (k >= keep && Array.isArray(v) && v.length === 7) map[k] = v;
-    map[p.week] = p.doc.days;
-    // השדות העליונים הם של השבוע שבו אנחנו נמצאים, אם הוא כבר פורסם.
-    const keepTop = p.week !== p.cur && map[p.cur] && cur.from === p.cur;
-    await fsPatch(env, "public/hours", { ...(keepTop ? {} : p.doc), weeks: map, at: now });
+    for (let i = 0; ; i++){
+      const doc = await fsGet(env, "public/hours"), cur = doc || {};
+      const keep = plusDays(p.cur, -7);
+      map = {};
+      for (const [k, v] of Object.entries(cur.weeks || {}))
+        if (k >= keep && Array.isArray(v) && v.length === 7) map[k] = v;
+      map[p.week] = p.doc.days;
+      // השדות העליונים הם של השבוע שבו אנחנו נמצאים, אם הוא כבר פורסם.
+      const keepTop = p.week !== p.cur && map[p.cur] && cur.from === p.cur;
+      try { await fsPatch(env, "public/hours", { ...(keepTop ? {} : p.doc), weeks: map, at: now }, doc ? doc._updateTime : false); break; }
+      catch (e){ if (!e.conflict || i >= 2) throw e; }
+    }
     out.page = "ok";
     // קריאה חוזרת: מה שהדף יקרא עכשיו הוא בדיוק מה שאושר.
     try {
       const back = await fsGet(env, "public/hours");
       out.pageCheck = JSON.stringify(back?.weeks?.[p.week]) === JSON.stringify(p.doc.days) ? "ok" : "הדף שמר שעות אחרות ממה שנשלח";
+      // פייסבוק וגוגל מקבלים את מה שהדף מחזיק עכשיו, לא את המיזוג של הבקשה הזו: פרסום מקביל
+      // לשבוע אחר שנכתב אחרינו כבר בפנים. בלי קריאה חוזרת — המיזוג שלנו, כמו קודם.
+      if (back && back.weeks && typeof back.weeks === "object") map = back.weeks;
     } catch (e){ out.pageCheck = "לא הצלחתי לקרוא חזרה: " + hebrew(e.message); }
   } catch (e){ out.page = hebrew(e.message); }
 
@@ -1453,7 +1516,7 @@ async function status(env){
     out.model = found[0] || modelOf(env);
     if (!found.length) out.geminiError = "גוגל לא החזירה רשימת מודלים. כנראה המפתח לא תקין או שאין לו גישה ל-Generative Language API.";
   }
-  if (out.facebook){ try { const p = await graph(env, env.FB_PAGE_ID, { fields: "name" }, "GET"); out.pageName = p.name; } catch (e){ out.facebookError = e.message; } }
+  if (out.facebook){ try { const p = await graph(env, env.FB_PAGE_ID, { fields: "name" }, "GET"); out.pageName = p.name; } catch (e){ out.facebookError = hebrew(e.message); } }
   return out;
 }
 

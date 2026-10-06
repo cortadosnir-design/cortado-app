@@ -186,7 +186,7 @@ export function render(){
 
   if (last){
     const toast = el("div", { class: "todaytoast", role: "status" }, el("span", { class: "grow", text: last.msg }));
-    if (last.undo) toast.append(chip("בטל", () => last.undo()));
+    if (last.undo) toast.append(chip("בטל", () => last.undo().catch(() => { last = { msg: "השחזור נכשל.", people: [] }; render(); })));
     for (const p of (last.people || [])){
       const wa = p.phone && last.text && waLink(p.phone, `היי ${p.name}, ${last.text}`);
       if (wa) toast.append(el("a", { class: "btn", href: wa, target: "_blank", rel: "noopener", text: "וואטסאפ ל" + p.name }));

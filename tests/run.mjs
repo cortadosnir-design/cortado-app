@@ -7,7 +7,7 @@ import { build, clean } from "./harness.mjs";
 const PORT = process.env.PORT || 8899;
 const ROOT = new URL("..", import.meta.url).pathname;
 const run = (cmd, args, env) => new Promise(res =>
-  spawn(cmd, args, { stdio: "inherit", cwd: ROOT, env: { ...process.env, ...env } }).on("close", res));
+  spawn(cmd, args, { stdio: "inherit", cwd: ROOT, env: { ...process.env, ...env } }).on("close", (c, s) => res(c ?? (s ? 1 : 0))));
 
 build();
 const server = spawn("npx", ["--yes", "http-server", ROOT, "-p", String(PORT), "-s"],
