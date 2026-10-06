@@ -197,7 +197,9 @@ service cloud.firestore {
     // ── שעות פתיחה לדף הציבורי ──
     match /public/hours {
       allow read: if true;
-      allow write: if isOwner();
+      // רק השרת כותב (חשבון השירות עוקף את הכללים): שולה → /hours/bot. מ-6.10.2026
+      // אין כותב שני — אפליקציה ישנה שעוד מותקנת בטלפון לא יכולה לדרוס את מה ששולה פרסמה.
+      allow write: if false;
     }
 
     // ── סודות שהשרת שומר לעצמו: חיבור עמוד הפייסבוק (secrets/meta) ──

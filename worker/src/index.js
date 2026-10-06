@@ -45,6 +45,7 @@ export default {
       if (url.pathname === "/health") return json({ ok: true }, cors);
       // שולה (בוט הוואטסאפ) מזדהה במפתח משותף, לא במשתמש Firebase.
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
+      if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -62,8 +63,10 @@ export default {
         case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
         case "/publish/cancel":    requireOwner(owner); return json(await cancelPost(await withMeta(env), body), cors);
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
-        case "/hours/facebook":    requireOwner(owner); return json(await setFacebookHours(await withMeta(env), body), cors);
-        case "/hours/google":      requireOwner(owner); return json(await setGoogleHours(env, body), cors);
+        // שעות פתיחה יוצאות רק דרך שולה (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
+        // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור.
+        case "/hours/facebook":
+        case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך שולה בוואטסאפ.", 410);
         case "/hours/fromgoogle":  requireOwner(owner); return json(await readGoogleHours(env), cors);
         case "/status":            requireOwner(owner); return json(await status(await withMeta(env)), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
@@ -1225,7 +1228,7 @@ function botPlan(b, today){
     throw fail("bad_request", "אפשר לעדכן רק את השבוע הנוכחי או את השבוע הבא.");
   if (!Array.isArray(b.days) || b.days.length !== 7) throw fail("bad_request", "צריך שעות לשבעה ימים.");
   const pairs = b.days.map((list) => {
-    if (!Array.isArray(list) || list.length > 4) throw fail("bad_request", "יותר מדי טווחי שעות ביום אחד.");
+    if (!Array.isArray(list) || list.length > 2) throw fail("bad_request", "יותר משני טווחי שעות ביום אחד. פייסבוק וגוגל מחזיקים רק שניים.");
     let last = "";
     return list.map((r) => {
       const [a, z] = Array.isArray(r) ? r : [];
@@ -1245,22 +1248,79 @@ function botPlan(b, today){
       days: days.map(x => x.join(", ")), text: botHoursText(week, days) },
   };
 }
-async function botHours(env, request){
+// שולה מזדהה במפתח משותף. בלי מפתח בשרת: סגור, גם למפתח ריק.
+function botAuth(env, request){
   if (!env.BOT_KEY) throw fail("not_configured", "חסר BOT_KEY בשרת.", 501);
   if (!sameStr(request.headers.get("x-bot-key") || "", String(env.BOT_KEY)))
     throw fail("forbidden", "מפתח הבוט לא תקין.", 403);
   if (request.method !== "POST") throw fail("bad_request", "הנתיב הזה מקבל רק POST.", 405);
   if (!env.FIREBASE_SA) throw fail("not_configured", "חסר FIREBASE_SA בשרת, ובלעדיו אי אפשר לכתוב שעות.", 501);
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+}
+const ilToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+
+/* ===== חלון מתגלגל: שבעת הימים הקרובים, כל יום מהשבוע שלו =====
+   פייסבוק וגוגל מחזיקים סט שעות שבועי אחד, בלי תאריכים. כשפרסמו בחמישי את השבוע הבא
+   והחליפו את כל הסט, חמישי–שבת של השבוע הנוכחי הוצגו עם השעות של השבוע הבא.
+   כאן כל יום בשבוע מקבל את השעות של המופע הקרוב שלו (היום כלול), והסט מחושב מחדש
+   בכל פרסום ובכל לילה (שולה קוראת ל-/hours/refresh אחרי חצות).
+   יום ששבוע שלו עוד לא פורסם: אותו יום מהשבוע הנוכחי, כמו שהיה עד עכשיו, ונרשם ב-unknown
+   כדי שהבעלים יידע. השבוע הנוכחי לא פורסם בכלל: לא נוגעים בפייסבוק. */
+function rollingWeek(weeks, today){
+  const cur = sundayOfYmd(today), dow0 = new Date(today + "T12:00:00Z").getUTCDay();
+  const pairs = [], dates = [], unknown = [];
+  for (let i = 0; i < 7; i++){
+    const date = plusDays(today, i), d = (dow0 + i) % 7;
+    let line = weeks?.[sundayOfYmd(date)]?.[d];
+    if (line == null){ unknown.push(d); line = weeks?.[cur]?.[d]; }
+    dates[d] = date;
+    pairs[d] = line == null ? null : String(line).split(",").map(x => x.trim()).filter(Boolean).map(r => r.split("–").map(x => x.trim()));
+  }
+  return { pairs, dates, unknown, complete: pairs.every(Boolean), today, dow0 };
+}
+function rollingText(r){
+  const lines = [];
+  for (let i = 0; i < 7; i++){
+    const d = (r.dow0 + i) % 7, list = r.pairs[d] || [];
+    lines.push(`${BOT_DAYS[d]} ${dmOf(r.dates[d])}: ${list.length ? list.map(x => x.join("–")).join(", ") : "סגור"}${r.unknown.includes(d) ? " (השבוע הזה עוד לא פורסם)" : ""}`);
+  }
+  return `☕ שעות העגלה · 7 הימים הקרובים\n\n${lines.join("\n")}\n\nקפה קורטדו · קיבוץ שניר`;
+}
+// מה שפייסבוק מציג אחרי העדכון, מול מה שנשלח. קריאה חוזרת, לא הנחה.
+async function checkFacebookHours(env, sent){
+  const got = (await graph(env, env.FB_PAGE_ID, { fields: "hours" }, "GET")).hours || {};
+  const norm = (o) => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]]));
+  return norm(got) === norm(sent) ? "ok" : "פייסבוק מציג שעות אחרות ממה שנשלח";
+}
+async function publishRolling(env, weeks, today){
+  const r = rollingWeek(weeks, today);
+  if (!r.complete) return { facebook: "skip", google: "skip", unknown: r.unknown, text: "" };
+  const out = { unknown: r.unknown, text: rollingText(r) }, hours = {};
+  r.pairs.forEach((list, d) => { if (list.length) hours[FB_DAY[d]] = list; });
+  const meta = await withMeta(env);
+  try {
+    const sent = (await setFacebookHours(meta, { hours })).hours;
+    out.facebook = "ok";
+    try { out.facebookCheck = await checkFacebookHours(meta, sent); }
+    catch (e){ out.facebookCheck = "לא הצלחתי לקרוא חזרה מפייסבוק: " + hebrew(e.message); }
+  } catch (e){ out.facebook = e.code === "not_configured" ? "עמוד הפייסבוק עוד לא מחובר." : hebrew(e.message); }
+  try { await setGoogleHours(env, { hours: r.pairs }); out.google = "ok"; }
+  catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }
+  return out;
+}
+async function botHours(env, request){
+  botAuth(env, request);
+  const today = ilToday();
   const p = botPlan(await request.json().catch(() => ({})), today);
-  const now = new Date(), next = plusDays(p.cur, 7);
+  const now = new Date();
   const data = await fsGet(env, "weeks/w" + p.week);
   const out = { page: "", facebook: "", google: "" };
 
   // 1. דף הנחיתה. המסמך מחזיק את השבוע הנוכחי ואת הבא, כל אחד בשמו.
+  let map = null;
   try {
     const cur = (await fsGet(env, "public/hours")) || {};
-    const keep = plusDays(p.cur, -7), map = {};
+    const keep = plusDays(p.cur, -7);
+    map = {};
     for (const [k, v] of Object.entries(cur.weeks || {}))
       if (k >= keep && Array.isArray(v) && v.length === 7) map[k] = v;
     map[p.week] = p.doc.days;
@@ -1268,29 +1328,33 @@ async function botHours(env, request){
     const keepTop = p.week !== p.cur && map[p.cur] && cur.from === p.cur;
     await fsPatch(env, "public/hours", { ...(keepTop ? {} : p.doc), weeks: map, at: now });
     out.page = "ok";
+    // קריאה חוזרת: מה שהדף יקרא עכשיו הוא בדיוק מה שאושר.
+    try {
+      const back = await fsGet(env, "public/hours");
+      out.pageCheck = JSON.stringify(back?.weeks?.[p.week]) === JSON.stringify(p.doc.days) ? "ok" : "הדף שמר שעות אחרות ממה שנשלח";
+    } catch (e){ out.pageCheck = "לא הצלחתי לקרוא חזרה: " + hebrew(e.message); }
   } catch (e){ out.page = hebrew(e.message); }
 
-  // 2. פייסבוק ו-3. גוגל מחזיקים שעות שבועיות אחת: של השבוע הבא מרגע שהוא חי, אחרת של הנוכחי.
-  let here = p.week === next;
-  if (!here){
-    const n = await fsGet(env, "weeks/w" + next).catch(() => null);
-    here = !(n && (n.launchedAt || n.phase === "locked"));
-  }
-  if (here){
-    const two = p.pairs.map(list => list.slice(0, 2)), hours = {};
-    two.forEach((list, i) => { if (list.length) hours[FB_DAY[i]] = list; });
-    try { await setFacebookHours(await withMeta(env), { hours }); out.facebook = "ok"; }
-    catch (e){ out.facebook = e.code === "not_configured" ? "עמוד הפייסבוק עוד לא מחובר." : hebrew(e.message); }
-    try { await setGoogleHours(env, { hours: two }); out.google = "ok"; }
-    catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }
-  } else out.facebook = out.google = "skip";
+  // 2. פייסבוק ו-3. גוגל: חלון מתגלגל של שבעת הימים הקרובים.
+  if (map) Object.assign(out, await publishRolling(env, map, today));
+  else out.facebook = out.google = "skip";
 
-  const patch = { hoursOverride: p.override, updatedAt: now, sync: { sig: p.sig, at: now, ...out } };
+  const patch = { hoursOverride: p.override, updatedAt: now, sync: { sig: p.sig, at: now, page: out.page, facebook: out.facebook, google: out.google } };
   if (!data) patch.phase = "availability";
   if (out.page === "ok" && !(data && data.launchedAt)) patch.launchedAt = now;
   if (out.google === "ok"){ patch.googleAt = now; patch.googleSig = p.sig; }
-  await fsPatch(env, "weeks/w" + p.week, patch);
-  return { ok: out.page === "ok", week: p.week, ...out, text: p.doc.text };
+  // הרישום על מסמך השבוע הוא הערה, לא הפרסום עצמו. אם הוא נכשל, השעות כבר בחוץ, ואומרים את זה.
+  try { await fsPatch(env, "weeks/w" + p.week, patch); }
+  catch (e){ out.record = hebrew(e.message); }
+  return { ok: out.page === "ok", week: p.week, ...out, text: out.text || p.doc.text };
+}
+// כל לילה אחרי חצות (שולה קוראת): פייסבוק וגוגל זזים יום קדימה בחלון המתגלגל.
+async function refreshHours(env, request){
+  botAuth(env, request);
+  const today = ilToday();
+  const cur = await fsGet(env, "public/hours");
+  const out = await publishRolling(env, (cur && cur.weeks) || {}, today);
+  return { ok: out.facebook === "ok" || out.facebook === "skip", today, ...out };
 }
 async function status(env){
   const out = { gemini: !!env.GEMINI_API_KEY, facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID };

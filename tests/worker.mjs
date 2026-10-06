@@ -116,10 +116,10 @@ if (f2) process.exitCode = 1;
 {
   console.log("\nשעות מהבוט (שולה)");
   const a = wsrc.indexOf("const BOT_DAYS"), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botHours(")) + 2;
-  const mk = (deps) => new Function("fail", "hebrew", "fsGet", "fsPatch", "withMeta", "setFacebookHours", "setGoogleHours",
-    wsrc.slice(a, z) + "\nreturn { botPlan, botHours };")(
+  const mk = (deps) => new Function("fail", "hebrew", "fsGet", "fsPatch", "withMeta", "setFacebookHours", "setGoogleHours", "graph",
+    wsrc.slice(a, z) + "\nreturn { botPlan, botHours, rollingWeek, rollingText };")(
     (c, m, s = 400) => Object.assign(new Error(m), { code: c, status: s }), (m) => m,
-    deps.fsGet, deps.fsPatch, async (e) => e, deps.fb, deps.gb);
+    deps.fsGet, deps.fsPatch, async (e) => e, deps.fb, deps.gb, deps.graph || (async () => ({ hours: deps.fbShown || {} })));
   let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
   const throws = async (fn, code) => { try { await fn(); return false; } catch (e){ return e.code === code; } };
 
@@ -162,6 +162,10 @@ if (f2) process.exitCode = 1;
     });
     const wk = (() => { const t = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
       const x = new Date(t + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - x.getUTCDay() + (today === "cur" ? 0 : 7)); return x.toISOString().slice(0, 10); })();
+    // השבוע הנוכחי כבר פורסם (המצב הרגיל), אלא אם הבדיקה אומרת אחרת.
+    const curWk = (() => { const t = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+      const x = new Date(t + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x.toISOString().slice(0, 10); })();
+    if (!("public/hours" in docs)) docs["public/hours"] = { weeks: { [curWk]: DAYS7.map(d => d.map(r => r.join("–")).join(", ")) } };
     const req = new Request("https://x/hours/bot", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify({ week: wk, days: DAYS7 }) });
     let res = null, err = null;
     try { res = await botHours({ BOT_KEY: "k".repeat(40), FIREBASE_SA: "{}", ...env }, req); } catch (e){ err = e; }
@@ -175,16 +179,44 @@ if (f2) process.exitCode = 1;
   ok("רושם חריגה, חתימה ושיגור על מסמך השבוע", !!week && week.fields.sync.sig === plan.sig && week.fields.sync.page === "ok"
     && week.fields.sync.facebook === "ok" && week.fields.launchedAt instanceof Date && week.fields.phase === "availability");
   ok("גוגל נשארת ידנית, והטקסט המוכן חוזר", good.res.google === "manual" && /שעות העגלה/.test(good.res.text) && !week.fields.googleAt);
+  const noCur = await run({ docs: { "public/hours": null } });
+  ok("השבוע הנוכחי לא פורסם: הדף מתעדכן, פייסבוק לא נדרס", noCur.res.page === "ok" && noCur.res.facebook === "skip" && noCur.fbCalls.length === 0);
   const nofb = await run({ fbFails: true });
   ok("פייסבוק לא מחובר: הדף עדיין מתעדכן והסיבה חוזרת", nofb.res.page === "ok" && /לא מחובר/.test(nofb.res.facebook));
-  const curWeekLiveNext = await run({ today: "cur", docs: (() => { const t = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
-    const x = new Date(t + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - x.getUTCDay() + 7); return { ["weeks/w" + x.toISOString().slice(0, 10)]: { launchedAt: "2026-01-01T00:00:00Z" } }; })() });
-  ok("השבוע הנוכחי כשהבא כבר חי: פייסבוק לא נדרס", curWeekLiveNext.res.facebook === "skip" && curWeekLiveNext.fbCalls.length === 0 && curWeekLiveNext.res.page === "ok");
+  // החלון המתגלגל: ביום חמישי, אחרי פרסום של השבוע הבא, חמישי–שבת עדיין של השבוע הנוכחי.
+  {
+    const { rollingWeek, rollingText } = mk({});
+    const CUR = ["", "08:00–12:00", "08:00–12:00", "08:00–12:00", "08:00–12:00", "07:00–11:00", "09:00–13:00, 16:00–19:00"];
+    const NXT = ["10:00–14:00", "16:30–19:00", "16:30–19:00", "16:30–19:00", "16:30–19:00", "09:00–12:00", ""];
+    const thu = rollingWeek({ "2026-10-04": CUR, "2026-10-11": NXT }, "2026-10-08");   // חמישי
+    ok("חמישי, שישי ושבת נשארים של השבוע הנוכחי", JSON.stringify(thu.pairs[4]) === '[["08:00","12:00"]]' && thu.pairs[5][0][0] === "07:00" && thu.pairs[6].length === 2);
+    ok("ראשון עד רביעי כבר של השבוע הבא", thu.pairs[0][0][0] === "10:00" && thu.pairs[1][0][0] === "16:30" && thu.unknown.length === 0);
+    const noNext = rollingWeek({ "2026-10-04": CUR }, "2026-10-08");
+    ok("שבוע הבא לא פורסם: אותו יום מהשבוע הנוכחי, ומסומן", noNext.complete && noNext.unknown.join() === "0,1,2,3" && noNext.pairs[1][0][0] === "08:00");
+    ok("השבוע הנוכחי לא פורסם: לא שלם, ופייסבוק לא נוגעים", !rollingWeek({ "2026-10-11": NXT }, "2026-10-08").complete);
+    const txt = rollingText(noNext);
+    ok("הטקסט לגוגל מתחיל היום, עם תאריכים, ואומר מה עוד לא פורסם", /^☕ שעות העגלה · 7 הימים הקרובים\n\nחמישי 8\.10: 08:00–12:00/.test(txt) && /ראשון 11\.10: סגור \(השבוע הזה עוד לא פורסם\)/.test(txt), txt.split("\n")[2]);
+    const sat = rollingWeek({ "2026-10-04": CUR, "2026-10-11": NXT }, "2026-10-10");   // שבת
+    ok("בשבת רק השבת עצמה של השבוע הנוכחי", sat.pairs[6].length === 2 && sat.pairs[5][0][0] === "09:00");
+  }
+  const thuRun = await run({ today: "cur" });
+  ok("פרסום של השבוע הנוכחי מעדכן את פייסבוק בחלון המתגלגל", thuRun.res.facebook === "ok" && thuRun.fbCalls.length === 1 && thuRun.res.page === "ok");
+  ok("קריאה חוזרת מהדף ומפייסבוק מדווחת", typeof thuRun.res.pageCheck === "string" && typeof thuRun.res.facebookCheck === "string");
+  ok("שלושה טווחים ביום נדחים (פייסבוק וגוגל מחזיקים שניים)", await bad([["08:00","10:00"], ["11:00","13:00"], ["16:00","19:00"]]));
+  const recFails = await (async () => { const writes = []; const { botHours } = mk({
+      fsGet: async () => null,
+      fsPatch: async (_e, path, fields) => { if (path.startsWith("weeks/")) throw new Error("boom"); writes.push(path); return true; },
+      fb: async () => ({ ok: true, hours: {} }), gb: async () => { throw Object.assign(new Error("x"), { code: "not_configured" }); } });
+    const wk = good.wk;
+    return botHours({ BOT_KEY: "k".repeat(40), FIREBASE_SA: "{}" }, new Request("https://x/hours/bot", { method: "POST", headers: { "x-bot-key": "k".repeat(40) }, body: JSON.stringify({ week: wk, days: DAYS7 }) })); })();
+  ok("רישום על מסמך השבוע שנכשל לא מסתיר שהשעות כבר יצאו", recFails.ok === true && recFails.page === "ok" && /boom/.test(recFails.record));
   const wrong = await run({ key: "nope" });
   ok("מפתח שגוי: 403 ושום כתיבה", wrong.err && wrong.err.status === 403 && wrong.writes.length === 0 && wrong.fbCalls.length === 0);
   const unset = await run({ env: { BOT_KEY: "" }, key: "" });
   ok("בלי BOT_KEY בשרת: סגור, גם למפתח ריק", unset.err && unset.err.code === "not_configured" && unset.writes.length === 0);
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/bot"') > 0 && wsrc.indexOf('"/hours/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("רענון הלילה נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/refresh"') > 0 && wsrc.indexOf('"/hours/refresh"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("האפליקציה כבר לא מפרסמת שעות בעצמה", /case "\/hours\/google":\s*throw fail\("moved"/.test(wsrc));
   const fsBlock = wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs("));
   const toFs = new Function(fsBlock + "\nreturn toFs;")();
   ok("תאריך נכתב כ-timestamp ולא כמפה ריקה", toFs(new Date("2026-10-03T11:00:00Z")).timestampValue === "2026-10-03T11:00:00.000Z");
