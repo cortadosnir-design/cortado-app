@@ -78,6 +78,9 @@ function now(){
    וסגירה מוקדמת של היום לא הייתה משנה את "פתוח עכשיו". */
 let byWeek = {};
 let tableIsNext = false;
+// מסמך ישן בלי תאריכים (בלי weeks ובלי from): אין ממה לדעת לאיזה שבוע השעות שייכות, ולכן הן משמשות לכל יום.
+// במסמך מתוארך, יום ששבוע שלו לא פורסם הוא "לא ידוע", ולא מקבל שעות של שבוע אחר.
+let legacy = true;
 const p2 = (n) => String(n).padStart(2, "0");
 function weekKey(t, plus){
   const x = new Date(Date.UTC(t.y, t.mo - 1, t.day + plus));
@@ -85,8 +88,8 @@ function weekKey(t, plus){
   return `${x.getUTCFullYear()}-${p2(x.getUTCMonth() + 1)}-${p2(x.getUTCDate())}`;
 }
 const hoursOn = (t, plus) => {
-  const w = byWeek[weekKey(t, plus)];
-  return (w || hours)[(t.d + plus) % 7] || [];
+  const w = byWeek[weekKey(t, plus)] || (legacy ? hours : null);
+  return (w && w[(t.d + plus) % 7]) || [];
 };
 function renderStatus(){
   const t = now();
@@ -139,6 +142,7 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
   const top = strs(fields.days && fields.days.arrayValue && fields.days.arrayValue.values);
   const wm = fields.weeks && fields.weeks.mapValue && fields.weeks.mapValue.fields;
   byWeek = {};
+  legacy = !wm && !fields.from;
   for (const [k, v] of Object.entries(wm || {})){
     const w = strs(v.arrayValue && v.arrayValue.values);
     if (w) byWeek[k] = w;
@@ -157,8 +161,21 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
     const [y, m, dd] = key.split("-").map(Number), a = new Date(Date.UTC(y, m - 1, dd)), b = new Date(Date.UTC(y, m - 1, dd + 6));
     range = `${a.getUTCDate()}.${a.getUTCMonth() + 1} – ${b.getUTCDate()}.${b.getUTCMonth() + 1}`;
     through = b.toISOString().slice(0, 10);
-  } else if (top) hours = top;
-  else return;
+  } else if (top && legacy) hours = top;
+  else {
+    // השבוע הזה לא פורסם: לא מציגים שעות של שבוע אחר כאילו הן של עכשיו, ו"פתוח עכשיו" לא מחושב מהן.
+    // גם מה שנאפה ל-HTML יורד: הנתון החי גובר על האפייה, שרצה רק פעם בשעה.
+    tbody.querySelectorAll("td").forEach(td => { td.textContent = ""; td.className = ""; td.dir = "ltr"; });
+    delete tbody.dataset.week;
+    try {
+      const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+      delete ld.openingHoursSpecification; el.textContent = JSON.stringify(ld);
+    } catch {}
+    renderStatus();
+    const note = document.getElementById("hours-note");
+    if (note){ const b = note.querySelector("b") || note.insertBefore(document.createElement("b"), note.firstChild); b.textContent = "השעות לשבוע הזה עוד לא פורסמו. "; }
+    return;
+  }
   renderTable(); renderStatus(); syncLd(through && key, through);
   const note = document.getElementById("hours-note");
   if (range && note){

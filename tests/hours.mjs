@@ -166,6 +166,26 @@ try {
     ok("בטבלה של השבוע הבא אין יום שמסומן כהיום", done.today === 0, String(done.today));
     ok("שעות של שבוע ידוע מתוארכות ב-JSON-LD לשבוע שבטבלה", done.ld.opens === "10:00" && done.ld.validFrom === keyOf(7) && done.ld.validThrough === keyOf(13), JSON.stringify(done.ld));
   }
+  /* השבוע הנוכחי לא פורסם, ורק שבוע שעבר במסמך: אף שעה של שבוע שעבר לא מוצגת כאילו היא של עכשיו. */
+  {
+    const il = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+    const sun = new Date(il + "T12:00:00Z"); sun.setUTCDate(sun.getUTCDate() - sun.getUTCDay() - 7);
+    const lastKey = sun.toISOString().slice(0, 10);
+    const week = (line) => ({ arrayValue: { values: Array(7).fill(line).map(s => ({ stringValue: s })) } });
+    const pg = await b.newPage({ viewport: { width: 1280, height: 900 } });
+    await pg.route(/firestore\.googleapis\.com/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fields: {
+      days: week("00:00–23:59"), range: { stringValue: "x" }, from: { stringValue: lastKey },
+      weeks: { mapValue: { fields: { [lastKey]: week("00:00–23:59") } } } } }) }));
+    await pg.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+    await pg.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
+    await pg.waitForTimeout(900);
+    const st = await pg.evaluate(() => ({ cells: [...document.querySelectorAll("#hours td")].map(td => td.textContent).join("|"),
+      status: document.querySelector("#status span").textContent, note: document.getElementById("hours-note").textContent }));
+    await pg.close();
+    ok("השבוע לא פורסם: אין בטבלה שעות של שבוע שעבר", !/\d{1,2}:\d{2}/.test(st.cells), st.cells);
+    ok("השבוע לא פורסם: \"פתוח עכשיו\" לא מחושב משבוע שעבר", st.status === "שעות פתיחה", st.status);
+    ok("השבוע לא פורסם: הדף אומר את זה", st.note.startsWith("השעות לשבוע הזה עוד לא פורסמו"), st.note.slice(0, 40));
+  }
   /* שעות ב-HTML: שעות קבועות שנכתבו שם פעם התיישנו, ומי שקרא את הדף בלי JavaScript קיבל אותן כאילו הן
      של השבוע. היום .github/scripts/bake-hours.mjs אופה את השבוע הנוכחי, מתוארך, בשביל מנועי חיפוש ועוזרי AI
      שלא מריצים JavaScript. הבדיקות כאן לא תלויות במה שאפוי כרגע בקובץ: הן אופות בעצמן ומגישות את התוצאה. */
