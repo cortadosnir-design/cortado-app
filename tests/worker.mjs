@@ -223,3 +223,22 @@ if (f2) process.exitCode = 1;
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
+
+/* ── הצוות לבוט: שמות וטלפונים, רק במפתח של הבוט ── */
+{
+  console.log("\nהצוות לבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botTeam("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw Object.assign(new Error("x"), { status: 403 }); };
+  let listed = 0;
+  const botTeam = new Function("botAuth", "fsList", wsrc.slice(a, z) + "\nreturn botTeam;")(auth, async (_e, col) => (listed++, col === "roster" ? [
+    { name: " נגה ", phone: "054-312-0000", active: true }, { name: "אורי", phone: "" }, { name: "עזב", phone: "0501111111", active: false }, { phone: "0502222222" }] : []));
+  const req = (key) => new Request("https://x/team/bot", { method: "POST", headers: { "x-bot-key": key } });
+  const out = await botTeam({ BOT_KEY: "k" }, req("k"));
+  ok("פעילים בלבד, שם מנוקה וטלפון בספרות", JSON.stringify(out.team) === JSON.stringify([{ name: "נגה", phone: "0543120000" }, { name: "אורי", phone: "" }]), JSON.stringify(out.team));
+  let denied = false; try { await botTeam({ BOT_KEY: "k" }, req("nope")); } catch (e){ denied = e.status === 403; }
+  ok("מפתח שגוי: נדחה בלי לקרוא את הרשימה", denied && listed === 1);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot"') > 0 && wsrc.indexOf('"/team/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}

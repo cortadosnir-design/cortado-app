@@ -46,6 +46,7 @@ export default {
       // שולה (בוט הוואטסאפ) מזדהה במפתח משותף, לא במשתמש Firebase.
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
+      if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -1057,6 +1058,12 @@ async function fsGet(env, path){
   const d = await r.json();
   return Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)]));
 }
+async function fsList(env, col){
+  const tok = await saToken(env);
+  const r = await fetch(`${fsBase(env)}/${col}?pageSize=300`, { headers: { authorization: "Bearer " + tok } });
+  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  return ((await r.json()).documents || []).map(d => Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)])));
+}
 async function fsQuery(env, colName, wheres){
   const tok = await saToken(env);
   const filters = wheres.map(([field, op, value]) => ({ fieldFilter: { field: { fieldPath: field }, op, value: toFs(value) } }));
@@ -1355,6 +1362,15 @@ async function refreshHours(env, request){
   const cur = await fsGet(env, "public/hours");
   const out = await publishRolling(env, (cur && cur.weeks) || {}, today);
   return { ok: out.facebook === "ok" || out.facebook === "skip", today, ...out };
+}
+
+// הצוות לבוט: שם וטלפון של כל עובד פעיל ב-roster, בשביל קישור אישי למי שהסידור שלו השתנה.
+// הטלפונים יוצאים רק במפתח של הבוט, והבוט מציג אותם רק לבעלים.
+async function botTeam(env, request){
+  botAuth(env, request);
+  const team = (await fsList(env, "roster")).filter(x => x.active !== false && x.name)
+    .map(x => ({ name: String(x.name).trim(), phone: String(x.phone || "").replace(/\D/g, "") }));
+  return { ok: true, team };
 }
 async function status(env){
   const out = { gemini: !!env.GEMINI_API_KEY, facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID };
