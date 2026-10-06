@@ -1140,7 +1140,7 @@ function googleDates(weeks, today){
   return out;
 }
 const gbDate = (ymd) => ({ year: +ymd.slice(0, 4), month: +ymd.slice(5, 7), day: +ymd.slice(8, 10) });
-const ymdOf = (d) => `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+const gbYmd = (d) => `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
 const gbHm = (t) => `${String(t?.hours || 0).padStart(2, "0")}:${String(t?.minutes || 0).padStart(2, "0")}`;
 function specialPeriods(days){
   return days.flatMap(({ date, ranges }) => ranges.length
@@ -1151,7 +1151,7 @@ function specialPeriods(days){
 function byDate(periods){
   const m = {};
   for (const p of periods || []){
-    const d = ymdOf(p.startDate);
+    const d = gbYmd(p.startDate);
     m[d] = p.closed ? "סגור" : [m[d] === "סגור" ? "" : m[d], `${gbHm(p.openTime)}–${gbHm(p.closeTime)}`].filter(Boolean).sort().join(", ");
   }
   return m;
@@ -1171,7 +1171,7 @@ async function setGoogleHours(env, { weeks, today }){
   };
   const mine = new Set(days.map(x => x.date)), periods = specialPeriods(days);
   const before = await read();
-  const keep = before.filter(p => { const d = ymdOf(p.startDate); return d >= today && !mine.has(d); });
+  const keep = before.filter(p => { const d = gbYmd(p.startDate); return d >= today && !mine.has(d); });
   const want = byDate(periods), now = byDate(before);
   const diff = days.map(x => x.date).filter(d => (now[d] || "לפי השעות הקבועות") !== want[d])
     .map(d => `${d.slice(8)}.${+d.slice(5, 7)}: עכשיו ${now[d] || "לפי השעות הקבועות"} → ${want[d]}`);

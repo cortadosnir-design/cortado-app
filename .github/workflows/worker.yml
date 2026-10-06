@@ -3,13 +3,19 @@ name: Deploy Worker
 on:
   push:
     branches: [main]
-    paths: ['worker/src/**', 'worker/wrangler.toml', '.github/workflows/worker.yml']
+    paths: ['worker/src/**', 'worker/wrangler.toml', '.github/workflows/worker.yml', 'tests/worker.mjs']
   workflow_dispatch:
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # השרת נפרס רק אם הבדיקות עוברות, כולל טעינה של כל הקובץ כמודול (6.10.2026: הצהרה כפולה עצרה פריסה בשקט)
+      - name: Worker tests
+        run: node tests/worker.mjs
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:

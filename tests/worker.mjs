@@ -335,3 +335,11 @@ if (f2) process.exitCode = 1;
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
+
+/* ── כל הקובץ נטען כמודול, כמו ש-wrangler בונה אותו. הבדיקות למעלה חותכות חלקים, ולכן לא תופסות הצהרה כפולה ── */
+{
+  let err = null;
+  try { await import("data:text/javascript," + encodeURIComponent(wsrc)); } catch (e){ err = e; }
+  console.log(`\n${err ? "  ✗ השרת לא נטען כמודול: " + err.message : "  ✓ השרת נטען כמודול"}`);
+  if (err) process.exitCode = 1;
+}
