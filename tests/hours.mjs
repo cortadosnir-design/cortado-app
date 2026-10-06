@@ -10,7 +10,7 @@
    בנוסף, הכותב והקורא היו בשני פורמטים שונים: דף השעות הישן חיפש מפה
    בשם `hours` שאיש לא כתב, ולכן גם שיגור שהיה מצליח היה מצייר "סגור"
    בכל יום. היום הקורא הוא דף הנחיתה, cafe/cafe.js. */
-import { readFileSync, writeFileSync, unlinkSync } from "fs";
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
 import { spawn } from "child_process";
 import { buildFullCore } from "./fullcore.mjs";
 let chromium;
@@ -165,6 +165,27 @@ try {
     ok("כשלא נשארו שעות השבוע והשבוע הבא פורסם, הטבלה עוברת אליו", done.row === "10:00–11:00" && done.note.includes(dmOf(7) + " – "), done.row + " | " + done.note.slice(0, 30));
     ok("בטבלה של השבוע הבא אין יום שמסומן כהיום", done.today === 0, String(done.today));
     ok("שעות של שבוע ידוע מתוארכות ב-JSON-LD לשבוע שבטבלה", done.ld.opens === "10:00" && done.ld.validFrom === keyOf(7) && done.ld.validThrough === keyOf(13), JSON.stringify(done.ld));
+  }
+  /* ב-HTML עצמו אין שעות: שעות קבועות שנכתבו שם התיישנו, ומי שקרא את הדף בלי JavaScript (או כשהרשת נפלה)
+     קיבל אותן כאילו הן של השבוע. בלי public/hours הדף אומר "שעות פתיחה" ולא ממציא "פתוח עכשיו". */
+  {
+    const src = readFileSync(ROOT + "cafe/index.html", "utf8");
+    const staticRows = /<tbody id="hours">([\s\S]*?)<\/tbody>/.exec(src)[1];
+    ok("אין שעות כתובות ב-HTML של דף הנחיתה", !/\d{1,2}:\d{2}/.test(staticRows) && !src.includes("openingHoursSpecification"), staticRows.replace(/\s+/g, " ").slice(0, 80));
+    const off = await b.newPage({ viewport: { width: 1280, height: 900 } });
+    await off.route(/firestore\.googleapis\.com/, (route) => route.abort());
+    await off.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
+    await off.waitForTimeout(700);
+    const o = await off.evaluate(() => ({ status: document.querySelector("#status span").textContent,
+      cells: [...document.querySelectorAll("#hours td")].map(td => td.textContent).join(""), rows: document.querySelectorAll("#hours tr").length,
+      ld: JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent).openingHoursSpecification,
+      fonts: [...document.fonts].filter(f => f.status === "error").map(f => f.family + " " + f.weight) }));
+    await off.close();
+    ok("כשהשעות לא נטענות: שבעה ימים בלי שעות, ובלי \"פתוח עכשיו\"", o.rows === 7 && o.cells === "" && o.status === "שעות פתיחה" && o.ld === undefined, JSON.stringify(o));
+    const fontFiles = [...src.matchAll(/(?:url\(|href=")(fonts\/[^)"]+\.woff2)/g)].map(m => m[1]);
+    ok("הגופנים מוגשים מהאתר עצמו, וכל קובץ שהדף מפנה אליו קיים", !/fonts\.(googleapis|gstatic)\.com/.test(src) && fontFiles.length >= 10
+      && fontFiles.every(f => existsSync(ROOT + "cafe/" + f)) && o.fonts.length === 0, fontFiles.filter(f => !existsSync(ROOT + "cafe/" + f)).concat(o.fonts).join(", "));
+    ok("האפליקציה הפנימית מסומנת noindex, כמו ש-robots.txt אומר", /<meta name="robots" content="noindex/.test(readFileSync(ROOT + "index.html", "utf8")));
   }
   if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT, fullPage: true });
   await cafe.setViewportSize({ width: 390, height: 844 });
