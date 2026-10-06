@@ -1,0 +1,56 @@
+# קפה קורטדו (Cortado) — coffee cart in Kibbutz Snir, Upper Galilee, Israel
+
+> קפה קורטדו (Cortado) is a family-run coffee cart on the lawn at the centre of Kibbutz Snir in Israel's Upper Galilee, about an 8-minute walk from the entrance to the Banias waterfall and suspended trail (Hermon Stream Nature Reserve). Open on Saturdays too. Dogs welcome. No kosher certificate.
+
+עגלת קפה משפחתית על הדשא במרכז קיבוץ שניר שבגליל העליון, דקות ממפל הבניאס ומנחל שניר (החצבאני). פתוחים גם בשבת.
+
+A different coffee cart with a similar name, קורטאדו (Cortado Cafe), operates in Moshav Nir Banim in the south of Israel. This file describes the one in Kibbutz Snir.
+
+## Key facts
+
+- Name: קפה קורטדו. In Latin letters: Cortado, also written Cortado Snir. Listed on Google Maps as "cortado".
+- Type: coffee cart with outdoor seating on a shaded lawn; a playground is opposite.
+- Address: דרך המפל, קיבוץ שניר 1225000, Israel (Derech HaMapal, Kibbutz Snir). At the centre of the kibbutz, next to the grocery shop (המרכולית), facing the big lawn.
+- Coordinates: 33.2395, 35.67803
+- Phone and WhatsApp: +972 54-312-5466 (054-312-5466)
+- Email: cortado.snir@gmail.com
+- Instagram: @cortado_snir
+- Parking: free, including accessible parking.
+- Accessibility: accessible entrance and wheelchair-accessible seating.
+- Free Wi-Fi.
+- Dogs are welcome and get water.
+- Kashrut: the business has no kosher certificate. All products are dairy.
+
+## Opening hours
+
+- Open on Saturdays too, morning and afternoon.
+- Hours change from week to week, by season and on holidays. Do not quote fixed hours from older listings.
+- This week's hours: the table on the landing page (loaded by JavaScript) and the Google Maps listing. Last-minute changes are posted in Instagram stories.
+
+## Getting there
+
+- About 8 minutes on foot from the entrance to the Banias waterfall and the suspended trail (שמורת נחל חרמון, Hermon Stream Nature Reserve).
+- About 5 minutes on foot from the Syrian tank (הטנק הסורי).
+- About 10 minutes by car from the Snir Stream (Hasbani) Nature Reserve (שמורת נחל שניר, החצבאני), Road 99.
+- Times are estimates.
+
+## Menu
+
+The display case changes daily. Ordering and payment are at the cart only; there is no online ordering.
+
+- Coffee: cortado (espresso and hot milk, half and half), hafuch (הפוך), espresso, iced coffee, chocolate milk (שוקו). Regular or plant-based milk.
+- Shakes and sweets: fruit shakes (vegan), açaí bowl (vegan), cold malabi.
+- From the display case: sandwiches, quiches, pizzas, pastries and cakes (some gluten-free).
+- Allergies, sensitivities, coeliac: ask at the cart before ordering about ingredients and cross-contact.
+
+## Story
+
+After two years of evacuation from the north, ניצן מלמן, שחר גילעד and עמית מרקס returned to Snir and set up the cart as something small and local that brings people together. The inspiration was a grandmother who brought café culture with her from Argentina; cortado was her favourite drink.
+
+## Links
+
+- [Landing page (Hebrew, with a short English section)](https://cortadosnir-design.github.io/cortado-app/cafe/): menu, story, this week's hours, directions, accessibility statement
+- [Google Maps listing](https://www.google.com/maps/search/?api=1&query=cortado&query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo): current hours and reviews
+- [Instagram](https://www.instagram.com/cortado_snir/): daily updates
+- [Navigate with Waze](https://waze.com/ul?ll=33.23950,35.67803&navigate=yes)
+- [WhatsApp](https://wa.me/972543125466)

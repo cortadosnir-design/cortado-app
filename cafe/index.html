@@ -215,7 +215,17 @@ section[id]{scroll-margin-top:80px}
 .faq summary::after{content:"";width:12px;height:12px;flex:none;background:linear-gradient(currentColor,currentColor) center/100% 1px no-repeat,linear-gradient(currentColor,currentColor) center/1px 100% no-repeat;transition:transform .3s ease}
 .faq details[open] summary::after{transform:rotate(45deg)}
 .faq details p{padding:0 0 26px;color:var(--ink-soft);max-width:58ch}
+.faq .brief{padding-bottom:36px;max-width:58ch}
+.faq .brief .label{margin-bottom:16px}
+.nb{white-space:nowrap}
 @media (max-width:860px){.faq-grid{grid-template-columns:1fr}}
+
+/* english: פסקה אחת לתיירים ולעוזרי AI ששואלים באנגלית. רק עובדות שכבר כתובות בעברית בדף. */
+.en{border-top:1px solid var(--hair);padding-block:clamp(64px,8vw,110px);text-align:left}
+.en-grid{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}
+.en h2{font-size:clamp(32px,3.4vw,48px);line-height:1.12;margin-top:18px}
+.en .body{display:flex;flex-direction:column;gap:14px;color:var(--ink-soft);max-width:62ch}
+@media (max-width:860px){.en-grid{grid-template-columns:1fr}}
 
 /* review ask */
 .ask{border-top:1px solid var(--hair);padding-block:clamp(64px,8vw,110px)}
@@ -276,14 +286,31 @@ footer li a:hover{opacity:.65}
 {
  "@context": "https://schema.org",
  "@type": "CafeOrCoffeeShop",
+ "@id": "https://cortadosnir-design.github.io/cortado-app/cafe/#cafe",
  "name": "קפה קורטדו",
- "alternateName": "Cortado Snir",
+ "alternateName": [
+  "Cortado Snir",
+  "Cortado"
+ ],
  "description": "עגלת קפה משפחתית על הדשא בקיבוץ שניר, הגליל העליון. קפה, שייקים, כריכים ומאפים טריים, דקות ממפל הבניאס ומנחל שניר (החצבאני). פתוחים גם בשבת.",
  "url": "https://cortadosnir-design.github.io/cortado-app/cafe/",
- "image": "https://cortadosnir-design.github.io/cortado-app/cafe/img/hero.jpg",
+ "image": [
+  "https://cortadosnir-design.github.io/cortado-app/cafe/img/hero.jpg",
+  "https://cortadosnir-design.github.io/cortado-app/cafe/img/lawn.jpg",
+  "https://cortadosnir-design.github.io/cortado-app/cafe/img/evening.jpg",
+  "https://cortadosnir-design.github.io/cortado-app/cafe/img/latte.jpg"
+ ],
  "logo": "https://cortadosnir-design.github.io/cortado-app/cafe/img/logo.png",
  "telephone": "+972-54-312-5466",
  "email": "cortado.snir@gmail.com",
+ "contactPoint": {
+  "@type": "ContactPoint",
+  "contactType": "customer service",
+  "telephone": "+972-54-312-5466",
+  "email": "cortado.snir@gmail.com",
+  "url": "https://wa.me/972543125466",
+  "availableLanguage": "he"
+ },
  "address": {
   "@type": "PostalAddress",
   "streetAddress": "דרך המפל",
@@ -298,12 +325,107 @@ footer li a:hover{opacity:.65}
   "longitude": 35.67803
  },
  "hasMap": "https://www.google.com/maps/search/?api=1&query=cortado&query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo",
+ "containedInPlace": {
+  "@type": "Place",
+  "name": "קיבוץ שניר",
+  "alternateName": "Snir",
+  "sameAs": [
+   "https://www.wikidata.org/wiki/Q2777017",
+   "https://he.wikipedia.org/wiki/%D7%A9%D7%A0%D7%99%D7%A8",
+   "https://en.wikipedia.org/wiki/Snir"
+  ]
+ },
+ "publicAccess": true,
  "servesCuisine": [
   "קפה",
   "מאפים",
   "שייקים"
  ],
  "priceRange": "₪₪",
+ "menu": "https://cortadosnir-design.github.io/cortado-app/cafe/#offer",
+ "hasMenu": {
+  "@type": "Menu",
+  "@id": "https://cortadosnir-design.github.io/cortado-app/cafe/#menu",
+  "url": "https://cortadosnir-design.github.io/cortado-app/cafe/#offer",
+  "name": "מה יש בעגלה",
+  "inLanguage": "he",
+  "description": "הוויטרינה משתנה מיום ליום. כל המוצרים חלביים, ויש גם אפשרויות טבעוניות ואפשרויות ללא גלוטן. לעסק אין תעודת כשרות.",
+  "hasMenuSection": [
+   {
+    "@type": "MenuSection",
+    "name": "קפה",
+    "description": "עם חלב רגיל או צמחי, לבחירתכם.",
+    "hasMenuItem": [
+     {
+      "@type": "MenuItem",
+      "name": "קורטדו",
+      "description": "אספרסו וחלב חם, חצי-חצי."
+     },
+     {
+      "@type": "MenuItem",
+      "name": "הפוך"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "אספרסו"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "קפה קר"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "שוקו"
+     }
+    ]
+   },
+   {
+    "@type": "MenuSection",
+    "name": "שייקים ומתוקים",
+    "description": "לימים החמים על הדשא.",
+    "hasMenuItem": [
+     {
+      "@type": "MenuItem",
+      "name": "שייקי פירות",
+      "suitableForDiet": "https://schema.org/VeganDiet"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "קערת אסאי",
+      "suitableForDiet": "https://schema.org/VeganDiet"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "מלבי קר"
+     }
+    ]
+   },
+   {
+    "@type": "MenuSection",
+    "name": "מהוויטרינה",
+    "description": "משתנה מיום ליום.",
+    "hasMenuItem": [
+     {
+      "@type": "MenuItem",
+      "name": "כריכים"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "קישים"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "פיצות"
+     },
+     {
+      "@type": "MenuItem",
+      "name": "מאפים ועוגות",
+      "description": "יש גם ללא גלוטן"
+     }
+    ]
+   }
+  ]
+ },
  "amenityFeature": [
   {
    "@type": "LocationFeatureSpecification",
@@ -319,10 +441,51 @@ footer li a:hover{opacity:.65}
    "@type": "LocationFeatureSpecification",
    "name": "ידידותי לכלבים",
    "value": true
+  },
+  {
+   "@type": "LocationFeatureSpecification",
+   "name": "חניה בחינם",
+   "value": true
+  },
+  {
+   "@type": "LocationFeatureSpecification",
+   "name": "כניסה נגישה",
+   "value": true
+  },
+  {
+   "@type": "LocationFeatureSpecification",
+   "name": "מקומות ישיבה נגישים לכיסאות גלגלים",
+   "value": true
+  },
+  {
+   "@type": "LocationFeatureSpecification",
+   "name": "מדשאה בצל עצים ותיקים",
+   "value": true
+  },
+  {
+   "@type": "LocationFeatureSpecification",
+   "name": "גן שעשועים ממול",
+   "value": true
+  }
+ ],
+ "knowsLanguage": "he",
+ "founder": [
+  {
+   "@type": "Person",
+   "name": "ניצן מלמן"
+  },
+  {
+   "@type": "Person",
+   "name": "שחר גילעד"
+  },
+  {
+   "@type": "Person",
+   "name": "עמית מרקס"
   }
  ],
  "sameAs": [
-  "https://www.instagram.com/cortado_snir/"
+  "https://www.instagram.com/cortado_snir/",
+  "https://maps.google.com/?cid=10008515036875312092"
  ]
 }
 </script>
@@ -519,7 +682,11 @@ footer li a:hover{opacity:.65}
   <div class="wrap faq-grid">
     <h2 id="h-faq">לפני שיוצאים לדרך</h2>
     <div>
-      <details><summary>אתם פתוחים בשבת?</summary><p>כן, בבוקר ואחר הצהריים. השעות המדויקות בטבלה, ושינויים מתעדכנים בסטורי.</p></details>
+      <div class="brief">
+        <p class="label">בקצרה</p>
+        <p>קפה קורטדו הוא עגלת קפה משפחתית על הדשא במרכז קיבוץ שניר שבגליל העליון, כ־8 דקות הליכה מהכניסה למפל הבניאס (שמורת נחל חרמון) והשביל התלוי, וכ־10 דקות נסיעה משמורת נחל שניר (החצבאני). פתוחים גם בשבת. יש קפה עם חלב רגיל או צמחי, שייקים, קערת אסאי, כריכים, קישים, פיצות ומאפים, וגם אפשרויות טבעוניות וללא גלוטן. מדשאה בצל עצים ותיקים, גן שעשועים ממול, חניה בחינם, <span class="nb">Wi-Fi</span> חינם, וכלבים מתקבלים בברכה. לעסק אין תעודת כשרות.</p>
+      </div>
+      <details><summary>אתם פתוחים בשבת?</summary><p>כן, בבוקר ואחר הצהריים. השעות משתנות משבוע לשבוע: שעות השבוע בטבלה שלמעלה ובגוגל מפות, ושינויים מתעדכנים בסטורי באינסטגרם.</p></details>
       <details><summary>כמה אתם רחוקים מהבניאס ומנחל שניר?</summary><p>כ־8 דקות הליכה מהכניסה למפל הבניאס והשביל התלוי, כ־10 דקות נסיעה משמורת נחל שניר (החצבאני), וכ־5 דקות הליכה מהטנק הסורי. אפשר לעצור אצלנו לקפה לפני המסלול או אחריו.</p></details>
       <details><summary>יש תעודת כשרות?</summary><p>לעסק אין תעודת כשרות. כל המוצרים חלביים.</p></details>
       <details><summary>יש אפשרויות טבעוניות וללא גלוטן?</summary><p>כן. יש שייקים טבעוניים, חלב צמחי לכל משקה ומאפים ללא גלוטן. אם יש לכם אלרגיה או צליאק, שאלו אותנו לפני ההזמנה.</p></details>
@@ -536,6 +703,23 @@ footer li a:hover{opacity:.65}
       <p>ביקורת בגוגל לוקחת חצי דקה, ועוזרת לעסק קטן בקיבוץ יותר ממה שנדמה.</p>
     </div>
     <a class="btn btn-line" href="https://g.page/r/CdzLGw5mY-WKEBM/review">כתבו ביקורת בגוגל</a>
+  </div>
+</section>
+
+<section class="en" id="english" lang="en" dir="ltr" aria-labelledby="h-en">
+  <div class="wrap en-grid">
+    <div>
+      <p class="label-en">In English</p>
+      <h2 id="h-en">Coffee on the lawn in Kibbutz Snir, by the Banias.</h2>
+    </div>
+    <div class="body">
+      <p>Cortado (קפה קורטדו) is a family-run coffee cart on the lawn at the centre of Kibbutz Snir, in Israel's Upper Galilee. It is about an 8-minute walk from the entrance to the Banias waterfall and suspended trail (Hermon Stream Nature Reserve), and about a 10-minute drive on Road 99 from the Snir Stream (Hasbani) Nature Reserve.</p>
+      <p>Open on Saturdays too. Hours change from week to week, so check <a class="link" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">Google Maps</a> before you set out.</p>
+      <p>Coffee with regular or plant-based milk, fruit shakes, açaí bowls, sandwiches, quiches, pizzas and pastries, with vegan and gluten-free options. A dairy kitchen; no kosher certificate.</p>
+      <p>A shaded lawn with a playground opposite, free parking including accessible parking, wheelchair-accessible seating and free <span class="nb">Wi-Fi</span>. Dogs are welcome.</p>
+      <p>The inspiration was a grandmother who brought café culture with her from Argentina. Cortado was her drink.</p>
+      <p><a class="link" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes">Navigate with Waze</a> · <a class="link" href="https://wa.me/972543125466">WhatsApp</a> · <a class="link nb" href="tel:+972543125466">+972 54-312-5466</a></p>
+    </div>
   </div>
 </section>
 
