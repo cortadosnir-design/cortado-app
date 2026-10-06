@@ -4,17 +4,22 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 22 }
       # שער: דחיפה ל-main נפרסת לאוויר מיד. בדיקה שנופלת עוצרת כאן,
       # לפני שהיא מגיעה למנהלת ולעובדים.
       - name: Install test deps
-        run: npm install --no-save playwright http-server && npx playwright install --with-deps chromium
+        run: npm install --no-save playwright http-server axe-core && npx playwright install --with-deps chromium
       - name: Run tests
         run: node tests/run.mjs
       - name: Install Firebase CLI

@@ -12,7 +12,7 @@ let AXE;
 for (const p of ["../node_modules/axe-core/axe.min.js", GLOBAL + "/axe-core/axe.min.js"]){
   try { AXE = readFileSync(p.startsWith("/") ? p : new URL(p, import.meta.url), "utf8"); break; } catch {}
 }
-if (!AXE){ console.log("⚠️  axe-core לא מותקן (npm i -g axe-core). מדלג."); process.exit(0); }
+if (!AXE){ console.log("⚠️  axe-core לא מותקן (npm i -g axe-core). " + (process.env.CI ? "ב-CI זו שגיאה." : "מדלג.")); process.exit(process.env.CI ? 1 : 0); }
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const PORT = process.env.PORT || 8903;

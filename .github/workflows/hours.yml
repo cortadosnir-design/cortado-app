@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 22 }
       - name: Bake this week's hours into the landing page
         run: node .github/scripts/bake-hours.mjs
       - name: Commit if the hours changed
@@ -26,4 +26,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "דף הנחיתה: שעות השבוע עודכנו אוטומטית מ-public/hours"
+          git pull --rebase origin main
           git push

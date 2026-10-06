@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths: ['worker/src/**', 'worker/wrangler.toml', '.github/workflows/worker.yml', 'tests/worker.mjs']
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
