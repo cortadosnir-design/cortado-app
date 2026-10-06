@@ -262,6 +262,10 @@ if (f2) process.exitCode = 1;
   ok("הפרסום מקבל את אותו מזהה, טקסט, תמונה וזמן", sched[0].postId === writes[0][0].slice(6) && sched[0].text === "בוקר בשניר" && sched[0].image === "data:image/jpeg;base64,AQID" && sched[0].at === at && out.fbPostId === "1_2");
   let denied = false; try { await botPost({ BOT_KEY: "k" }, req({ text: "x" }, "nope")); } catch (e){ denied = e.status === 403; }
   ok("מפתח שגוי: נדחה בלי לכתוב", denied && writes.length === 1);
+  const failing = new Function("botAuth", "withMeta", "publishState", "fsPatch", "schedulePost", wsrc.slice(a, z) + "\nreturn botPost;")(
+    auth, async (e) => e, async () => ({}), async (_e, path, fields) => { writes.push([path, fields]); }, async () => { throw new Error("meta said no"); });
+  let thrown = ""; try { await failing({ BOT_KEY: "k" }, req({ text: "x", at })); } catch (e){ thrown = e.message; }
+  ok("פרסום שנכשל: השגיאה עולה, והמסמך מסומן מבוטל ולא נשאר מוכן", thrown === "meta said no" && writes.at(-1)[1].status === "cancelled" && writes.at(-2)[1].status === "ready", JSON.stringify(writes.slice(-2)));
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot"') > 0 && wsrc.indexOf('"/post/bot"') < wsrc.indexOf("await requireUser(request, env)"));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;

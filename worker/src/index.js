@@ -1376,7 +1376,11 @@ async function botPost(env, request){
   const id = "b" + Date.now().toString(36);
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date(at || Date.now()));
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", status: "ready", hasMedia: !!b.image });
-  return { ok: true, id, ...(await schedulePost(env, { postId: id, text, image: b.image || "", at, noIg: !!b.noIg })) };
+  try { return { ok: true, id, ...(await schedulePost(env, { postId: id, text, image: b.image || "", at, noIg: !!b.noIg })) }; }
+  catch (e){ // לא יצא: המסמך לא נשאר "מוכן" באפליקציה ולא תופס משבצת
+    await fsPatch(env, `posts/${id}`, { status: "cancelled", igPending: false }).catch(() => {});
+    throw e;
+  }
 }
 
 // הצוות לבוט: שם וטלפון של כל עובד פעיל ב-roster, בשביל קישור אישי למי שהסידור שלו השתנה.
