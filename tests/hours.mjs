@@ -185,6 +185,8 @@ try {
     const fontFiles = [...src.matchAll(/(?:url\(|href=")(fonts\/[^)"]+\.woff2)/g)].map(m => m[1]);
     ok("הגופנים מוגשים מהאתר עצמו, וכל קובץ שהדף מפנה אליו קיים", !/fonts\.(googleapis|gstatic)\.com/.test(src) && fontFiles.length >= 10
       && fontFiles.every(f => existsSync(ROOT + "cafe/" + f)) && o.fonts.length === 0, fontFiles.filter(f => !existsSync(ROOT + "cafe/" + f)).concat(o.fonts).join(", "));
+    const maps = [...src.matchAll(/https:\/\/www\.google\.com\/maps[^"]*/g)].map(m => m[0]);
+    ok("כל קישור לגוגל מפות פותח את דף העסק, לא סיכה על קואורדינטות", maps.length >= 4 && maps.every(u => u.includes("query_place_id=")), maps.filter(u => !u.includes("query_place_id=")).join(" "));
     ok("האפליקציה הפנימית מסומנת noindex, כמו ש-robots.txt אומר", /<meta name="robots" content="noindex/.test(readFileSync(ROOT + "index.html", "utf8")));
   }
   if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT, fullPage: true });
