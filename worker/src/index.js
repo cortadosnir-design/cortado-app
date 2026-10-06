@@ -790,7 +790,7 @@ async function graph(env, path, params, method = "POST"){
   const r = await fetch(`${GRAPH}/${path}${inQuery ? "?" + q : ""}`,
     method === "GET" ? {} : inQuery ? { method } : { method, body: q });
   const data = await r.json();
-  if (!r.ok || data.error) throw fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502);
+  if (!r.ok || data.error) throw Object.assign(fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502), { meta: data.error || {} });
   return data;
 }
 /* ===== תזמון: פוסט אחד, שתי רשתות, נגיעה אחת =====
@@ -860,8 +860,14 @@ async function schedulePost(env, b){
   else if (!env.IG_USER_ID) out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת";
   else if (!when){
     try { out.igPostId = await igPublishFromPhoto(env, out.fbPhotoId, text); }
-    // אינסטגרם לא תמיד מוכן לפרסם קונטיינר שנוצר הרגע (9007). הקרון ינסה שוב — רק אינסטגרם, פייסבוק כבר עלה.
-    catch (e){ out.igError = hebrew(e.message); if (id && env.FIREBASE_SA) out.igPending = true; }
+    // אינסטגרם לא תמיד מוכן לפרסם קונטיינר שנוצר הרגע (9007 / 2207027): אז הפוסט בוודאות לא עלה,
+    // והקרון ינסה שוב — רק אינסטגרם, פייסבוק כבר עלה. כל שגיאה אחרת (או timeout) יכולה לבוא אחרי
+    // שהפוסט כבר חי, ולכן אין ניסיון חוזר עיוור: השגיאה מוצגת, כמו קודם.
+    catch (e){
+      out.igError = hebrew(e.message);
+      const notReady = e.meta && (e.meta.code === 9007 || e.meta.error_subcode === 2207027);
+      if (notReady && id && env.FIREBASE_SA) out.igPending = true;
+    }
   } else if (!env.FIREBASE_SA) out.igSkipped = "תזמון לאינסטגרם דורש את FIREBASE_SA בשרת";
   else out.igPending = true;
 
@@ -897,6 +903,10 @@ async function publishDue(env){
   const results = [];
   for (const d of dueNow(pending)){
     const text = [d.fields.text || "", (d.fields.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+    // תפיסה לפני פרסום: igPending יורד בכתיבה מותנית ב-updateTime של השאילתה. קרון מקביל שתפס
+    // קודם — הכתיבה כאן נדחית ומדלגים. כך רישום שנכשל אחרי הפרסום לא מחזיר את הפוסט לתור.
+    try { await fsPatch(env, `posts/${d.id}`, { igPending: false, igClaimedAt: new Date() }, d.updateTime); }
+    catch (x){ console.error("cron: claim", d.id, x.message); results.push({ id: d.id, ok: false, skipped: true }); continue; }
     let igPostId;
     try { igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text); }
     catch (e){
@@ -908,7 +918,8 @@ async function publishDue(env){
       results.push({ id: d.id, ok: false, error: e.message });
       continue;
     }
-    // יצא לאינסטגרם: מכאן אין חזרה לתור, גם אם הרישום נכשל — אחרת אותה תמונה עולה שוב בעוד עשר דקות.
+    // יצא לאינסטגרם. הפוסט כבר מחוץ לתור (נתפס למעלה), ולכן רישום שנכשל כאן רק מאבד את המזהה —
+    // לא מפרסם שוב. כישלון ברישום בענף השגיאה, לעומת זאת, משאיר אותו מחוץ לתור בלי ניסיון נוסף.
     const done = { igPending: false, igPostId, igError: "" };
     const saved = await fsPatch(env, `posts/${d.id}`, done).catch(() => fsPatch(env, `posts/${d.id}`, done))
       .catch(x => (console.error("cron: published but not recorded", d.id, igPostId, x.message), false));
@@ -1121,6 +1132,7 @@ async function fsQuery(env, colName, wheres){
   return rows.filter(x => x.document).map(x => ({
     id: x.document.name.split("/").pop(),
     fields: Object.fromEntries(Object.entries(x.document.fields || {}).map(([k, v]) => [k, fromFs(v)])),
+    updateTime: x.document.updateTime,
   }));
 }
 
@@ -1430,6 +1442,9 @@ async function botHours(env, request){
     try {
       const back = await fsGet(env, "public/hours");
       out.pageCheck = JSON.stringify(back?.weeks?.[p.week]) === JSON.stringify(p.doc.days) ? "ok" : "הדף שמר שעות אחרות ממה שנשלח";
+      // פייסבוק וגוגל מקבלים את מה שהדף מחזיק עכשיו, לא את המיזוג של הבקשה הזו: פרסום מקביל
+      // לשבוע אחר שנכתב אחרינו כבר בפנים. בלי קריאה חוזרת — המיזוג שלנו, כמו קודם.
+      if (back && back.weeks && typeof back.weeks === "object") map = back.weeks;
     } catch (e){ out.pageCheck = "לא הצלחתי לקרוא חזרה: " + hebrew(e.message); }
   } catch (e){ out.page = hebrew(e.message); }
 

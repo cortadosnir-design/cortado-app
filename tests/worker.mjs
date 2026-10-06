@@ -360,7 +360,7 @@ if (f2) process.exitCode = 1;
   const toFs = new Function(wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs(")) + "\nreturn toFs;")();
 
   // Firestore מזויף: updateTime מתקדם בכל כתיבה, ו-currentDocument נאכף כמו באמיתי.
-  const db = {}, hook = {}, graphCalls = [], fsPatches = [];
+  const db = {}, hook = {}, graphCalls = [], fsPatches = [], fbHours = [];
   let ver = 0, jwks = 0;
   const put = (path, obj) => { db[path] = { fields: { ...(db[path]?.fields || {}), ...Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, toFs(v)])) }, t: `2026-10-07T00:00:00.${String(++ver).padStart(6, "0")}Z` }; };
   const val = (path, k) => { const x = db[path]?.fields[k]; return x && (x.stringValue ?? x.booleanValue ?? (x.integerValue != null ? +x.integerValue : x.arrayValue ? x.arrayValue.values : x.mapValue)); };
@@ -369,6 +369,7 @@ if (f2) process.exitCode = 1;
     const path = decodeURIComponent(url.pathname.split("/documents/")[1] || "");
     if (url.pathname.endsWith(":runQuery"))
       return Response.json(Object.keys(db).filter(k => k.startsWith("posts/") && db[k].fields.igPending?.booleanValue === true).map(k => ({ document: fsDoc(k) })));
+    if ((o.method || "GET") === "GET"){ if (hook.get) await hook.get(path); }
     if ((o.method || "GET") === "GET") return db[path] ? Response.json(fsDoc(path)) : new Response("{}", { status: 404 });
     fsPatches.push(path + url.search);
     if (hook.patch){ const r = await hook.patch(path, url); if (r) return r; }
@@ -381,6 +382,7 @@ if (f2) process.exitCode = 1;
   async function graphApi(url, o){
     const path = url.pathname.replace(/^\/v[\d.]+\//, ""), m = o.method || "GET";
     graphCalls.push(`${m} ${path}${url.searchParams.get("metric") ? "?" + url.searchParams.get("metric") : ""}`);
+    if (m === "POST" && path === "111") fbHours.push(JSON.parse(new URLSearchParams(o.body).get("hours")));
     if (hook.graph){ const r = await hook.graph(path, url, m); if (r) return r; }
     if (path.endsWith("/photos")) return Response.json({ id: "333", post_id: "111_444" });
     if (url.searchParams.get("fields") === "images") return Response.json({ images: [{ width: 1, source: "https://x/i.jpg" }] });
@@ -468,21 +470,35 @@ if (f2) process.exitCode = 1;
     await cron();
     ok("הקרון מפרסם לאינסטגרם בלבד", !!val("posts/p7", "igPostId") && val("posts/p7", "igPending") === false
       && graphCalls.filter(c => c.endsWith("/photos") || c.endsWith("/feed")).length === 1, JSON.stringify(graphCalls));
+    hook.graph = (path) => path.endsWith("/media_publish") && Response.json({ error: { code: 1, message: "An unknown error occurred" } }, { status: 500 });
+    const other = await call("/publish/schedule", { postId: "p8", text: "ערב", image: img }, auth);
+    hook.graph = (path) => path.endsWith("/media_publish") && Response.json({ error: { code: 100, error_subcode: 2207027, message: "Media is not ready" } }, { status: 400 });
+    const sub = await call("/publish/schedule", { postId: "p6", text: "צהריים", image: img }, auth);
+    hook.graph = null;
+    ok("שגיאה אחרת (אולי אחרי שעלה) → מוצגת, בלי ניסיון חוזר", other.body.igPending === false && !!other.body.igError && val("posts/p8", "igPending") === false);
+    ok("error_subcode 2207027 (לא מוכן) → לתור", sub.body.igPending === true && val("posts/p6", "igPending") === true);
+    delete db["posts/p6"];
 
     // 1. הקרון: יצא לאינסטגרם → לא חוזר לתור, ומסמך אחד לא עוצר את השאר
     for (const k of Object.keys(db)) if (k.startsWith("posts/")) delete db[k];
+    const claim = (url) => url.search.includes("currentDocument.updateTime");
     put("posts/A", { igPending: true, publishAt: 1000, fbPhotoId: "55", text: "א" });
-    let failA = 1;
-    hook.patch = (path) => path === "posts/A" && failA-- > 0 && new Response("unavailable", { status: 503 });
+    hook.patch = (path, url) => path === "posts/A" && !claim(url) && new Response("unavailable", { status: 503 });
     graphCalls.length = 0;
     await cron(); await cron();
     hook.patch = null;
-    ok("רישום שנכשל פעם אחת: ניסיון שני, ופרסום אחד בלבד", igPublishes() === 1 && val("posts/A", "igPending") === false && !!val("posts/A", "igPostId"), String(igPublishes()));
+    ok("נתפס לפני הפרסום: גם כששני הרישומים אחריו נכשלו, לא עולה שוב", igPublishes() === 1 && val("posts/A", "igPending") === false && !!db["posts/A"].fields.igClaimedAt?.timestampValue, String(igPublishes()));
+    ok("התפיסה היא כתיבה מותנית", fsPatches.some(x => x.startsWith("posts/A") && x.includes("igClaimedAt") && x.includes("currentDocument.updateTime")));
+    put("posts/E", { igPending: true, publishAt: 1000, fbPhotoId: "58", text: "ה" });
+    put("posts/F", { igPending: true, publishAt: 1000, fbPhotoId: "59", text: "ו" });
+    graphCalls.length = 0;
+    await Promise.all([cron(), cron()]);
+    ok("שני קרונים חופפים: כל פוסט עולה פעם אחת", igPublishes() === 2 && !!val("posts/E", "igPostId") && !!val("posts/F", "igPostId"), String(igPublishes()));
     put("posts/B", { igPending: true, publishAt: 1000, fbPhotoId: "56", text: "ב" });
     put("posts/C", { igPending: true, publishAt: 1000, fbPhotoId: "57", text: "ג" });
     put("posts/D", { igPending: true, publishAt: 1000, fbPhotoId: "me?fields=access_token", text: "ד" });
     hook.graph = (path) => path === "56" && Response.json({ error: { message: "boom" } }, { status: 500 });
-    hook.patch = (path) => path === "posts/B" && new Response("down", { status: 503 });
+    hook.patch = (path, url) => path === "posts/B" && !claim(url) && new Response("down", { status: 503 });
     graphCalls.length = 0;
     await cron();
     hook.graph = hook.patch = null;
@@ -519,6 +535,17 @@ if (f2) process.exitCode = 1;
     ok("כתיבה מקבילה נדחתה, נקראה מחדש, ושני השבועות נשמרו", h1.body.page === "ok" && h1.body.pageCheck === "ok"
       && weeks[next].arrayValue.values[1].stringValue === "08:00–12:00" && weeks[sun].arrayValue.values[1].stringValue === "16:30–19:00"
       && fsPatches.filter(x => x.startsWith("public/hours")).length === 2, JSON.stringify(Object.keys(weeks)));
+    // פרסום מקביל שנכתב אחרינו ולפני הקריאה החוזרת: פייסבוק מקבל את מה שבדף, לא את המיזוג הישן שלנו.
+    const OLD = Array(7).fill("10:00–11:00"), FIXED = Array(7).fill("06:00–07:00");
+    db["public/hours"] = null; delete db["public/hours"];
+    put("public/hours", { weeks: { [sun]: OLD }, from: sun });
+    let gets = 0;
+    hook.get = (path) => { if (path === "public/hours" && ++gets === 2) put("public/hours", { weeks: { ...Object.fromEntries([[sun, FIXED], [next, D7.map(d => d.map(r => r.join("–")).join(", "))]]) } }); };
+    fbHours.length = 0;
+    const h2 = await call("/hours/bot", { week: next, days: D7 }, { "x-bot-key": env.BOT_KEY });
+    hook.get = null;
+    const today = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date(ymdIL() + "T12:00:00Z").getUTCDay()];
+    ok("פייסבוק מקבל את השעות מהקריאה החוזרת", h2.body.facebook === "ok" && fbHours.at(-1)?.[today + "_1_open"] === "06:00", JSON.stringify(fbHours.at(-1)));
     delete db["public/hours"];
     fsPatches.length = 0;
     await bot();
