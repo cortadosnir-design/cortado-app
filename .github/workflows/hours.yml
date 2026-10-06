@@ -1,0 +1,29 @@
+# אופה את שעות השבוע לתוך cafe/index.html, כדי שמי שקורא את הדף בלי JavaScript
+# (מנועי חיפוש, עוזרי AI) יראה אותן. ראה .github/scripts/bake-hours.mjs.
+# public/hours פתוח לקריאה לכולם, ולכן אין כאן שום secret.
+# commit נוצר רק כשהשעות באמת השתנו: בדרך כלל פעם-פעמיים בשבוע.
+name: Bake opening hours
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bake-hours
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Bake this week's hours into the landing page
+        run: node .github/scripts/bake-hours.mjs
+      - name: Commit if the hours changed
+        run: |
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "דף הנחיתה: שעות השבוע עודכנו אוטומטית מ-public/hours"
+          git push

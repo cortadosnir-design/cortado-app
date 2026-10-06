@@ -2,8 +2,13 @@
 //
 // עומד בפני עצמו בכוונה — בלי core.js ובלי ה-SDK של Firebase (300KB).
 // המסמך public/hours פתוח לקריאה לכולם, ולכן GET אחד ל-REST של Firestore
-// מספיק: ~1KB, בלי ספריות. ב-HTML עצמו אין שעות: שעות קבועות שנכתבו שם התיישנו והוצגו
-// כאילו הן של השבוע. אם הרשת נופלת, הטבלה נשארת בלי שעות וההערה שמתחתיה מפנה לגוגל מפות ולוואטסאפ.
+// מספיק: ~1KB, בלי ספריות.
+//
+// שעות קבועות שנכתבו פעם ב-HTML התיישנו והוצגו כאילו הן של השבוע. היום ה-HTML מחזיק רק
+// שעות מתוארכות: .github/scripts/bake-hours.mjs אופה לתוכו את השבוע הנוכחי, בשביל מי שקורא
+// את הדף בלי JavaScript (מנועי חיפוש, עוזרי AI). כאן, בדפדפן, הן נשארות על המסך רק אם הן
+// של השבוע הזה, ו"פתוח עכשיו" לא מחושב מהן אף פעם. אם הרשת נופלת, ההערה שמתחת לטבלה
+// מפנה לגוגל מפות ולוואטסאפ.
 import { firebaseConfig } from "../config.js";
 
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
@@ -41,9 +46,9 @@ export function parseDay(line){
     .map(([a, b]) => [toMin(a), toMin(b)]).filter(([a, b]) => b > a);
 }
 
-// ב-HTML התאים ריקים (שבעה ימים בלי שעות); מה שמגיע מ-public/hours ממלא אותם.
+// השעות שהדף מחשב מהן מגיעות רק מ-public/hours. מה שאפוי בתאים הוא טקסט לקריאה, לא נתון.
 const tbody = document.getElementById("hours");
-let hours = [...tbody.querySelectorAll("tr")].map(tr => parseDay(tr.querySelector("td").textContent));
+let hours = DAYS.map(() => []);
 
 function renderTable(){
   tbody.replaceChildren();
@@ -100,9 +105,20 @@ function renderStatus(){
   }
   label.textContent = "שעות פתיחה";
 }
+// שעות אפויות של שבוע שעבר (האפייה נתקעה, או דף שנשמר במטמון): מוחקים את התאים, את התווית
+// ואת השעות שב-JSON-LD, כדי ששעות ישנות לא יעמדו על המסך כאילו הן של השבוע.
+if (tbody.dataset.week && tbody.dataset.week !== weekKey(now(), 0)){
+  tbody.querySelectorAll("td").forEach(td => { td.textContent = ""; td.className = ""; td.dir = "ltr"; });
+  delete tbody.dataset.week;
+  const stale = document.querySelector("#hours-note b"); if (stale) stale.remove();
+  try {
+    const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+    delete ld.openingHoursSpecification; el.textContent = JSON.stringify(ld);
+  } catch {}
+}
 renderStatus();
 
-// הנתונים המובנים (JSON-LD) מקבלים את השעות שבטבלה; ב-HTML עצמו אין בהם שעות.
+// הנתונים המובנים (JSON-LD) מקבלים את השעות שבטבלה, במקום מה שנאפה ל-HTML.
 // כשהשבוע ידוע, השעות מתוארכות אליו, כך ששעות של שבוע שעבר לא נשארות בתוקף אצל מי ששמר את הדף.
 const EN_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 function syncLd(from, through){
@@ -146,8 +162,9 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
   renderTable(); renderStatus(); syncLd(through && key, through);
   const note = document.getElementById("hours-note");
   if (range && note){
-    const b = document.createElement("b"); b.textContent = "השעות לשבוע " + range + ". ";
-    note.prepend(b);
+    // התווית האפויה מוחלפת, לא מוכפלת: אחרי שעת הסגירה האחרונה הטבלה כבר של השבוע הבא.
+    const b = note.querySelector("b") || note.insertBefore(document.createElement("b"), note.firstChild);
+    b.textContent = "השעות לשבוע " + range + ". ";
   }
 }).catch(() => {});
 setInterval(renderStatus, 60000);

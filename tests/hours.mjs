@@ -166,22 +166,63 @@ try {
     ok("בטבלה של השבוע הבא אין יום שמסומן כהיום", done.today === 0, String(done.today));
     ok("שעות של שבוע ידוע מתוארכות ב-JSON-LD לשבוע שבטבלה", done.ld.opens === "10:00" && done.ld.validFrom === keyOf(7) && done.ld.validThrough === keyOf(13), JSON.stringify(done.ld));
   }
-  /* ב-HTML עצמו אין שעות: שעות קבועות שנכתבו שם התיישנו, ומי שקרא את הדף בלי JavaScript (או כשהרשת נפלה)
-     קיבל אותן כאילו הן של השבוע. בלי public/hours הדף אומר "שעות פתיחה" ולא ממציא "פתוח עכשיו". */
+  /* שעות ב-HTML: שעות קבועות שנכתבו שם פעם התיישנו, ומי שקרא את הדף בלי JavaScript קיבל אותן כאילו הן
+     של השבוע. היום .github/scripts/bake-hours.mjs אופה את השבוע הנוכחי, מתוארך, בשביל מנועי חיפוש ועוזרי AI
+     שלא מריצים JavaScript. הבדיקות כאן לא תלויות במה שאפוי כרגע בקובץ: הן אופות בעצמן ומגישות את התוצאה. */
   {
+    const { bake, ilToday, sundayOf, plusDays } = await import("../.github/scripts/bake-hours.mjs");
     const src = readFileSync(ROOT + "cafe/index.html", "utf8");
-    const staticRows = /<tbody id="hours">([\s\S]*?)<\/tbody>/.exec(src)[1];
-    ok("אין שעות כתובות ב-HTML של דף הנחיתה", !/\d{1,2}:\d{2}/.test(staticRows) && !src.includes("openingHoursSpecification"), staticRows.replace(/\s+/g, " ").slice(0, 80));
-    const off = await b.newPage({ viewport: { width: 1280, height: 900 } });
-    await off.route(/firestore\.googleapis\.com/, (route) => route.abort());
-    await off.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
-    await off.waitForTimeout(700);
-    const o = await off.evaluate(() => ({ status: document.querySelector("#status span").textContent,
-      cells: [...document.querySelectorAll("#hours td")].map(td => td.textContent).join(""), rows: document.querySelectorAll("#hours tr").length,
-      ld: JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent).openingHoursSpecification,
-      fonts: [...document.fonts].filter(f => f.status === "error").map(f => f.family + " " + f.weight) }));
-    await off.close();
-    ok("כשהשעות לא נטענות: שבעה ימים בלי שעות, ובלי \"פתוח עכשיו\"", o.rows === 7 && o.cells === "" && o.status === "שעות פתיחה" && o.ld === undefined, JSON.stringify(o));
+    const rowsOf = (html) => /<tbody id="hours"[^>]*>([\s\S]*?)<\/tbody>/.exec(html)[1];
+    const ldOf = (html) => JSON.parse(/<script type="application\/ld\+json">\n([\s\S]*?)\n<\/script>/.exec(html)[1]);
+    const today = ilToday(), cur = sundayOf(today);
+    const LINES = ["", "17:00–19:00", "", "", "", "09:00–12:00", "09:00-12:00, 16:00–19:00"];
+    const docOf = (key) => ({ fields: { weeks: { mapValue: { fields: { [key]: { arrayValue: { values: LINES.map(s => ({ stringValue: s })) } } } } } } });
+    const baked = bake(src, docOf(cur), today), empty = bake(src, { fields: {} }, today);
+    const stale = bake(src, docOf(plusDays(cur, -7)), plusDays(today, -7));
+
+    const timed = /\d{1,2}:\d{2}/.test(rowsOf(src)), specs = ldOf(src).openingHoursSpecification || [];
+    ok("שעות ב-HTML של דף הנחיתה קיימות רק כשהן מתוארכות לשבוע שלהן",
+      timed === /<tbody id="hours" data-week="\d{4}-\d\d-\d\d">/.test(src) && timed === /id="hours-note"><b>השעות לשבוע /.test(src)
+      && (specs.length > 0) === timed && specs.every(x => x.validFrom && x.validThrough), rowsOf(src).replace(/\s+/g, " ").slice(0, 80));
+    ok("האפייה כותבת את הטבלה, את השבוע ואת ה-JSON-LD, כמו שקורא בלי JavaScript רואה אותם",
+      rowsOf(baked).includes('<tr data-d="6"><th scope="row">שבת</th><td dir="ltr">09:00–12:00 · 16:00–19:00</td></tr>')
+      && rowsOf(baked).includes('<tr data-d="0"><th scope="row">ראשון</th><td class="closed">סגור</td></tr>')
+      && baked.includes(`<tbody id="hours" data-week="${cur}">`) && /id="hours-note"><b>השעות לשבוע \d+\.\d+ – \d+\.\d+\. <\/b>/.test(baked)
+      && ldOf(baked).openingHoursSpecification.map(x => x.dayOfWeek + " " + x.opens + "–" + x.closes).join(" · ") === "Monday 17:00–19:00 · Friday 09:00–12:00 · Saturday 09:00–12:00 · Saturday 16:00–19:00"
+      && ldOf(baked).openingHoursSpecification.every(x => x.validFrom === cur && x.validThrough === plusDays(cur, 6)));
+    ok("שבוע שלא פורסם נאפה כטבלה ריקה, בלי שבוע ובלי שעות ב-JSON-LD",
+      !/\d{1,2}:\d{2}/.test(rowsOf(empty)) && !empty.includes("data-week") && !empty.includes("openingHoursSpecification") && !/id="hours-note"><b>/.test(empty));
+    ok("האפייה יציבה: ריצה שנייה לא משנה כלום, ומחיקה מחזירה בדיוק את הדף בלי השעות",
+      bake(baked, docOf(cur), today) === baked && bake(empty, { fields: {} }, today) === empty && bake(baked, { fields: {} }, today) === empty);
+    ok("האפייה לא נוגעת בשום דבר אחר ב-JSON-LD", JSON.stringify({ ...ldOf(baked), openingHoursSpecification: undefined }) === JSON.stringify(ldOf(empty)));
+
+    // הדף בדפדפן, עם HTML אפוי. live = public/hours עונה; אחרת הרשת נפלה.
+    const open = async (html, live) => {
+      const pg = await b.newPage({ viewport: { width: 1280, height: 900 } });
+      await pg.route(/\/cafe\/$/, (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html }));
+      await pg.route(/firestore\.googleapis\.com/, (route) => live ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(live) }) : route.abort());
+      await pg.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+      await pg.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
+      await pg.waitForTimeout(700);
+      const out = await pg.evaluate(() => ({ status: document.querySelector("#status span").textContent,
+        cells: [...document.querySelectorAll("#hours td")].map(td => td.textContent).join("|"), rows: document.querySelectorAll("#hours tr").length,
+        today: document.querySelectorAll("#hours tr.today").length, labels: document.querySelectorAll("#hours-note b").length,
+        note: document.getElementById("hours-note").textContent.slice(0, 12),
+        ld: JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent).openingHoursSpecification,
+        fonts: [...document.fonts].filter(f => f.status === "error").map(f => f.family + " " + f.weight) }));
+      await pg.close();
+      return out;
+    };
+    const o = await open(empty), bk = await open(baked), st = await open(stale), lv = await open(baked, docOf(cur));
+    ok("בלי שעות אפויות וכשהרשת נופלת: שבעה ימים בלי שעות, ובלי \"פתוח עכשיו\"", o.rows === 7 && o.cells === "||||||" && o.status === "שעות פתיחה" && o.ld === undefined, JSON.stringify(o));
+    ok("שעות אפויות של השבוע הזה נשארות על המסך כשהרשת נופלת, מתוארכות",
+      bk.cells === "סגור|17:00–19:00|סגור|סגור|סגור|09:00–12:00|09:00–12:00 · 16:00–19:00" && bk.note === "השעות לשבוע " && bk.today === 1 && bk.ld.length === 4, JSON.stringify(bk));
+    ok("\"פתוח עכשיו\" לא מחושב משעות אפויות, רק מ-public/hours", bk.status === "שעות פתיחה", bk.status);
+    ok("שעות אפויות של שבוע שעבר נמחקות בדפדפן: מהטבלה, מהתווית ומה-JSON-LD",
+      st.cells === "||||||" && st.rows === 7 && st.labels === 0 && st.ld === undefined && st.status === "שעות פתיחה", JSON.stringify(st));
+    ok("הדף מצייר מ-public/hours בדיוק את מה שנאפה מאותו מסמך, ותווית השבוע לא מוכפלת",
+      lv.cells === bk.cells && lv.labels === 1 && /פתוח עכשיו|נפתח/.test(lv.status)
+      && lv.ld.map(x => x.dayOfWeek + x.opens + x.closes + x.validFrom + x.validThrough).join() === bk.ld.map(x => x.dayOfWeek + x.opens + x.closes + x.validFrom + x.validThrough).join(), JSON.stringify(lv));
     const fontFiles = [...src.matchAll(/(?:url\(|href=")(fonts\/[^)"]+\.woff2)/g)].map(m => m[1]);
     ok("הגופנים מוגשים מהאתר עצמו, וכל קובץ שהדף מפנה אליו קיים", !/fonts\.(googleapis|gstatic)\.com/.test(src) && fontFiles.length >= 10
       && fontFiles.every(f => existsSync(ROOT + "cafe/" + f)) && o.fonts.length === 0, fontFiles.filter(f => !existsSync(ROOT + "cafe/" + f)).concat(o.fonts).join(", "));

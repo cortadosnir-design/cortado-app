@@ -25,11 +25,15 @@
 ```bash
 git add -A
 git commit -m "..."
+git pull --rebase origin main
 git push -u origin main
 ```
 
 הסיבה: הפריסה האוטומטית (GitHub Actions) מגיבה רק לדחיפות ל-`main`.
 שינוי שיושב בענף צדדי או ב-PR פתוח פשוט לא מגיע לאוויר.
+
+ה-`pull --rebase` שלפני הדחיפה אינו רשות: גם הרובוט של שעות הפתיחה דוחף ל-`main`
+(ראה §4), ודחיפה בלי למשוך קודם תידחה אם הוא הספיק לעדכן את השעות בינתיים.
 
 ---
 
@@ -91,7 +95,7 @@ limormelman@gmail.com
 
 ## 4. פריסה אוטומטית
 
-שני workflows, שניהם רצים על push ל-`main` (וגם ידנית ב-`workflow_dispatch`):
+שני workflows רצים על push ל-`main` (וגם ידנית ב-`workflow_dispatch`):
 
 - **`.github/workflows/deploy.yml`** — "Deploy to Firebase".
   פורס hosting + Firestore rules לפרויקט `cortado-ops`.
@@ -102,6 +106,20 @@ limormelman@gmail.com
   או את ה-workflow עצמו.
 
 אחרי כל דחיפה — לוודא ב-GitHub Actions ששתי הפריסות הרלוונטיות ירוקות.
+
+ושלישי רץ לבד, פעם בשעה:
+
+- **`.github/workflows/hours.yml`** — "Bake opening hours".
+  מריץ את `.github/scripts/bake-hours.mjs`, שקורא את `public/hours` וכותב את
+  שעות השבוע הנוכחי לתוך `cafe/index.html`: לתאי הטבלה, לתווית "השעות לשבוע…"
+  ול-JSON-LD. זה בשביל מי שקורא את הדף בלי JavaScript — מנועי חיפוש ועוזרי AI.
+  כשהשעות השתנו הוא יוצר commit ל-`main` בשם `github-actions[bot]`.
+  - **לא עורכים ביד** את תאי הטבלה `#hours`, את התווית שבתחילת `#hours-note`
+    ואת `openingHoursSpecification`. הריצה הבאה תדרוס אותם.
+  - מה שנאפה תמיד מתוארך (`data-week`, `validFrom`/`validThrough`), ו-`cafe.js`
+    מוחק בדפדפן שעות של שבוע שעבר. שעות בלי תאריך ב-HTML מפילות את `tests/hours.mjs`.
+  - commit של הרובוט לא מפעיל את `deploy.yml`, ולכן העותק ב-Firebase מקבל את
+    השעות האפויות רק בדחיפה הבאה. הכתובת הקנונית היא GitHub Pages, ושם זה מיידי.
 
 **אין עותקים כפולים בשורש.** ה-workflows יושבים רק תחת
 `.github/workflows/`, וקוד השרת יושב רק ב-`worker/src/index.js`.
