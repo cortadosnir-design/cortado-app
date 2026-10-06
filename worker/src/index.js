@@ -764,7 +764,8 @@ async function aiZReport(env, b){
    כך אפשר להחליף עמוד או לנתק בלי למחוק כלום. */
 const META_KEYS = ["FB_PAGE_ID", "FB_PAGE_TOKEN", "IG_USER_ID"];
 async function withMeta(env){
-  if ((env.FB_PAGE_ID && env.FB_PAGE_TOKEN) || !env.FIREBASE_SA) return env;
+  // כל מפתח שחסר בלוח מגיע מהמסמך. קודם, עמוד שהוגדר בלוח עצר כאן, ו-IG_USER_ID שבמסמך לא נטען אף פעם.
+  if (META_KEYS.every(k => env[k]) || !env.FIREBASE_SA) return env;
   let d = null;
   try { d = await fsGet(env, "secrets/meta"); } catch {}
   if (!d) return env;
