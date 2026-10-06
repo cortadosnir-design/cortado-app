@@ -266,6 +266,20 @@ if (f2) process.exitCode = 1;
     auth, async (e) => e, async () => ({}), async (_e, path, fields) => { writes.push([path, fields]); }, async () => { throw new Error("meta said no"); });
   let thrown = ""; try { await failing({ BOT_KEY: "k" }, req({ text: "x", at })); } catch (e){ thrown = e.message; }
   ok("פרסום שנכשל: השגיאה עולה, והמסמך מסומן מבוטל ולא נשאר מוכן", thrown === "meta said no" && writes.at(-1)[1].status === "cancelled" && writes.at(-2)[1].status === "ready", JSON.stringify(writes.slice(-2)));
+  const lister = new Function("botAuth", "withMeta", "publishState", "fsPatch", "schedulePost", "fsQuery", "postInsights", "fail", wsrc.slice(a, z) + "\nreturn botPost;")(
+    auth, async (e) => e, async () => ({}), async () => {}, async () => {},
+    async (_e, col, wh) => (col === "posts" && wh[0][2] === "2026-10-11" && wh[1][2] === "2026-10-17" ? [
+      { id: "b", fields: { date: "2026-10-16", time: "08:00", status: "scheduled", text: "שישי", fbPostId: "1_2" } },
+      { id: "a", fields: { date: "2026-10-11", time: "10:00", status: "done", text: "ראשון", igPostId: "9" } },
+      { id: "c", fields: { date: "2026-10-13", status: "cancelled", text: "בוטל" } }, { id: "d", fields: { date: "2026-10-15", status: "ready", text: "לא תוזמן" } }] : []),
+    async (_e, b) => ({ posts: b.posts.map(x => ({ id: x.id, reach: x.id === "a" ? 120 : 40, likes: 3, saves: 1 })) }),
+    (c, m) => Object.assign(new Error(m), { code: c }));
+  const wk = await lister({ BOT_KEY: "k" }, req({ from: "2026-10-11", to: "2026-10-17" }));
+  ok("רשימת השבוע: רק מה שתוזמן או יצא, לפי סדר, בלי מספרים", JSON.stringify(wk.posts.map(x => [x.id, x.date, x.reach])) === JSON.stringify([["a", "2026-10-11", undefined], ["b", "2026-10-16", undefined]]), JSON.stringify(wk.posts));
+  const st2 = await lister({ BOT_KEY: "k" }, req({ from: "2026-10-11", to: "2026-10-17", stats: true }));
+  ok("stats: המספרים ממטא לכל פוסט", st2.posts[0].reach === 120 && st2.posts[1].reach === 40);
+  let bad = ""; try { await lister({ BOT_KEY: "k" }, req({ from: "../x" })); } catch (e){ bad = e.code; }
+  ok("תאריך לא תקין נדחה", bad === "bad_request");
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot"') > 0 && wsrc.indexOf('"/post/bot"') < wsrc.indexOf("await requireUser(request, env)"));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;

@@ -1372,6 +1372,18 @@ async function botPost(env, request){
   const b = await request.json().catch(() => ({}));
   env = await withMeta(env);
   if (b.check) return { ok: true, ...(await publishState(env)) };
+  // הפוסטים שתוזמנו או יצאו בטווח תאריכים, מהבוט ומהאפליקציה: לתזכורת המשבצות, ועם stats גם המספרים ממטא
+  if (b.from){
+    const day = (v) => { const s = String(v || ""); if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw fail("bad_request", "תאריך לא תקין."); return s; };
+    const rows = await fsQuery(env, "posts", [["date", "GREATER_THAN_OR_EQUAL", day(b.from)], ["date", "LESS_THAN_OR_EQUAL", day(b.to || b.from)]]);
+    const posts = rows.filter(r => ["scheduled", "done"].includes(r.fields.status)).map(r => ({ id: r.id, date: r.fields.date, time: r.fields.time || "",
+      text: String(r.fields.text || "").slice(0, 80), fbPostId: r.fields.fbPostId || "", igPostId: r.fields.igPostId || "", igError: r.fields.igError || "" }))
+      .sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
+    const live = posts.filter(x => x.fbPostId || x.igPostId);
+    if (!b.stats || !live.length) return { ok: true, posts };
+    const nums = (await postInsights(env, { posts: live.map(x => ({ id: x.id, fbPostId: x.fbPostId, igPostId: x.igPostId })) })).posts;
+    return { ok: true, posts: posts.map(x => ({ ...x, ...(nums.find(n => n.id === x.id) || {}) })) };
+  }
   const at = Number(b.at || 0), text = String(b.text || "").slice(0, 2200);
   const id = "b" + Date.now().toString(36);
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date(at || Date.now()));
