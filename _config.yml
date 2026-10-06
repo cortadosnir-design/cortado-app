@@ -1,0 +1,11 @@
+# GitHub Pages בונה את כל המאגר עם Jekyll, ולכן כל קובץ בשורש הופך לכתובת
+# ציבורית באתר: CLAUDE.md הוגש כ-/cortado-app/CLAUDE.html, עם כתובות המייל
+# של המייסדים, וקוד השרת כ-/cortado-app/worker/src/index.js.
+# הרשימה כאן מקבילה ל-"ignore" ב-firebase.json: מה שלא נפרס ל-Firebase
+# לא מוגש גם מ-Pages. הקבצים נשארים במאגר; רק האתר מפסיק להגיש אותם.
+exclude:
+  - "*.md"
+  - "*.rules"
+  - firebase.json
+  - worker
+  - tests
