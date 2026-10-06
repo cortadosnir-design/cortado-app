@@ -134,8 +134,10 @@ service cloud.firestore {
         || (validToken(resource.data.get('token', ''))
             && id == resource.data.week + '_' + resource.data.shift + '_' + resource.data.token
             && weekPhase(resource.data.week) == 'open')
-        || (allowed() && resource.data.get('uid', '') == request.auth.uid);
-      allow update: if false;
+        || (allowed() && resource.data.get('uid', '') == request.auth.uid
+            && weekPhase(resource.data.week) == 'open');
+      // המנהל משבץ מחדש מזהה קיים (setDoc על מסמך שכבר יש). עובדים — רק יצירה ומחיקה.
+      allow update: if isOwner();
     }
 
     // ── קריאייטיב, לוח התוכן וזיכרון המותג: המנהל בלבד ──

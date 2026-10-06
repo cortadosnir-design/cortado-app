@@ -389,10 +389,12 @@ async function send(){
 
 async function take(s, btn){
   btn.disabled = true; btn.textContent = "רגע…";
+  const ref = doc(db, "signups", `${wid()}_${s.id}_${token}`);
   try {
-    await setDoc(doc(db, "signups", `${wid()}_${s.id}_${token}`), {
-      week: wid(), shift: s.id, token, name: me.name || "", at: serverTimestamp(),
-    });
+    // setDoc על מסמך שכבר קיים הוא update, והכללים חוסמים אותו לעובד.
+    // אם הוא כבר שם (לחיצה כפולה, מכשיר שני) — העובד פשוט רשום.
+    try { await setDoc(ref, { week: wid(), shift: s.id, token, name: me.name || "", at: serverTimestamp() }); }
+    catch (e){ if (!(await getDoc(ref).then(d => d.exists(), () => false))) throw e; }
     taken.add(s.id); render();
     say("ok", `נרשמת ל${DAYS[s.day]} ${s.start}–${s.end}`);
   } catch {
