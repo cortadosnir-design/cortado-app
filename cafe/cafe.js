@@ -102,6 +102,20 @@ function renderStatus(){
 }
 renderStatus();
 
+// הנתונים המובנים (JSON-LD) מקבלים את השעות שבטבלה. בלי זה גוגל קוראת את שעות ברירת המחדל
+// שכתובות ב-HTML גם בשבוע שהטבלה מציגה בו שעות אחרות. כשהשבוע ידוע, השעות מתוארכות אליו,
+// כך ששעות של שבוע שעבר לא נשארות בתוקף אצל מי ששמר את הדף.
+const EN_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function syncLd(from, through){
+  try {
+    const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+    ld.openingHoursSpecification = hours.flatMap((ranges, i) => ranges.map(([a, b]) => ({
+      "@type": "OpeningHoursSpecification", dayOfWeek: EN_DAYS[i], opens: fmt(a), closes: fmt(b),
+      ...(from && { validFrom: from, validThrough: through }) })));
+    el.textContent = JSON.stringify(ld);
+  } catch {}
+}
+
 // public/hours: { days: [7 מחרוזות], range: "20.9 – 26.9", weeks: { "2026-09-20": [7 מחרוזות], … } }
 const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/public/hours?key=${firebaseConfig.apiKey}`;
 const strs = (arr) => Array.isArray(arr) && arr.length === 7 ? arr.map(v => parseDay(v.stringValue || "")) : null;
@@ -122,14 +136,15 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
   const left = byWeek[key] && byWeek[key].some((ranges, d) => d > t.d ? ranges.length : d === t.d && ranges.some(([, end]) => end > t.m));
   tableIsNext = !!(byWeek[key] && byWeek[nextKey] && !left);
   if (tableIsNext) key = nextKey;
-  let range = fields.range && fields.range.stringValue;
+  let range = fields.range && fields.range.stringValue, through;
   if (byWeek[key]){
     hours = byWeek[key];
     const [y, m, dd] = key.split("-").map(Number), a = new Date(Date.UTC(y, m - 1, dd)), b = new Date(Date.UTC(y, m - 1, dd + 6));
     range = `${a.getUTCDate()}.${a.getUTCMonth() + 1} – ${b.getUTCDate()}.${b.getUTCMonth() + 1}`;
+    through = b.toISOString().slice(0, 10);
   } else if (top) hours = top;
   else return;
-  renderTable(); renderStatus();
+  renderTable(); renderStatus(); syncLd(through && key, through);
   const note = document.getElementById("hours-note");
   if (range && note){
     const b = document.createElement("b"); b.textContent = "השעות לשבוע " + range + ". ";

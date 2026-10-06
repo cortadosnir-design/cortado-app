@@ -130,7 +130,9 @@ try {
   ok("תווית המצב מחושבת", /פתוח עכשיו|נפתח/.test(cf.status), cf.status);
   ok("השבוע שהשעות שייכות לו כתוב ליד הטבלה", cf.note.startsWith("השעות לשבוע"), cf.note.slice(0, 40));
   ok("בלי סקריפט inline (CSP, CLAUDE.md §5)", cf.inline === 0, String(cf.inline));
-  ok("JSON-LD של בית קפה עם שעות ומיקום", !!cf.ld && cf.ld["@type"] === "CafeOrCoffeeShop" && cf.ld.openingHoursSpecification.length >= 7 && !!cf.ld.geo);
+  ok("JSON-LD של בית קפה עם מיקום", !!cf.ld && cf.ld["@type"] === "CafeOrCoffeeShop" && !!cf.ld.geo && !!cf.ld.address);
+  const ldHours = (cf.ld.openingHoursSpecification || []).map(o => o.dayOfWeek + " " + o.opens + "–" + o.closes).join(" · ");
+  ok("השעות ב-JSON-LD הן השעות שבטבלה, לא ברירת המחדל שב-HTML", ldHours === "Tuesday 09:00–12:00 · Tuesday 16:00–19:00 · Friday 09:00–12:00", ldHours);
   ok("התמונות הן קבצים, לא data:", cf.imgs.length >= 10 && cf.imgs.every(x => x.startsWith("img/")), cf.imgs.join(","));
   ok("בלי גלילה אופקית", cf.over <= 0, cf.over + "px");
   ok("בלי שגיאות בקונסולה בדף הנחיתה", cafeErrors.length === 0, cafeErrors.slice(0, 2).join(" | "));
@@ -151,6 +153,7 @@ try {
       await pg.goto(`http://127.0.0.1:${PORT}/cafe/`, { waitUntil: "domcontentloaded" });
       await pg.waitForTimeout(900);
       const out = await pg.evaluate(() => ({ row: document.querySelector("#hours tr").children[1].textContent,
+        ld: JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent).openingHoursSpecification[0],
         today: document.querySelectorAll("#hours tr.today").length, note: document.getElementById("hours-note").textContent }));
       await pg.close();
       return out;
@@ -161,6 +164,7 @@ try {
     const done = await show("");              // השבוע הנוכחי סגור כולו: לא נשאר בו כלום
     ok("כשלא נשארו שעות השבוע והשבוע הבא פורסם, הטבלה עוברת אליו", done.row === "10:00–11:00" && done.note.includes(dmOf(7) + " – "), done.row + " | " + done.note.slice(0, 30));
     ok("בטבלה של השבוע הבא אין יום שמסומן כהיום", done.today === 0, String(done.today));
+    ok("שעות של שבוע ידוע מתוארכות ב-JSON-LD לשבוע שבטבלה", done.ld.opens === "10:00" && done.ld.validFrom === keyOf(7) && done.ld.validThrough === keyOf(13), JSON.stringify(done.ld));
   }
   if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT, fullPage: true });
   await cafe.setViewportSize({ width: 390, height: 844 });
