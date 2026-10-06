@@ -28,7 +28,7 @@ A different coffee cart with a similar name, קורטאדו (Cortado Cafe), oper
 
 ## Opening hours
 
-- Open on Saturdays too, morning and afternoon.
+- Open on Saturdays too. Hours change from week to week; the current week is on the landing page.
 - Hours change from week to week, by season and on holidays. Do not quote fixed hours from older listings.
 - This week's hours: the table on the landing page, written into its HTML and JSON-LD and dated to the week it covers, and the Google Maps listing. Last-minute changes are posted in Instagram stories.
 
