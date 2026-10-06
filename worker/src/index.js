@@ -47,6 +47,7 @@ export default {
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
+      if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -1362,6 +1363,20 @@ async function refreshHours(env, request){
   const cur = await fsGet(env, "public/hours");
   const out = await publishRolling(env, (cur && cur.weeks) || {}, today);
   return { ok: out.facebook === "ok" || out.facebook === "skip", today, ...out };
+}
+
+// פוסט מהבוט, אחרי "כן" של הבעלים על תצוגה מדויקת. check=true רק אומר מה מחובר, כדי שהתצוגה תגיד את האמת.
+// המסמך ב-posts נכתב לפני הפרסום: בלעדיו התור של אינסטגרם לא יודע מה לפרסם בזמן שנקבע.
+async function botPost(env, request){
+  botAuth(env, request);
+  const b = await request.json().catch(() => ({}));
+  env = await withMeta(env);
+  if (b.check) return { ok: true, ...(await publishState(env)) };
+  const at = Number(b.at || 0), text = String(b.text || "").slice(0, 2200);
+  const id = "b" + Date.now().toString(36);
+  const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date(at || Date.now()));
+  await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", status: "ready", hasMedia: !!b.image });
+  return { ok: true, id, ...(await schedulePost(env, { postId: id, text, image: b.image || "", at, noIg: !!b.noIg })) };
 }
 
 // הצוות לבוט: שם וטלפון של כל עובד פעיל ב-roster, בשביל קישור אישי למי שהסידור שלו השתנה.

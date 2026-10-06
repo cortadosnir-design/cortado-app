@@ -242,3 +242,27 @@ if (f2) process.exitCode = 1;
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
+
+/* ── פוסט מהבוט ── */
+{
+  console.log("\nפוסט מהבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botPost("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const writes = [], sched = [];
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw Object.assign(new Error("x"), { status: 403 }); };
+  const botPost = new Function("botAuth", "withMeta", "publishState", "fsPatch", "schedulePost", wsrc.slice(a, z) + "\nreturn botPost;")(
+    auth, async (e) => ({ ...e, FB_PAGE_ID: "1" }), async (e) => ({ facebook: !!e.FB_PAGE_ID, instagram: false }),
+    async (_e, path, fields) => { writes.push([path, fields]); }, async (_e, b) => { sched.push(b); return { fbPostId: "1_2", igSkipped: "x" }; });
+  const req = (body, key = "k") => new Request("https://x/post/bot", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify(body) });
+  const st = await botPost({ BOT_KEY: "k" }, req({ check: true }));
+  ok("check: רק מה מחובר, בלי לפרסם", st.facebook === true && st.instagram === false && !writes.length && !sched.length);
+  const at = Date.parse("2026-10-09T05:00:00Z");
+  const out = await botPost({ BOT_KEY: "k" }, req({ text: "בוקר בשניר", image: "data:image/jpeg;base64,AQID", at }));
+  ok("מסמך הפוסט נכתב לפני הפרסום, עם התאריך בשעון ישראל", writes.length === 1 && /^posts\/b/.test(writes[0][0]) && writes[0][1].date === "2026-10-09" && writes[0][1].time === "08:00" && writes[0][1].source === "bot", JSON.stringify(writes[0]));
+  ok("הפרסום מקבל את אותו מזהה, טקסט, תמונה וזמן", sched[0].postId === writes[0][0].slice(6) && sched[0].text === "בוקר בשניר" && sched[0].image === "data:image/jpeg;base64,AQID" && sched[0].at === at && out.fbPostId === "1_2");
+  let denied = false; try { await botPost({ BOT_KEY: "k" }, req({ text: "x" }, "nope")); } catch (e){ denied = e.status === 403; }
+  ok("מפתח שגוי: נדחה בלי לכתוב", denied && writes.length === 1);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot"') > 0 && wsrc.indexOf('"/post/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
