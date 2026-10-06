@@ -219,7 +219,8 @@ if (f2) process.exitCode = 1;
   ok("בלי BOT_KEY בשרת: סגור, גם למפתח ריק", unset.err && unset.err.code === "not_configured" && unset.writes.length === 0);
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/bot"') > 0 && wsrc.indexOf('"/hours/bot"') < wsrc.indexOf("await requireUser(request, env)"));
   ok("רענון הלילה נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/refresh"') > 0 && wsrc.indexOf('"/hours/refresh"') < wsrc.indexOf("await requireUser(request, env)"));
-  ok("האפליקציה כבר לא מפרסמת שעות בעצמה", /case "\/hours\/google":\s*throw fail\("moved"/.test(wsrc));
+  ok("האפליקציה כבר לא מפרסמת שעות בעצמה, וה-410 נבדק לפני אימות המשתמש",
+    /"\/hours\/google"\)\s*throw fail\("moved"/.test(wsrc) && wsrc.indexOf('"/hours/google"') < wsrc.indexOf("await requireUser(request, env)"));
   const fsBlock = wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs("));
   const toFs = new Function(fsBlock + "\nreturn toFs;")();
   ok("תאריך נכתב כ-timestamp ולא כמפה ריקה", toFs(new Date("2026-10-03T11:00:00Z")).timestampValue === "2026-10-03T11:00:00.000Z");
@@ -335,6 +336,201 @@ if (f2) process.exitCode = 1;
   ok("קריאה חוזרת לא תואמת → נאמר במפורש", /גוגל מציג שעות אחרות ב-2026-10-08/.test(bad.check), bad.check);
   let nc = ""; try { await g.setGoogleHours({}, { weeks, today: "2026-10-08" }); } catch (e){ nc = e.code; }
   ok("בלי המשתנים: not_configured (הבוט שולח טקסט להדבקה)", nc === "not_configured");
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
+/* ── מקצה לקצה: כל השרת כמודול, עם fetch מזויף לגוגל, ל-Firestore ולמטא ── */
+{
+  console.log("\nמקצה לקצה (fetch מזויף)");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const { subtle } = crypto;
+  const kp = await subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
+  const jwk = { ...(await subtle.exportKey("jwk", kp.publicKey)), kid: "k1" };
+  const b64 = (x) => Buffer.from(x).toString("base64url");
+  const tok = async (kid = "k1") => {
+    const now = Math.floor(Date.now() / 1000), h = b64(JSON.stringify({ alg: "RS256", kid }));
+    const pl = b64(JSON.stringify({ aud: "proj", iss: "https://securetoken.google.com/proj", exp: now + 3600, iat: now, sub: "u1",
+      email: "cortado.snir@gmail.com", email_verified: true, firebase: { sign_in_provider: "google.com" } }));
+    return `${h}.${pl}.${b64(await subtle.sign("RSASSA-PKCS1-v1_5", kp.privateKey, new TextEncoder().encode(h + "." + pl)))}`;
+  };
+  const pem = "-----BEGIN PRIVATE KEY-----\n" + Buffer.from(await subtle.exportKey("pkcs8", kp.privateKey)).toString("base64") + "\n-----END PRIVATE KEY-----";
+  const env = { FIREBASE_PROJECT_ID: "proj", FIREBASE_SA: JSON.stringify({ client_email: "sa@proj.iam.gserviceaccount.com", private_key: pem }),
+    FB_PAGE_ID: "111", FB_PAGE_TOKEN: "T", IG_USER_ID: "222", BOT_KEY: "k".repeat(40) };
+  const toFs = new Function(wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs(")) + "\nreturn toFs;")();
+
+  // Firestore מזויף: updateTime מתקדם בכל כתיבה, ו-currentDocument נאכף כמו באמיתי.
+  const db = {}, hook = {}, graphCalls = [], fsPatches = [];
+  let ver = 0, jwks = 0;
+  const put = (path, obj) => { db[path] = { fields: { ...(db[path]?.fields || {}), ...Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, toFs(v)])) }, t: `2026-10-07T00:00:00.${String(++ver).padStart(6, "0")}Z` }; };
+  const val = (path, k) => { const x = db[path]?.fields[k]; return x && (x.stringValue ?? x.booleanValue ?? (x.integerValue != null ? +x.integerValue : x.arrayValue ? x.arrayValue.values : x.mapValue)); };
+  const fsDoc = (path) => ({ name: "projects/proj/databases/(default)/documents/" + path, fields: db[path].fields, updateTime: db[path].t });
+  async function firestore(url, o){
+    const path = decodeURIComponent(url.pathname.split("/documents/")[1] || "");
+    if (url.pathname.endsWith(":runQuery"))
+      return Response.json(Object.keys(db).filter(k => k.startsWith("posts/") && db[k].fields.igPending?.booleanValue === true).map(k => ({ document: fsDoc(k) })));
+    if ((o.method || "GET") === "GET") return db[path] ? Response.json(fsDoc(path)) : new Response("{}", { status: 404 });
+    fsPatches.push(path + url.search);
+    if (hook.patch){ const r = await hook.patch(path, url); if (r) return r; }
+    const pre = url.searchParams.get("currentDocument.updateTime"), none = url.searchParams.get("currentDocument.exists") === "false";
+    if ((pre && db[path]?.t !== pre) || (none && db[path]))
+      return Response.json({ error: { code: 400, status: "FAILED_PRECONDITION", message: "the stored version does not match the required base version" } }, { status: 400 });
+    db[path] = { fields: { ...(db[path]?.fields || {}), ...JSON.parse(o.body).fields }, t: `2026-10-07T00:00:00.${String(++ver).padStart(6, "0")}Z` };
+    return Response.json(fsDoc(path));
+  }
+  async function graphApi(url, o){
+    const path = url.pathname.replace(/^\/v[\d.]+\//, ""), m = o.method || "GET";
+    graphCalls.push(`${m} ${path}${url.searchParams.get("metric") ? "?" + url.searchParams.get("metric") : ""}`);
+    if (hook.graph){ const r = await hook.graph(path, url, m); if (r) return r; }
+    if (path.endsWith("/photos")) return Response.json({ id: "333", post_id: "111_444" });
+    if (url.searchParams.get("fields") === "images") return Response.json({ images: [{ width: 1, source: "https://x/i.jpg" }] });
+    if (path.endsWith("/media")) return Response.json({ id: "C1" });
+    if (path.endsWith("/media_publish")) return Response.json({ id: "IG" + graphCalls.length });
+    return Response.json({ id: "1", success: true });
+  }
+  const realFetch = globalThis.fetch, realErr = console.error, realNow = Date.now, logged = [];
+  globalThis.fetch = async (u, o = {}) => {
+    const url = new URL(String(u));
+    if (url.pathname.includes("jwk/securetoken")){ jwks++; return Response.json({ keys: [jwk] }); }
+    if (url.host === "oauth2.googleapis.com") return Response.json({ access_token: "sa", expires_in: 3600 });
+    if (url.host === "firestore.googleapis.com") return firestore(url, o);
+    if (url.host === "graph.facebook.com") return graphApi(url, o);
+    throw new Error("unexpected fetch " + u);
+  };
+  console.error = (...a) => logged.push(a.join(" "));
+  try {
+    const W = (await import("data:text/javascript," + encodeURIComponent(wsrc + "\n//e2e"))).default;
+    const call = async (path, body, headers = {}, e = env) => {
+      const r = await W.fetch(new Request("https://w" + path, { method: body ? "POST" : "GET",
+        headers: { "content-type": "application/json", ...headers }, body: body ? JSON.stringify(body) : undefined }), e);
+      return { status: r.status, body: await r.json() };
+    };
+    const auth = { authorization: "Bearer " + await tok() };
+    const cron = async () => { let job; W.scheduled({}, env, { waitUntil: (x) => { job = x; } }); await job; };
+    const igPublishes = () => graphCalls.filter(c => c.endsWith("/media_publish")).length;
+
+    // 3. נתיבי השעות הישנים: 410 גם בלי כניסה
+    ok("‏/hours/facebook בלי טוקן → 410, לא 401", (await call("/hours/facebook", {})).status === 410);
+    ok("‏/hours/google בלי טוקן → 410", (await call("/hours/google", {})).status === 410);
+
+    // 4. טוקן משובש → 401, לא 500
+    const bad1 = await call("/publish/state", null, { authorization: "Bearer a.b.c" });
+    const bad2 = await call("/publish/state", null, { authorization: "Bearer " + b64("null") + "." + b64("null") + ".x" });
+    const bad3 = await call("/publish/state", null, { authorization: "Bearer " + (await tok()).replace(/\.[^.]+$/, ".!!!") });
+    ok("טוקן משובש → 401 unauthenticated", [bad1, bad2, bad3].every(r => r.status === 401 && r.body.error === "unauthenticated"), [bad1, bad2, bad3].map(r => r.status).join(","));
+
+    // 5. kid לא מוכר לא מושך את רשימת המפתחות בכל בקשה
+    ok("טוקן תקין עובר", (await call("/publish/state", null, auth)).status === 200);
+    const j0 = jwks;
+    for (let i = 0; i < 5; i++) await call("/publish/state", null, { authorization: "Bearer " + await tok("bogus" + i) });
+    ok("חמישה kid מומצאים בתוך דקה → אף רענון", jwks === j0, String(jwks - j0));
+    Date.now = () => realNow() + 61e3;
+    const r5 = await call("/publish/state", null, { authorization: "Bearer " + await tok("bogus") });
+    await call("/publish/state", null, { authorization: "Bearer " + await tok("bogus2") });
+    Date.now = realNow;
+    ok("אחרי דקה → רענון אחד, ועדיין 401", jwks === j0 + 1 && r5.status === 401, String(jwks - j0));
+
+    // 2. ביטול: הזמן והמזהים מהמסמך, לא מהבקשה
+    const future = Date.now() + 3600e3;
+    put("posts/p1", { publishAt: future, fbPostId: "111_222", fbPhotoId: "333", igPending: true });
+    graphCalls.length = 0;
+    const c1 = await call("/publish/cancel", { postId: "p1", at: future, fbPostId: "111_999", fbPhotoId: "111/subscribed_apps" }, auth);
+    ok("מוחק רק את מה שבמסמך", c1.status === 200 && JSON.stringify(graphCalls) === JSON.stringify(["DELETE 111_222", "DELETE 333"]), JSON.stringify(graphCalls));
+    ok("והתור של אינסטגרם נסגר", val("posts/p1", "igPending") === false && val("posts/p1", "status") === "cancelled");
+    put("posts/p2", { publishAt: Date.now() - 60e3, fbPostId: "111_5" });
+    graphCalls.length = 0;
+    const c2 = await call("/publish/cancel", { postId: "p2", at: future, fbPostId: "111_5" }, auth);
+    ok("פוסט שכבר עלה לא נמחק, גם כשהבקשה טוענת זמן עתידי", c2.status === 400 && !graphCalls.length);
+    const c3 = await call("/publish/cancel", { postId: "nope", at: future, fbPostId: "111_5" }, auth);
+    ok("פוסט שלא בתור → 404 בלי מחיקה", c3.status === 404 && !graphCalls.length);
+    const { FIREBASE_SA, ...noSa } = env;
+    const c4 = await call("/publish/cancel", { postId: "p9", at: future, fbPostId: "111_7", fbPhotoId: "111/subscribed_apps" }, auth, noSa);
+    ok("בלי חשבון שירות: רק מזהים בצורה של Graph", c4.status === 200 && JSON.stringify(graphCalls) === JSON.stringify(["DELETE 111_7"]), JSON.stringify(graphCalls));
+
+    // 6. השגיאה הגולמית של Firestore הולכת ללוג, לא למשתמש
+    hook.patch = (path) => path === "posts/leak" && new Response("projects/proj/databases/(default)/documents/posts/leak PERMISSION_DENIED sa@proj.iam.gserviceaccount.com", { status: 403 });
+    const leak = await call("/publish/schedule", { postId: "leak", text: "שלום" }, auth);
+    hook.patch = null;
+    ok("כתיבה שנכשלה: הודעה כללית, בלי נתיב ובלי חשבון השירות", leak.status === 200 && leak.body.saveError && !/iam|projects\/|PERMISSION/.test(JSON.stringify(leak.body)), leak.body.saveError);
+    ok("והטקסט הגולמי נרשם בלוג", logged.some(l => /iam\.gserviceaccount/.test(l)));
+    hook.graph = (path, url) => url.searchParams.get("fields") === "name" && Response.json({ error: { message: "Unsupported get request. Object with ID '111' does not exist" } }, { status: 400 });
+    const st = await call("/status", null, auth);
+    hook.graph = null;
+    ok("‏/status: שגיאת פייסבוק בעברית", /[֐-׿]/.test(st.body.facebookError) && !/Object with ID/.test(st.body.facebookError), st.body.facebookError);
+
+    // 7. פרסום מיידי: אינסטגרם לא מוכן → לתור, ופייסבוק לא עולה שוב
+    const img = "data:image/jpeg;base64,AQID";
+    graphCalls.length = 0;
+    hook.graph = (path) => path.endsWith("/media_publish") && Response.json({ error: { code: 9007, message: "Media ID is not available" } }, { status: 400 });
+    const now7 = await call("/publish/schedule", { postId: "p7", text: "בוקר", image: img }, auth);
+    hook.graph = null;
+    ok("נכשל באינסטגרם → igPending, והסיבה נשמרת", now7.body.igPending === true && !!now7.body.igError && val("posts/p7", "igPending") === true && val("posts/p7", "publishAt") <= Date.now(), JSON.stringify(now7.body));
+    await cron();
+    ok("הקרון מפרסם לאינסטגרם בלבד", !!val("posts/p7", "igPostId") && val("posts/p7", "igPending") === false
+      && graphCalls.filter(c => c.endsWith("/photos") || c.endsWith("/feed")).length === 1, JSON.stringify(graphCalls));
+
+    // 1. הקרון: יצא לאינסטגרם → לא חוזר לתור, ומסמך אחד לא עוצר את השאר
+    for (const k of Object.keys(db)) if (k.startsWith("posts/")) delete db[k];
+    put("posts/A", { igPending: true, publishAt: 1000, fbPhotoId: "55", text: "א" });
+    let failA = 1;
+    hook.patch = (path) => path === "posts/A" && failA-- > 0 && new Response("unavailable", { status: 503 });
+    graphCalls.length = 0;
+    await cron(); await cron();
+    hook.patch = null;
+    ok("רישום שנכשל פעם אחת: ניסיון שני, ופרסום אחד בלבד", igPublishes() === 1 && val("posts/A", "igPending") === false && !!val("posts/A", "igPostId"), String(igPublishes()));
+    put("posts/B", { igPending: true, publishAt: 1000, fbPhotoId: "56", text: "ב" });
+    put("posts/C", { igPending: true, publishAt: 1000, fbPhotoId: "57", text: "ג" });
+    put("posts/D", { igPending: true, publishAt: 1000, fbPhotoId: "me?fields=access_token", text: "ד" });
+    hook.graph = (path) => path === "56" && Response.json({ error: { message: "boom" } }, { status: 500 });
+    hook.patch = (path) => path === "posts/B" && new Response("down", { status: 503 });
+    graphCalls.length = 0;
+    await cron();
+    hook.graph = hook.patch = null;
+    ok("מסמך שנכשל גם ברישום לא עוצר את התור", !!val("posts/C", "igPostId") && val("posts/C", "igPending") === false);
+    ok("fbPhotoId שאינו מזהה לא נכנס לנתיב של Graph", !graphCalls.some(c => / me/.test(c)) && val("posts/D", "igTries") === 1, JSON.stringify(graphCalls));
+
+    // 8. חשיפה בפייסבוק: המדד החדש, והישן כגיבוי
+    hook.graph = (path, url) => path.endsWith("/insights") && (url.searchParams.get("metric") === "post_total_media_view_unique"
+      ? Response.json({ data: [{ name: "post_total_media_view_unique", values: [{ value: 77 }] }] }) : Response.json({ error: { message: "(#100) invalid metric" } }, { status: 400 }));
+    const in1 = await call("/insights/posts", { posts: [{ id: "p1", fbPostId: "111_444" }] }, auth);
+    ok("post_total_media_view_unique נספר", in1.body.posts[0].reach === 77, JSON.stringify(in1.body.posts[0]));
+    hook.graph = (path, url) => path.endsWith("/insights") && (url.searchParams.get("metric") === "post_impressions_unique"
+      ? Response.json({ data: [{ name: "post_impressions_unique", values: [{ value: 5 }] }] }) : Response.json({ error: { message: "(#100) invalid metric" } }, { status: 400 }));
+    logged.length = 0;
+    const in2 = await call("/insights/posts", { posts: [{ id: "p1", fbPostId: "111_444" }] }, auth);
+    hook.graph = null;
+    ok("המדד החדש נדחה → הישן, והכישלון נרשם בלוג", in2.body.posts[0].reach === 5 && logged.some(l => /fb insights post_total_media_view_unique/.test(l)));
+
+    // 9. שני פרסומי שעות במקביל: כתיבה מותנית, ומיזוג מחדש כשמישהו כתב בינתיים
+    const ymdIL = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+    const sun = (() => { const x = new Date(ymdIL() + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x.toISOString().slice(0, 10); })();
+    const next = (() => { const x = new Date(sun + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + 7); return x.toISOString().slice(0, 10); })();
+    const D7 = [[], [["16:30", "19:00"]], [["16:30", "19:00"]], [["16:30", "19:00"]], [["16:30", "19:00"]], [["09:00", "12:00"]], [["09:00", "13:00"], ["16:00", "19:00"]]];
+    const NEXT = ["", "08:00–12:00", "08:00–12:00", "08:00–12:00", "08:00–12:00", "07:00–11:00", ""];
+    const bot = () => call("/hours/bot", { week: sun, days: D7 }, { "x-bot-key": env.BOT_KEY });
+    put("public/hours", { weeks: { [sun]: ["", "", "", "", "", "", ""] }, from: sun });
+    let raced = 0;
+    hook.patch = (path) => { if (path === "public/hours" && !raced++) put("public/hours", { weeks: { [sun]: ["", "", "", "", "", "", ""], [next]: NEXT } }); };
+    fsPatches.length = 0;
+    const h1 = await bot();
+    hook.patch = null;
+    const weeks = val("public/hours", "weeks").fields;
+    ok("הכתיבה לדף מותנית ב-updateTime", fsPatches.some(x => x.startsWith("public/hours") && x.includes("currentDocument.updateTime")), fsPatches.find(x => x.startsWith("public/hours")));
+    ok("כתיבה מקבילה נדחתה, נקראה מחדש, ושני השבועות נשמרו", h1.body.page === "ok" && h1.body.pageCheck === "ok"
+      && weeks[next].arrayValue.values[1].stringValue === "08:00–12:00" && weeks[sun].arrayValue.values[1].stringValue === "16:30–19:00"
+      && fsPatches.filter(x => x.startsWith("public/hours")).length === 2, JSON.stringify(Object.keys(weeks)));
+    delete db["public/hours"];
+    fsPatches.length = 0;
+    await bot();
+    ok("מסמך שלא קיים נוצר רק אם הוא עדיין לא קיים", fsPatches.some(x => x.startsWith("public/hours") && x.includes("currentDocument.exists=false")));
+    hook.patch = (path) => { if (path === "public/hours") put("public/hours", { at: new Date() }); };
+    fsPatches.length = 0;
+    const h3 = await bot();
+    hook.patch = null;
+    ok("מתחרה שלא נגמר: שלושה ניסיונות ואז כישלון גלוי, בלי לולאה", h3.body.page !== "ok" && h3.body.ok === false && fsPatches.filter(x => x.startsWith("public/hours")).length === 3, h3.body.page);
+  } finally {
+    globalThis.fetch = realFetch; console.error = realErr; Date.now = realNow;
+  }
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
