@@ -1,0 +1,33 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+/* Option 5 — light and airy: the photos dissolve into paper, text sits on clean paper */
+body{background:#F2ECDF;font-family:Heebo;color:#1E3A2B;position:relative}
+.hermon{position:absolute;top:0;left:0;width:1080px;height:560px;object-position:50% 34%;filter:contrast(1.15) saturate(1.05);
+  -webkit-mask-image:linear-gradient(180deg,#000 50%,transparent 100%)}
+.cart{position:absolute;bottom:0;left:0;width:560px;height:747px;
+  -webkit-mask-image:linear-gradient(90deg,#000 70%,transparent 100%),linear-gradient(180deg,transparent 0%,#000 20%);-webkit-mask-composite:source-in}
+.falls{position:absolute;top:690px;right:0;width:520px;height:300px;object-position:34% 50%;
+  -webkit-mask-image:linear-gradient(270deg,#000 60%,transparent 100%),linear-gradient(180deg,transparent 0%,#000 22%,#000 78%,transparent 100%);-webkit-mask-composite:source-in}
+.logo{position:absolute;right:64px;top:56px;width:140px;height:140px;box-shadow:0 0 0 3px #FFF,0 6px 18px rgba(0,0,0,.18)}
+h1{position:absolute;top:520px;right:72px;font-size:84px;line-height:1;color:#18301F}
+.sub{position:absolute;top:624px;right:76px;font-size:23px}
+.cap{position:absolute;right:76px;top:960px;font-size:20px;opacity:.8}
+.hours{position:absolute;right:72px;top:1010px;width:420px}
+.wk{font-size:21px;margin-bottom:4px}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-top:1.5px solid rgba(30,58,43,.3);font-size:26px}
+.row b{font-weight:500}
+.row .t{font-family:"Frank Ruhl Libre";font-size:30px}
+.credit{position:absolute;right:14px;bottom:10px;font-size:13px;opacity:.55;direction:ltr}
+</style></head><body>
+<img class="hermon cover" src="../assets/photos/hermon.jpg" alt="">
+<img class="cart cover" src="../assets/photos/hero.jpg" alt="">
+<img class="falls cover" src="../assets/photos/banias.jpg" alt="">
+<img class="logo" src="../assets/logo.png" alt="">
+<h1>קפה מול החרמון</h1>
+<div class="sub">8 דקות הליכה מהבניאס · על הדשא בקיבוץ שניר</div>
+<div class="cap">מפל הבניאס</div>
+<div class="hours"><div class="wk" data-week>השעות לשבוע {week}</div><div data-hours="a" data-group="1" data-join="<br>"></div></div>
+<div class="credit">Hermon photo: Jotpe, CC BY-SA 4.0</div>
+<template id="row-a"><div class="row"><b>{day}</b><span style="text-align:left">{times}</span></div></template>
+<script src="hours.js"></script>
+</body></html>

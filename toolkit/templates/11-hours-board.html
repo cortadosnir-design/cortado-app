@@ -1,0 +1,29 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1350">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
+<style>
+.card{left:90px;right:90px;top:170px;bottom:210px}
+.head{position:absolute;top:290px;left:0;right:0;font-size:148px}
+.kicker{position:absolute;top:600px;left:0;right:0;font-size:36px}
+.list{position:absolute;top:668px;left:230px;right:230px}
+.row{display:flex;align-items:center;gap:20px;height:64px;border-bottom:1.5px solid rgba(20,20,23,.12)}
+.row:last-child{border-bottom:0}
+.row b{font-weight:600;font-size:33px;flex:1}
+.row span{font-weight:500;font-size:32px;color:var(--espresso)}
+.ribbon{top:1108px;font-size:48px}
+.foot{bottom:62px}
+.sticker{left:28px;top:96px;width:172px;height:172px;font-size:25px;transform:rotate(-9deg)}
+</style></head><body class="board-bg">
+<img class="doodles" src="../assets/art/doodles-post.svg" alt="">
+<div class="card"></div>
+<div class="badge" style="top:112px"><img src="../assets/logo.png" alt=""><span>cortado</span></div>
+<div class="sticker">על הדשא<br>מתחת<br>לאורנים</div>
+<img class="heart" src="../assets/art/icon-heart-pink.svg" style="right:140px;top:236px;width:84px;height:84px;transform:rotate(12deg)" alt="">
+<img class="heart" src="../assets/art/icon-heart-pink.svg" style="left:170px;top:520px;width:58px;height:58px;transform:rotate(-12deg)" alt="">
+<div class="head">השבוע<br>בעגלה</div>
+<div class="kicker" data-week>{week}</div>
+<div class="list" data-hours="a"></div>
+<div class="ribbon">נתראה בעגלה</div>
+<div class="foot">קיבוץ שניר · על הדשא ליד המרכולית · 8 דק׳ הליכה מהבניאס</div>
+<template id="row-a"><div class="row"><div class="dayc">{short}</div><b>{day}</b><span>{times}</span></div></template>
+<script src="hours.js"></script>
+</body></html>

@@ -1,0 +1,39 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+/* Option 4 — three views melting side by side: Hermon, the falls, the cart at dusk; cups in front */
+body{background:#0E1811;font-family:Heebo;color:#F6F0E2;position:relative}
+.s{position:absolute;top:0;height:1350px;object-fit:cover}
+.s1{right:0;width:500px;object-position:47% 50%;filter:contrast(1.15) saturate(1.05) brightness(.85);-webkit-mask-image:linear-gradient(270deg,#000 62%,transparent 100%)}
+.s2{left:270px;width:540px;object-position:36% 50%;filter:brightness(.9);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 30%,#000 70%,transparent 100%)}
+.s3{left:0;width:500px;object-position:80% 50%;-webkit-mask-image:linear-gradient(90deg,#000 62%,transparent 100%)}
+.top{position:absolute;inset:0 0 auto 0;height:560px;background:linear-gradient(180deg,rgba(12,20,15,.9),rgba(12,20,15,.6) 60%,rgba(12,20,15,0))}
+.low{position:absolute;inset:auto 0 0 0;height:460px;background:linear-gradient(180deg,rgba(12,20,15,0),rgba(12,20,15,.75))}
+.logo{position:absolute;left:470px;top:48px;width:140px;height:140px;box-shadow:0 0 0 3px #F6F0E2}
+h1{position:absolute;top:212px;left:0;right:0;text-align:center;font-size:80px;line-height:1}
+.wk{position:absolute;left:96px;right:96px;top:316px;text-align:center;font-size:21px;opacity:.85}
+.hours{position:absolute;left:96px;right:96px;top:352px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:36px;text-align:center}
+.cell{border-top:1.5px solid rgba(246,240,226,.4);padding-top:10px}
+.cell b{display:block;font-size:21px;font-weight:500}
+.cell .t{display:block;font-family:"Frank Ruhl Libre";font-size:32px;line-height:1.25}
+.cupsbox{position:absolute;left:230px;bottom:0;width:620px;height:400px;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 20%,#000 80%,transparent 100%),linear-gradient(180deg,transparent 0%,#000 35%);-webkit-mask-composite:source-in}
+.cupsbox img{width:100%;height:100%;object-fit:cover;object-position:50% 96%}
+.lbl{position:absolute;bottom:420px;font-size:20px;opacity:.9;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.credit{position:absolute;right:14px;bottom:10px;font-size:13px;opacity:.6;direction:ltr}
+</style></head><body>
+<img class="s s3" src="../assets/photos/evening.jpg" alt="">
+<img class="s s1" src="../assets/photos/hermon.jpg" alt="">
+<img class="s s2" src="../assets/photos/banias.jpg" alt="">
+<div class="top"></div><div class="low"></div>
+<img class="logo" src="../assets/logo.png" alt="">
+<h1>השבוע בעגלה</h1>
+<div class="wk" data-week>השעות לשבוע {week}</div>
+<div class="hours" data-hours="a" data-group="1" data-join=""></div>
+<div class="lbl" style="right:60px">החרמון</div>
+<div class="lbl" style="left:470px">הבניאס · 8 דק׳</div>
+<div class="lbl" style="left:60px">העגלה, ליד המרכולית</div>
+<div class="cupsbox"><img src="../assets/photos/hero.jpg" alt=""></div>
+<div class="credit">Hermon photo: Jotpe, CC BY-SA 4.0</div>
+<template id="row-a"><div class="cell"><b>{day}</b>{times}</div></template>
+<script src="hours.js"></script>
+</body></html>

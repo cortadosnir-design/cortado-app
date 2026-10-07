@@ -1,0 +1,35 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+/* Option 3 — two halves of one walk: the falls on the left, Hermon above the cart on the right */
+body{background:#0E1811;font-family:Heebo;color:#F6F0E2;position:relative}
+.falls{position:absolute;top:0;left:0;width:620px;height:1350px;object-position:26% 50%;filter:brightness(.85) contrast(1.05);
+  -webkit-mask-image:linear-gradient(90deg,#000 62%,transparent 100%)}
+.hermon{position:absolute;top:0;right:0;width:620px;height:660px;object-position:52% 30%;filter:contrast(1.18) saturate(1.1);
+  -webkit-mask-image:linear-gradient(270deg,#000 70%,transparent 100%),linear-gradient(180deg,#000 72%,transparent 100%);-webkit-mask-composite:source-in}
+.cart{position:absolute;bottom:0;right:0;width:620px;height:827px;
+  -webkit-mask-image:linear-gradient(270deg,#000 70%,transparent 100%),linear-gradient(180deg,transparent 0%,#000 22%);-webkit-mask-composite:source-in}
+.leftshade{position:absolute;top:0;bottom:0;left:0;width:600px;background:linear-gradient(90deg,rgba(10,18,13,.82) 0%,rgba(10,18,13,.55) 70%,rgba(10,18,13,0))}
+h1{position:absolute;top:72px;left:64px;font-size:96px;line-height:1;color:#FFF8E8;width:520px}
+.sub{position:absolute;top:290px;left:68px;width:460px;font-size:25px;font-weight:300;line-height:1.5}
+.hours{position:absolute;left:64px;top:480px;width:400px}
+.wk{font-size:21px;opacity:.85;margin-bottom:6px}
+.row{padding:12px 0;border-top:1.5px solid rgba(246,240,226,.35)}
+.row b{display:block;font-size:22px;font-weight:500}
+.row span{font-family:"Frank Ruhl Libre";font-size:36px}
+.sig{position:absolute;left:64px;bottom:64px;display:flex;align-items:center;gap:18px}
+.sig .logo{width:140px;height:140px;box-shadow:0 0 0 3px #F6F0E2}
+.sig span{font-family:"Frank Ruhl Libre";font-size:30px}
+.credit{position:absolute;right:14px;top:10px;font-size:13px;opacity:.7;direction:ltr;color:#FFF}
+</style></head><body>
+<img class="falls cover" src="../assets/photos/banias.jpg" alt="">
+<img class="hermon cover" src="../assets/photos/hermon.jpg" alt="">
+<img class="cart cover" src="../assets/photos/hero.jpg" alt="">
+<div class="leftshade"></div>
+<h1>מהמפל<br>אל העגלה</h1>
+<div class="sub">8 דקות הליכה מהבניאס, על הדשא בקיבוץ שניר, מול החרמון.</div>
+<div class="hours"><div class="wk" data-week>השעות לשבוע {week}</div><div data-hours="a" data-group="1" data-join="<br>"></div></div>
+<div class="sig"><img class="logo" src="../assets/logo.png" alt=""><span>קפה קורטדו</span></div>
+<div class="credit">Hermon photo: Jotpe, CC BY-SA 4.0</div>
+<template id="row-a"><div class="row"><b>{day}</b><span>{times}</span></div></template>
+<script src="hours.js"></script>
+</body></html>
