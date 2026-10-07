@@ -43,7 +43,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/health") return json({ ok: true }, cors);
-      // שולה (בוט הוואטסאפ) מזדהה במפתח משותף, לא במשתמש Firebase.
+      // בוט קורטדו (בוט הוואטסאפ) מזדהה במפתח משותף, לא במשתמש Firebase.
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
@@ -65,7 +65,7 @@ export default {
         case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
         case "/publish/cancel":    requireOwner(owner); return json(await cancelPost(await withMeta(env), body), cors);
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
-        // שעות פתיחה יוצאות רק דרך שולה (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
+        // שעות פתיחה יוצאות רק דרך בוט קורטדו (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
         // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור.
         case "/hours/facebook":
         case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך בוט קורטדו בוואטסאפ.", 410);
@@ -1243,8 +1243,8 @@ async function setFacebookHours(env, b){
   return { ok: true, hours };
 }
 
-/* ===== שעות מהבוט (שולה, עוזרת הוואטסאפ של הבעלים) =====
-   הבעלים שולח לשולה את לו"ז השבוע ומאשר ב"כן"; היא שולחת לכאן שעות לשבעה ימים.
+/* ===== שעות מהבוט (בוט קורטדו, עוזר הוואטסאפ של הבעלים) =====
+   הבעלים שולח לבוט את לו"ז השבוע ומאשר ב"כן"; הבוט שולח לכאן שעות לשבעה ימים.
    כאן קורה מה ש-hoursync.js עושה בדפדפן של מנהל מחובר, רק בלי דפדפן: השעות
    נכתבות כ-hoursOverride על מסמך השבוע (המשמרות והשיבוצים לא זזים), מתפרסמות
    ל-public/hours (דף הנחיתה) ולפייסבוק, ו-sync.sig נרשם כדי שאפליקציה פתוחה
@@ -1295,7 +1295,7 @@ function botPlan(b, today){
       days: days.map(x => x.join(", ")), text: botHoursText(week, days) },
   };
 }
-// שולה מזדהה במפתח משותף. בלי מפתח בשרת: סגור, גם למפתח ריק.
+// הבוט מזדהה במפתח משותף. בלי מפתח בשרת: סגור, גם למפתח ריק.
 function botAuth(env, request){
   if (!env.BOT_KEY) throw fail("not_configured", "חסר BOT_KEY בשרת.", 501);
   if (!sameStr(request.headers.get("x-bot-key") || "", String(env.BOT_KEY)))
@@ -1309,7 +1309,7 @@ const ilToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusal
    פייסבוק וגוגל מחזיקים סט שעות שבועי אחד, בלי תאריכים. כשפרסמו בחמישי את השבוע הבא
    והחליפו את כל הסט, חמישי–שבת של השבוע הנוכחי הוצגו עם השעות של השבוע הבא.
    כאן כל יום בשבוע מקבל את השעות של המופע הקרוב שלו (היום כלול), והסט מחושב מחדש
-   בכל פרסום ובכל לילה (שולה קוראת ל-/hours/refresh אחרי חצות).
+   בכל פרסום ובכל לילה (הבוט קורא ל-/hours/refresh אחרי חצות).
    יום ששבוע שלו עוד לא פורסם: אותו יום מהשבוע הנוכחי, כמו שהיה עד עכשיו, ונרשם ב-unknown
    כדי שהבעלים יידע. השבוע הנוכחי לא פורסם בכלל: לא נוגעים בפייסבוק. */
 function rollingWeek(weeks, today){
@@ -1398,7 +1398,7 @@ async function botHours(env, request){
   catch (e){ out.record = hebrew(e.message); }
   return { ok: out.page === "ok", week: p.week, ...out, text: out.text || p.doc.text };
 }
-// כל לילה אחרי חצות (שולה קוראת): פייסבוק וגוגל זזים יום קדימה בחלון המתגלגל.
+// כל לילה אחרי חצות (הבוט קורא): פייסבוק וגוגל זזים יום קדימה בחלון המתגלגל.
 async function refreshHours(env, request){
   botAuth(env, request);
   const today = ilToday();

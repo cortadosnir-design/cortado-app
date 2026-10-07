@@ -115,9 +115,9 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
-/* ── שעות מהבוט (שולה): הבקשה, הפורמטים, והפרסום בלי דפדפן ── */
+/* ── שעות מהבוט (בוט קורטדו): הבקשה, הפורמטים, והפרסום בלי דפדפן ── */
 {
-  console.log("\nשעות מהבוט (שולה)");
+  console.log("\nשעות מהבוט (בוט קורטדו)");
   const a = wsrc.indexOf("const BOT_DAYS"), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botHours(")) + 2;
   const mk = (deps) => new Function("fail", "hebrew", "fsGet", "fsPatch", "withMeta", "setFacebookHours", "setGoogleHours", "graph",
     wsrc.slice(a, z) + "\nreturn { botPlan, botHours, rollingWeek, rollingText };")(
