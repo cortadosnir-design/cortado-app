@@ -1,0 +1,25 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1350">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
+<style>
+/* October 7: same family as the chalkboard series, stripped to the minimum. No doodles, no ribbon, no hearts. */
+body{color:var(--chalk)}
+.sprout{position:absolute;left:390px;top:250px;width:300px;height:360px}
+.date{position:absolute;top:660px;left:0;right:0;text-align:center;font-family:Rubik;font-weight:800;font-size:150px;line-height:1;letter-spacing:2px;direction:ltr}
+.l1{position:absolute;top:850px;left:0;right:0;text-align:center;font-family:Rubik;font-weight:400;font-size:46px;line-height:1.5;opacity:.95}
+.sig{position:absolute;left:0;right:0;bottom:90px;display:flex;justify-content:center;align-items:center;gap:14px;font-family:Rubik;font-size:24px;opacity:.8}
+.sig img{width:56px;height:56px;border-radius:50%}
+</style></head><body class="board-bg">
+<svg class="sprout" viewBox="0 0 300 360" aria-hidden="true">
+  <defs><filter id="chalk" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2"/></filter></defs>
+  <g filter="url(#chalk)" fill="none" stroke="#F4F1EA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 330 C100 322 200 322 270 330"/>
+    <path d="M150 326 C150 280 148 230 152 170"/>
+    <path d="M151 250 C120 246 92 226 84 196 C116 196 142 214 151 250 Z"/>
+    <path d="M152 205 C178 196 206 172 212 140 C182 144 158 166 152 205 Z"/>
+    <path d="M152 170 C146 150 148 132 156 118"/>
+  </g>
+</svg>
+<div class="date">7.10</div>
+<div class="l1">שלוש שנים.<br>זוכרים את כולם,<br>וממשיכים לבנות כאן בית.</div>
+<div class="sig"><img src="../assets/logo.png" alt=""><span>קפה קורטדו · קיבוץ שניר</span></div>
+</body></html>
