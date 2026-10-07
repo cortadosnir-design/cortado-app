@@ -127,7 +127,7 @@ export async function publish(id, data = weeks[id]){
       await setDoc(doc(db, "public", "hours"), { ...top, weeks: map, at: serverTimestamp() });
       out.page = "ok";
     } catch (e){
-      out.page = e.code === "permission-denied" ? "שעות הפתיחה מתפרסמות עכשיו רק דרך שולה בוואטסאפ." : "העדכון נכשל: " + String(e.message || e.code || "").slice(0, 140);
+      out.page = e.code === "permission-denied" ? "שעות הפתיחה מתפרסמות עכשיו רק דרך בוט קורטדו בוואטסאפ." : "העדכון נכשל: " + String(e.message || e.code || "").slice(0, 140);
     }
 
     // 2. פייסבוק ו-3. גוגל — רק לשבוע ש"מחזיק" את שעות העמוד.

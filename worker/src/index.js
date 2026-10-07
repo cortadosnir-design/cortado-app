@@ -68,7 +68,7 @@ export default {
         // שעות פתיחה יוצאות רק דרך שולה (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
         // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור.
         case "/hours/facebook":
-        case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך שולה בוואטסאפ.", 410);
+        case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך בוט קורטדו בוואטסאפ.", 410);
         case "/hours/fromgoogle":  requireOwner(owner); return json(await readGoogleHours(env), cors);
         case "/status":            requireOwner(owner); return json(await status(await withMeta(env)), cors);
         case "/setup/pages":       requireOwner(owner); return json(await setupPages(env, body), cors);
