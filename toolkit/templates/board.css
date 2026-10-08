@@ -21,9 +21,9 @@ body{font-family:Rubik;color:var(--cart);position:relative}
 .heart{position:absolute;width:60px;height:60px}
 /* Social QR row (owner's rule 8.10.2026, every Facebook post): Instagram, Facebook, WhatsApp group.
    Bottom-left, clear of the Reels like/share buttons on the right. Footer text moves right (.foot.r). */
-.socials{position:absolute;left:40px;bottom:22px;display:flex;gap:10px;direction:ltr;z-index:4}
+.socials{position:absolute;left:40px;bottom:22px;display:flex;gap:12px;direction:ltr;z-index:4}
 .socials .s{display:flex;flex-direction:column;align-items:center;gap:5px}
 .socials .q{background:var(--foam);border-radius:8px;padding:4px;line-height:0}
 .socials .q img{width:58px;height:58px}
-.socials .s span{font-family:Rubik;font-weight:500;font-size:15px;color:var(--chalk);line-height:1;white-space:nowrap}
+.socials .s span{font-family:Rubik;font-weight:600;font-size:19px;color:var(--chalk);line-height:1;white-space:nowrap}
 .foot.r{left:auto;right:44px;text-align:right;bottom:40px}
