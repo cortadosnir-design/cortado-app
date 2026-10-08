@@ -38,6 +38,12 @@ The owner chose Café Blue (Jaffa) as the branding idea and asked that every pos
   everything inside the safe zone (150px top, 420px bottom, 100px right are covered by the app);
   template 53 scales the post frame to fit. Don't draw the platforms' logos. Before publishing,
   check all three scan (cv2 on the render, and on a frame of the encoded video).
+- **Spacing (8.10.2026, after the owner asked for clear gaps):** 8px scale. ~48px between blocks
+  (badge→photos, photos→card), ~56px between side-by-side photos, 16–24px for tight pairs
+  (text→ribbon, card→QR row, ribbon→footer). Nothing touches or overlaps except the ribbon riding
+  the card's bottom edge. Outer margins: 64px left; on reels 116px right (buttons) and content
+  between y 150 and 1500. Measure real gaps (rotation included) with
+  `python scripts/measure.py templates/<file>.html 1080x1920` before rendering.
 - Before sending anything, put it next to the existing set (contact sheet) and check
   it reads as the same family.
 
