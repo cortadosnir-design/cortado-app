@@ -29,10 +29,15 @@ The owner chose Café Blue (Jaffa) as the branding idea and asked that every pos
   `11-hours-board` (weekly hours), `21–26` (carousel "יום קצר בצפון"),
   `31-home` (emotional post), `41-fb-cover` (1640×624), `42-fb-profile` (720×720).
   A template sets its size with `<meta name="size" content="WxH">`.
-- **Instagram QR (owner's rule, 8.10.2026): every image or video that goes out on Facebook
-  carries a small QR to https://www.instagram.com/cortado_snir/** — `assets/qr-instagram.svg`
-  in a `.igqr` box (board.css) with "@cortado_snir", bottom-left (`left:36px;bottom:24px`).
-  Check it scans (cv2.QRCodeDetector on the rendered PNG) before publishing.
+- **Social QR row (owner's rule, 8.10.2026): every image or video that goes out on Facebook carries
+  three small QRs at the bottom-left — Instagram (https://instagram.com/cortado_snir), Facebook
+  (https://www.facebook.com/122109319071470402) and the WhatsApp group
+  (https://chat.whatsapp.com/HVwYjRh8VBfAzGT2AmoXyP)** — `assets/qr-*.svg`, `.socials` in board.css,
+  Hebrew labels under each; the footer text moves right (`.foot.r`) and is just
+  "קיבוץ שניר · על הדשא ליד המרכולית". QRs ~58px on a post, ~72px on a reel frame. Reels: keep
+  everything inside the safe zone (150px top, 420px bottom, 100px right are covered by the app);
+  template 53 scales the post frame to fit. Don't draw the platforms' logos. Before publishing,
+  check all three scan (cv2 on the render, and on a frame of the encoded video).
 - Before sending anything, put it next to the existing set (contact sheet) and check
   it reads as the same family.
 
