@@ -29,6 +29,10 @@ The owner chose Café Blue (Jaffa) as the branding idea and asked that every pos
   `11-hours-board` (weekly hours), `21–26` (carousel "יום קצר בצפון"),
   `31-home` (emotional post), `41-fb-cover` (1640×624), `42-fb-profile` (720×720).
   A template sets its size with `<meta name="size" content="WxH">`.
+- **Instagram QR (owner's rule, 8.10.2026): every image or video that goes out on Facebook
+  carries a small QR to https://www.instagram.com/cortado_snir/** — `assets/qr-instagram.svg`
+  in a `.igqr` box (board.css) with "@cortado_snir", bottom-left (`left:36px;bottom:24px`).
+  Check it scans (cv2.QRCodeDetector on the rendered PNG) before publishing.
 - Before sending anything, put it next to the existing set (contact sheet) and check
   it reads as the same family.
 
