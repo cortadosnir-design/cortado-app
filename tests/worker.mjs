@@ -220,6 +220,7 @@ if (f2) process.exitCode = 1;
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/bot"') > 0 && wsrc.indexOf('"/hours/bot"') < wsrc.indexOf("await requireUser(request, env)"));
   ok("רענון הלילה נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/refresh"') > 0 && wsrc.indexOf('"/hours/refresh"') < wsrc.indexOf("await requireUser(request, env)"));
   ok("האפליקציה כבר לא מפרסמת שעות בעצמה", /case "\/hours\/google":\s*throw fail\("moved"/.test(wsrc));
+  ok("האפליקציה כבר לא מתזמנת פוסטים בעצמה", /case "\/publish\/schedule":\s*throw fail\("moved"/.test(wsrc));
   const fsBlock = wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs("));
   const toFs = new Function(fsBlock + "\nreturn toFs;")();
   ok("תאריך נכתב כ-timestamp ולא כמפה ריקה", toFs(new Date("2026-10-03T11:00:00Z")).timestampValue === "2026-10-03T11:00:00.000Z");

@@ -62,12 +62,14 @@ export default {
         case "/ai/insights": requireOwner(owner); return json(await aiInsights(env, body), cors);
         case "/ai/analyze":  requireOwner(owner); return json(await aiAnalyze(env, body), cors);
         case "/ai/zreport":  requireOwner(owner); return json(await aiZReport(env, body), cors);
-        case "/publish/schedule":  requireOwner(owner); return json(await schedulePost(await withMeta(env), body), cors);
         case "/publish/state":     requireOwner(owner); return json(await publishState(await withMeta(env)), cors);
         case "/publish/cancel":    requireOwner(owner); return json(await cancelPost(await withMeta(env), body), cors);
         case "/insights/posts":    requireOwner(owner); return json(await postInsights(await withMeta(env), body), cors);
         // שעות פתיחה יוצאות רק דרך בוט קורטדו (/hours/bot), כדי שלא יהיו שני כותבים שדורסים זה את זה.
         // אפליקציה ישנה שעוד מותקנת בטלפון מקבלת כאן סירוב ברור.
+        // פוסטים יוצאים רק דרך בוט קורטדו (/post/bot), עם "כן" מפורש ובדיקה שעלו (הבעלים, 9.10.2026).
+        // לשונית הקריאייטיב מקבלת כאן סירוב ברור; /publish/cancel נשאר כדי לבטל מה שכבר תוזמן ממנה.
+        case "/publish/schedule":  throw fail("moved", "פוסטים מתפרסמים עכשיו רק דרך בוט קורטדו בוואטסאפ: שולחים לו את התמונה ועונים כן.", 410);
         case "/hours/facebook":
         case "/hours/google":      throw fail("moved", "שעות הפתיחה מתפרסמות עכשיו רק דרך בוט קורטדו בוואטסאפ.", 410);
         case "/hours/fromgoogle":  requireOwner(owner); return json(await readGoogleHours(env), cors);
