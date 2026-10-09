@@ -288,6 +288,82 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── ריל מהבוט: פייסבוק ואינסטגרם מאותו קובץ, ותור כשאינסטגרם עוד מעבד ── */
+{
+  console.log("\nריל מהבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function igReady("), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botReel(")) + 2;
+  const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
+  const mk = ({ igStatus = ["FINISHED"], fbFails = false } = {}) => {
+    const calls = [], uploads = [], writes = [];
+    const graph = async (_e, path, params = {}, method = "POST") => {
+      calls.push([method, path, params]);
+      if (path.endsWith("/video_reels") && params.upload_phase === "start"){ if (fbFails) throw new Error("fb no"); return { video_id: "v1" }; }
+      if (path.endsWith("/video_reels")) return { success: true };
+      if (path.endsWith("/media")) return { id: "c1" };
+      if (path.endsWith("/media_publish")) return { id: "ig9" };
+      if (method === "GET") return { status_code: igStatus.length > 1 ? igStatus.shift() : igStatus[0] };
+      throw new Error("unexpected " + path);
+    };
+    const realFetch = globalThis.fetch;
+    const fakeFetch = async (url, init) => { uploads.push([String(url), init.headers.file_size, init.headers.authorization]); return Response.json({ success: true }); };
+    const fn = new Function("botAuth", "withMeta", "fsPatch", "graph", "hebrew", "fail", "GRAPH", "fetch", "sleep",
+      wsrc.slice(a, z) + "\nreturn { botReel, igReady };")(auth, async (e) => e, async (_e, path, fields) => { writes.push([path, fields]); },
+      graph, (m) => m, fail, "https://graph.facebook.com/v21.0", fakeFetch, async () => {});
+    return { ...fn, calls, uploads, writes, realFetch };
+  };
+  const env = { BOT_KEY: "k", FB_PAGE_ID: "P", FB_PAGE_TOKEN: "T", IG_USER_ID: "I" };
+  const meta = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
+  const req = (o = {}, { key = "k", type = "video/mp4", body = new Uint8Array([1, 2, 3, 4]) } = {}) =>
+    new Request("https://x/post/bot/reel", { method: "POST", body, headers: { "x-bot-key": key, "content-type": type, "x-reel": meta(o) } });
+
+  const t1 = mk();
+  const out = await t1.botReel(env, req({ text: "בוקר בשניר ☕" }));
+  ok("פייסבוק ואינסטגרם יצאו, והטקסט העברי עבר בכותרת", out.fbVideoId === "v1" && out.igPostId === "ig9" && t1.calls.find(c => c[1] === "I/media")[2].caption === "בוקר בשניר ☕", JSON.stringify(out));
+  ok("הקובץ עצמו עלה פעמיים ל-rupload, עם הגודל והטוקן", JSON.stringify(t1.uploads.map(u => u[0]).sort()) === JSON.stringify(["https://rupload.facebook.com/ig-api-upload/v21.0/c1", "https://rupload.facebook.com/video-upload/v21.0/v1"]) && t1.uploads.every(u => u[1] === "4" && u[2] === "OAuth T"));
+  ok("ריל לאינסטגרם נוצר כ-REELS resumable ומופיע גם בפיד", (({ media_type, upload_type, share_to_feed }) => media_type === "REELS" && upload_type === "resumable" && share_to_feed === "true")(t1.calls.find(c => c[1] === "I/media")[2]));
+  ok("פייסבוק מסיים ב-PUBLISHED עם הטקסט", t1.calls.some(c => c[2].upload_phase === "finish" && c[2].video_state === "PUBLISHED" && c[2].description === "בוקר בשניר ☕"));
+  ok("מסמך הפוסט: נכתב לפני, ובסוף done", t1.writes[0][1].status === "ready" && t1.writes[0][1].kind === "reel" && t1.writes.at(-1)[1].status === "done");
+
+  const t2 = mk({ igStatus: ["IN_PROGRESS"] });
+  const slow = await t2.botReel(env, req({ text: "x" }));
+  ok("אינסטגרם עוד מעבד: נכנס לתור עם הקונטיינר, ולא מפורסם", slow.igPending === true && slow.igContainer === "c1" && !slow.igPostId && t2.writes.at(-1)[1].status === "scheduled" && t2.writes.at(-1)[1].publishAt > 0);
+
+  const t3 = mk({ fbFails: true });
+  const half = await t3.botReel(env, req({ text: "x" }));
+  ok("פייסבוק נכשל: אינסטגרם בכל זאת יוצא, והשגיאה מדווחת", half.fbError === "fb no" && half.igPostId === "ig9");
+
+  const t4 = mk();
+  const fbOnly = await t4.botReel({ ...env, IG_USER_ID: "" }, req({ text: "x" }));
+  ok("בלי חשבון אינסטגרם: פייסבוק בלבד, עם סיבה", fbOnly.fbVideoId === "v1" && /לא מחובר/.test(fbOnly.igSkipped) && !t4.calls.some(c => c[1] === "/media"));
+  const noIg = await mk().botReel(env, req({ text: "x", noIg: true }));
+  ok("noIg: אינסטגרם לא נוגע", /פייסבוק בלבד/.test(noIg.igSkipped) && !noIg.igPostId);
+
+  let e1 = null; try { await mk().botReel(env, req({}, { type: "image/jpeg" })); } catch (e){ e1 = e; }
+  ok("לא וידאו: נדחה", e1 && e1.code === "bad_request");
+  const t5 = mk(); let e2 = null; try { await t5.botReel(env, req({}, { key: "nope" })); } catch (e){ e2 = e; }
+  ok("מפתח שגוי: נדחה בלי לכתוב ובלי להעלות", e2 && e2.status === 403 && !t5.writes.length && !t5.uploads.length);
+  let e3 = null; try { await mk({ igStatus: ["ERROR"] }).igReady(env, "c1"); } catch (e){ e3 = e; }
+  ok("קונטיינר ERROR: זורק ולא נתקע", e3 && e3.code === "meta_error");
+
+  // הקרון: ריל בתור מתפרסם רק כשהקונטיינר FINISHED
+  const pd = wsrc.slice(wsrc.indexOf("async function publishDue("), wsrc.indexOf("\n}\n", wsrc.indexOf("async function publishDue(")) + 2);
+  const runDue = async (status) => { const g = mk({ igStatus: [status] }); const patches = [];
+    const fn = new Function("fsQuery", "fsPatch", "dueNow", "igReady", "igPublishFromPhoto", "graph", "hebrew", pd + "\nreturn publishDue;")(
+      async () => [{ id: "r1", fields: { igPending: true, publishAt: 1, igContainer: "c1", text: "x" } }], async (_e, path, x) => { patches.push(x); },
+      (docs) => docs, g.igReady, async () => { throw new Error("photo path"); }, async (...a) => (g.calls.push(a), a[1].endsWith("/media_publish") ? { id: "ig9" } : { status_code: status }), (m) => m);
+    return { res: await fn({ FIREBASE_SA: "{}", IG_USER_ID: "I" }), patches }; };
+  const wait = await runDue("IN_PROGRESS");
+  ok("קרון: ריל שעוד מעבד נשאר בתור בלי לספור ניסיון", wait.patches.length === 0 && wait.res.results[0].waiting === true);
+  const done = await runDue("FINISHED");
+  ok("קרון: ריל מוכן מתפרסם ויוצא מהתור", done.patches[0].igPostId === "ig9" && done.patches[0].igPending === false);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/reel"') > 0 && wsrc.indexOf('"/post/bot/reel"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("השרת מודיע לבוט שהוא יודע ריל", /reels: true/.test(wsrc.slice(wsrc.indexOf("async function publishState("), wsrc.indexOf("async function publishState(") + 600)));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── גוגל לפי תאריך (specialHours), עם בדיקה בלי כתיבה ── */
 {
   console.log("\nגוגל לפי תאריך");

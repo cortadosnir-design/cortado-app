@@ -48,6 +48,7 @@ export default {
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
+      if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -875,8 +876,89 @@ async function igPublishFromPhoto(env, photoId, caption){
   const src = (ph.images || []).slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0];
   if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
   const c = await graph(env, `${env.IG_USER_ID}/media`, { image_url: src.source, caption: caption || "" });
+  // מטא מבקשת לחכות ל-FINISHED לפני הפרסום. בלי זה, לפעמים "Media ID is not available".
+  if (!(await igReady(env, c.id, 6, 2000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונה. ננסה שוב בעוד כמה דקות.", 502);
   const p = await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id });
   return p.id;
+}
+
+// קונטיינר של אינסטגרם מוכן לפרסום? FINISHED = כן, IN_PROGRESS = עוד לא, ERROR/EXPIRED = לא יהיה.
+async function igReady(env, id, tries = 1, waitMs = 0){
+  for (let i = 0; i < tries; i++){
+    if (i) await sleep(waitMs);
+    const s = await graph(env, id, { fields: "status_code,status" }, "GET");
+    if (s.status_code === "FINISHED" || s.status_code === "PUBLISHED") return true;
+    if (s.status_code === "ERROR" || s.status_code === "EXPIRED")
+      throw fail("meta_error", `אינסטגרם לא קיבל את הקובץ: ${s.status || s.status_code}`, 502);
+  }
+  return false;
+}
+
+/* ===== ריל: וידאו מהבוט, ישר לפייסבוק ולאינסטגרם =====
+   אין לנו אחסון, ולכן הקובץ עצמו עולה למטא (resumable upload), לכל רשת בנפרד.
+   כאן רק "עכשיו". את התזמון מחזיק הבוט: מזהה המדיה של וואטסאפ אצלו תקף 7 ימים.
+   הגוף הוא הקובץ כמו שהוא (בלי multipart ובלי base64, שעולים זמן מעבד),
+   והטקסט בכותרת x-reel: JSON ב-base64, כי כותרת לא מקבלת עברית. */
+const GRAPH_VER = GRAPH.split("/").pop();
+const MAX_REEL_BYTES = 40 * 1024 * 1024; // כמו MAX_VIDEO_MB בבוט: זיכרון ה-Worker 128MB
+
+async function rupload(env, path, bytes){
+  const r = await fetch(`https://rupload.facebook.com/${path}`, { method: "POST", body: bytes, headers: {
+    authorization: "OAuth " + env.FB_PAGE_TOKEN, offset: "0", file_size: String(bytes.byteLength),
+    "content-type": "application/octet-stream" } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.error || data.success === false)
+    throw fail("meta_error", data.error?.message || data.debug_info?.message || `ההעלאה למטא נכשלה (${r.status}).`, 502);
+  return data;
+}
+async function fbReel(env, bytes, description){
+  const s = await graph(env, `${env.FB_PAGE_ID}/video_reels`, { upload_phase: "start" });
+  await rupload(env, `video-upload/${GRAPH_VER}/${s.video_id}`, bytes);
+  await graph(env, `${env.FB_PAGE_ID}/video_reels`, { upload_phase: "finish", video_id: s.video_id, video_state: "PUBLISHED", description: description || "" });
+  return String(s.video_id);
+}
+// מחזיר את מזהה הקונטיינר. מפרסמים רק אחרי שהוא FINISHED.
+async function igReelContainer(env, bytes, caption){
+  const c = await graph(env, `${env.IG_USER_ID}/media`, { media_type: "REELS", upload_type: "resumable", caption: caption || "", share_to_feed: "true" });
+  await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
+  return String(c.id);
+}
+
+async function botReel(env, request){
+  botAuth(env, request);
+  env = await withMeta(env);
+  if (!env.FB_PAGE_ID || !env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+  let meta = {};
+  try { meta = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(request.headers.get("x-reel") || ""), ch => ch.charCodeAt(0)))); } catch {}
+  const type = (request.headers.get("content-type") || "").split(";")[0];
+  if (!/^video\//.test(type)) throw fail("bad_request", "אין קובץ וידאו.");
+  const bytes = await request.arrayBuffer();
+  if (!bytes.byteLength) throw fail("bad_request", "אין קובץ וידאו.");
+  if (bytes.byteLength > MAX_REEL_BYTES) throw fail("bad_request", "הסרטון גדול מ-40MB.");
+  const text = String(meta.text || "").slice(0, 2200);
+  const id = "r" + Date.now().toString(36);
+  const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date());
+  await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", kind: "reel", status: "ready", hasMedia: true });
+
+  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "" };
+  // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
+  await Promise.all([
+    fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
+    (async () => {
+      if (meta.noIg) return void (out.igSkipped = "פייסבוק בלבד, לפי הבחירה");
+      if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
+      try {
+        const c = await igReelContainer(env, bytes, text);
+        // עד 3 דקות כאן. עוד לא מוכן: נכנס לתור, והקרון מפרסם כשיהיה FINISHED (קונטיינר פג אחרי 24 שעות)
+        if (await igReady(env, c, 18, 10000)) out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
+        else Object.assign(out, { igPending: true, igContainer: c });
+      } catch (e){ out.igError = hebrew(e.message); }
+    })(),
+  ]);
+  const status = out.igPending ? "scheduled" : (out.fbVideoId || out.igPostId) ? "done" : "cancelled";
+  try { await fsPatch(env, `posts/${id}`, { ...out, status, publishAt: Date.now() }); }
+  catch (e){ out.saveError = hebrew(e.message); }
+  return { ok: true, ...out };
 }
 
 // מה מהתור הגיע זמנו. נפרד מהרשת כדי שאפשר לבדוק אותו.
@@ -891,7 +973,11 @@ async function publishDue(env){
   for (const d of dueNow(pending)){
     const text = [d.fields.text || "", (d.fields.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
     try {
-      const igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
+      let igPostId;
+      if (d.fields.igContainer){ // ריל שעלה וחיכה לעיבוד. עוד לא מוכן: הקרון הבא יבדוק שוב
+        if (!(await igReady(env, d.fields.igContainer))) { results.push({ id: d.id, ok: false, waiting: true }); continue; }
+        igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: d.fields.igContainer })).id);
+      } else igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
       await fsPatch(env, `posts/${d.id}`, { igPending: false, igPostId, igError: "" });
       results.push({ id: d.id, ok: true });
     } catch (e){
@@ -935,8 +1021,9 @@ async function publishState(env){
   // pageId יוצא החוצה בכוונה: הוא מזהה ציבורי (facebook.com/<id> עובד לכל
   // אחד), והפוסטר בונה ממנו את ה-QR. כתובת לפי מזהה לא נשברת כששם
   // המשתמש של העמוד משתנה.
+  // reels: השרת יודע לקבל ריל ב-/post/bot/reel. בוט שמדבר עם שרת ישן לא מציע ריל.
   return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID,
-    queue: !!env.FIREBASE_SA, pageId: env.FB_PAGE_ID || "", igUser: env.IG_USER_ID || "" };
+    queue: !!env.FIREBASE_SA, reels: true, pageId: env.FB_PAGE_ID || "", igUser: env.IG_USER_ID || "" };
 }
 
 /* ===== מספרים אמיתיים במקום הקלדה =====
