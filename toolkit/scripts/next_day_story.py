@@ -11,11 +11,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATE = ROOT / "story-rotation.json"
 # Two levels of variety: the category turns coffee → pastry → acai, and inside each
 # category the photo turns too, so the same picture comes back as late as possible.
+# Only photos that sit well next to the pizza: warm wood, daylight, food as the subject
+# (owner, 10.10.2026: "the photos must look very beautiful together"). Left out on purpose:
+# coffee-4 (green barrel, soft), coffee-5 (dark, hand), hero (mostly the cart), pastry-3 and
+# pastry-5 (busy backgrounds), pizza.jpg (blurry).
 POOLS = {
-    "coffee": ["cortado-lawn.jpg", "coffee-2.jpg", "coffee-3.jpg", "hero.jpg", "coffee-5.jpg", "coffee-4.jpg"],
-    "pastry": ["pastry-tray.jpg", "pastry-2.jpg", "pastry-4.jpg", "pastry-3.jpg", "pastry-5.jpg"],
+    "coffee": ["cortado-lawn.jpg", "coffee-2.jpg", "coffee-3.jpg"],
+    "pastry": ["pastry-tray.jpg", "pastry-2.jpg", "pastry-4.jpg"],
     "acai": ["acai.jpg"],  # the owner's one bowl photo (10.10.2026)
-    "pizza": ["pizza-2.jpg", "pizza.jpg"],
+    "pizza": ["pizza-2.jpg"],  # cropped to the pizza only, no person (10.10.2026)
 }
 CATS = ["coffee", "pastry", "acai"]
 DAYS = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"]  # date.weekday() order
