@@ -190,3 +190,7 @@ Name it `NN-name.html`.
 
 ## Acai bowl photo (owner, 10.10.2026)
 `assets/photos/acai.jpg` is the owner's bowl photo (wooden bowl on marble: berries, banana, blueberries, granola). From 10.10.2026 it is the only acai bowl image used in any design. Do not bring back the older hand-held bowl photos.
+
+## Not for publishing (owner, 10.10.2026)
+- `pastry-tray.jpg` (tray with iced coffee, muffin, cheese pastry, croissant): do not use in anything published.
+- Pizza photos (`pizza.jpg`, `pizza-2.jpg`): the next-day stories carry no pizza photo; pizza is named in the text and the sticker only.

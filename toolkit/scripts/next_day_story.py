@@ -17,7 +17,7 @@ STATE = ROOT / "story-rotation.json"
 # pastry-5 (busy backgrounds), pizza.jpg (blurry).
 POOLS = {
     "coffee": ["cortado-lawn.jpg", "coffee-2.jpg", "coffee-3.jpg"],
-    "pastry": ["pastry-tray.jpg", "pastry-2.jpg", "pastry-4.jpg"],
+    "pastry": ["pastry-2.jpg", "pastry-4.jpg", "pastry-3.jpg"],  # pastry-tray: owner said not for publishing (10.10.2026)
     "acai": ["acai.jpg"],  # the owner's one bowl photo (10.10.2026)
 }
 CATS = ["coffee", "pastry", "acai"]
@@ -75,8 +75,8 @@ if __name__ == "__main__":
     # self-check: categories turn, photos inside a category turn, no photo repeats early
     st, d = {}, datetime.date(2026, 10, 12)
     seen = [story(d, ["17:00–19:00"], st) for _ in range(3)]
-    assert [x["main"] for x in seen] == ["cortado-lawn.jpg", "pastry-2.jpg", "acai.jpg"], seen
-    assert [x["second"] for x in seen] == ["pastry-tray.jpg", "acai.jpg", "coffee-2.jpg"], seen
+    assert [x["main"] for x in seen] == ["cortado-lawn.jpg", "pastry-4.jpg", "acai.jpg"], seen
+    assert [x["second"] for x in seen] == ["pastry-2.jpg", "acai.jpg", "coffee-2.jpg"], seen
     assert all("pizza" not in x["main"] + x["second"] for x in seen)
     assert all((ROOT / "assets/photos" / f).exists() for v in POOLS.values() for f in v)
     main()
