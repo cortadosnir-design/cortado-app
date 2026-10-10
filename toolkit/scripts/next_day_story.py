@@ -14,7 +14,7 @@ STATE = ROOT / "story-rotation.json"
 POOLS = {
     "coffee": ["cortado-lawn.jpg", "coffee-2.jpg", "coffee-3.jpg", "hero.jpg", "coffee-5.jpg", "coffee-4.jpg"],
     "pastry": ["pastry-tray.jpg", "pastry-2.jpg", "pastry-4.jpg", "pastry-3.jpg", "pastry-5.jpg"],
-    "acai": ["acai.jpg", "acai-2.jpg"],
+    "acai": ["acai.jpg"],  # the owner's one bowl photo (10.10.2026)
     "pizza": ["pizza-2.jpg", "pizza.jpg"],
 }
 CATS = ["coffee", "pastry", "acai"]
@@ -71,6 +71,6 @@ if __name__ == "__main__":
     st, d = {}, datetime.date(2026, 10, 12)
     seen = [story(d, ["17:00–19:00"], st)["second"] for _ in range(6)]
     assert seen[:3] == ["cortado-lawn.jpg", "pastry-tray.jpg", "acai.jpg"], seen
-    assert seen[3:] == ["coffee-2.jpg", "pastry-2.jpg", "acai-2.jpg"], seen
+    assert seen[3:] == ["coffee-2.jpg", "pastry-2.jpg", "acai.jpg"], seen
     assert all((ROOT / "assets/photos" / f).exists() for v in POOLS.values() for f in v)
     main()

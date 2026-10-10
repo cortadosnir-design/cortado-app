@@ -187,3 +187,6 @@ Copy `01-poster.html`, keep the frame (`base.css`, `hours.js`, 1080x1350,
 `data-join`), filled from `<template id="row-x">` with `{day}` `{short}`
 `{times}`; the week goes in an element with `data-week` containing `{week}`.
 Name it `NN-name.html`.
+
+## Acai bowl photo (owner, 10.10.2026)
+`assets/photos/acai.jpg` is the owner's bowl photo (wooden bowl on marble: berries, banana, blueberries, granola). From 10.10.2026 it is the only acai bowl image used in any design. Do not bring back the older hand-held bowl photos.
