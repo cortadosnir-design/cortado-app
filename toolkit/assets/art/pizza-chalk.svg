@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 620" width="560" height="620">
+  <!-- Chalk pizza on a slate card, in the cart's chalkboard language (owner asked for pizza on evening stories, 10.10.2026) -->
+  <defs>
+    <filter id="chalk" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="5"/>
+    </filter>
+    <filter id="dust"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" seed="3"/>
+      <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0"/></filter>
+  </defs>
+  <rect width="560" height="620" fill="#2C3F40"/>
+  <rect width="560" height="620" filter="url(#dust)"/>
+  <g filter="url(#chalk)" fill="none" stroke="#F4F1EA" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <!-- steam -->
+    <path d="M232 92c-14-18 12-26 0-46M280 86c-14-18 12-26 0-46M328 92c-14-18 12-26 0-46" stroke-width="5" opacity=".8"/>
+    <!-- crust: double ring -->
+    <circle cx="270" cy="330" r="190"/>
+    <circle cx="270" cy="330" r="162" stroke-width="5" opacity=".85"/>
+    <!-- slice cuts (one slice pulled out, lower right) -->
+    <path d="M270 330L270 140M270 330L108 236M270 330L108 424M270 330L270 520"/>
+    <path d="M270 330L432 236"/>
+    <!-- pulled slice -->
+    <path d="M300 352L462 258A190 190 0 0 1 462 446Z" />
+    <path d="M318 360L446 284A162 162 0 0 1 446 432Z" stroke-width="5" opacity=".85"/>
+    <!-- toppings: olives (rings), basil leaves -->
+    <g stroke-width="6">
+      <circle cx="210" cy="230" r="13"/><circle cx="330" cy="215" r="13"/><circle cx="170" cy="330" r="13"/>
+      <circle cx="225" cy="430" r="13"/><circle cx="310" cy="455" r="13"/><circle cx="390" cy="350" r="12"/>
+      <circle cx="420" cy="400" r="11"/>
+    </g>
+    <g stroke-width="5">
+      <path d="M245 280c18-20 44-14 48 0c-18 16-38 14-48 0Z"/><path d="M247 281l44 0"/>
+      <path d="M150 395c10-24 36-26 44-14c-12 20-32 24-44 14Z"/>
+      <path d="M300 395c16-16 40-10 42 4c-18 12-36 10-42-4Z"/>
+      <path d="M200 175c14-18 38-14 42-2c-16 14-34 14-42 2Z"/>
+    </g>
+    <!-- cheese drip from the pulled slice -->
+    <path d="M300 352c4 14-6 22 2 34" stroke-width="5"/>
+  </g>
+  <!-- pink chalk heart, as on the door -->
+  <path filter="url(#chalk)" d="M470 560c-28-18-30-42-14-46c8-2 14 5 14 10c0-5 6-12 14-10c16 4 14 28-14 46Z" fill="none" stroke="#E7A3AE" stroke-width="6" stroke-linejoin="round"/>
+</svg>
