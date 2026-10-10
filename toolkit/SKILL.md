@@ -193,4 +193,4 @@ Name it `NN-name.html`.
 
 ## Not for publishing (owner, 10.10.2026)
 - `pastry-tray.jpg` (tray with iced coffee, muffin, cheese pastry, croissant): do not use in anything published.
-- Pizza photos (`pizza.jpg`, `pizza-2.jpg`): the next-day stories carry no pizza photo; pizza is named in the text and the sticker only.
+- `pizza.jpg` is the owner's margherita photo from 10.10.2026, cropped above the hand. It is the only pizza image; the old olive pizza and the board photo with the woman are gone.

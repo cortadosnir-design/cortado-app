@@ -1,8 +1,8 @@
 """Build the data for the next-day story (template 56) and render it.
 
 Usage: python scripts/next_day_story.py --date 2026-10-12 --hours 17:00–19:00 [09:00–12:00 ...] --out DIR
-Evening day (a range ending 17:00 or later): two photos from two different categories
-(coffee → pastry → acai), "יש פיצה!" sticker and pizza first in the text, but no pizza photo. Morning-only day: the rotating photo is big, the sandwich small, no pizza.
+Evening day (a range ending 17:00 or later): the pizza is the big photo, the small one
+rotates coffee → pastry → acai. Morning-only day: the rotating photo is big, the sandwich small, no pizza.
 The rotation state lives in story-rotation.json next to this toolkit, so commit it after a run.
 """
 import argparse, datetime, json, pathlib, subprocess, sys
@@ -14,11 +14,12 @@ STATE = ROOT / "story-rotation.json"
 # Only photos that sit well next to the pizza: warm wood, daylight, food as the subject
 # (owner, 10.10.2026: "the photos must look very beautiful together"). Left out on purpose:
 # coffee-4 (green barrel, soft), coffee-5 (dark, hand), hero (mostly the cart), pastry-3 and
-# pastry-5 (busy backgrounds), pizza.jpg (blurry).
+# pastry-5 (busy backgrounds). (pizza.jpg was replaced by the owner's photo on 10.10.2026.)
 POOLS = {
     "coffee": ["cortado-lawn.jpg", "coffee-2.jpg", "coffee-3.jpg"],
     "pastry": ["pastry-2.jpg", "pastry-4.jpg", "pastry-3.jpg"],  # pastry-tray: owner said not for publishing (10.10.2026)
     "acai": ["acai.jpg"],  # the owner's one bowl photo (10.10.2026)
+    "pizza": ["pizza.jpg"],  # the owner's margherita photo (10.10.2026), cropped above the hand
 }
 CATS = ["coffee", "pastry", "acai"]
 DAYS = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"]  # date.weekday() order
@@ -40,9 +41,7 @@ def story(date, ranges, state):
     evening = max(ends) >= 17
     s = {"day": DAYS[date.weekday()], "date": f"{date.day}.{date.month}", "hours": ranges}
     if evening:
-        # owner 10.10.2026: no pizza photo; pizza stays in the sticker and the text
-        other = CATS[(CATS.index(cat) + 1) % len(CATS)]
-        s.update(main=pick, second=take(state, other), sticker="יש פיצה!",
+        s.update(main=take(state, "pizza"), second=pick, sticker="יש פיצה!",
                  sub="<b>פיצה</b>, קערת אסאי, מאפים, שייקים וקפה")
     else:
         s.update(main=pick, second="sandwich.jpg", sub="קפה, כריכים, מאפים ושייקים")
@@ -74,9 +73,8 @@ def main():
 if __name__ == "__main__":
     # self-check: categories turn, photos inside a category turn, no photo repeats early
     st, d = {}, datetime.date(2026, 10, 12)
-    seen = [story(d, ["17:00–19:00"], st) for _ in range(3)]
-    assert [x["main"] for x in seen] == ["cortado-lawn.jpg", "pastry-4.jpg", "acai.jpg"], seen
-    assert [x["second"] for x in seen] == ["pastry-2.jpg", "acai.jpg", "coffee-2.jpg"], seen
-    assert all("pizza" not in x["main"] + x["second"] for x in seen)
+    seen = [story(d, ["17:00–19:00"], st) for _ in range(4)]
+    assert all(x["main"] == "pizza.jpg" for x in seen), seen
+    assert [x["second"] for x in seen] == ["cortado-lawn.jpg", "pastry-2.jpg", "acai.jpg", "coffee-2.jpg"], seen
     assert all((ROOT / "assets/photos" / f).exists() for v in POOLS.values() for f in v)
     main()
