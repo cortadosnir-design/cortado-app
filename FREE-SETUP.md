@@ -47,7 +47,7 @@
 2. סוג: **Other** ← **Business** ← שם `Cortado Ops` ← Create.
 3. **App settings ← Basic**: מעתיקים **App ID** ו-**App Secret** (Show) ← ב-Cloudflare מוסיפים כ-Secrets `FB_APP_ID` ו-`FB_APP_SECRET`.
 4. **Tools ← Graph API Explorer** ← למעלה מימין בוחרים את האפליקציה `Cortado Ops`.
-5. ב-**Permissions** מוסיפים: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `pages_manage_metadata`, `instagram_basic`, `instagram_content_publish`, `business_management`.
+5. ב-**Permissions** מוסיפים: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `pages_manage_metadata`, `instagram_basic`, `instagram_content_publish`, `business_management`, ולנתונים של דשבורד הפרסום (המחבר `/mcp`) גם `read_insights`, `pages_read_user_content`, `instagram_manage_insights`.
 6. **Generate Access Token** ← מאשרים בחלון של פייסבוק ← מעתיקים את הטוקן (הוא קצר, תקף לשעה).
 7. באפליקציה, בלשונית **משמרות** ← כרטיס "שעות הפתיחה, בכל מקום" ← **חיבור עמוד פייסבוק (פעם אחת)** ← מדביקים את הטוקן ← **חבר עמוד**.
    השרת מחליף אותו בטוקן עמוד **ארוך טווח** ושומר אותו אצלו (Firestore, `secrets/meta`, סגור לקריאה). זהו — הטוקן של העמוד לא פג.

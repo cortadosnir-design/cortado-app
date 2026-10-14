@@ -1092,7 +1092,7 @@ const MCP_KEY_SHA256 = "eee833db388b0dd21265103af8026cfdc2a590e697c196dd2e82b5b3
 const MCP_TOOLS = [
   { name: "account", description: "Current state of the cart's Facebook page and Instagram account: name, followers, and whether Instagram is connected to the server.",
     inputSchema: { type: "object", properties: {} } },
-  { name: "facebook_daily", description: "Facebook page metrics per day (Meta Page Insights): views, engagements, page_views, follows, unfollows, reach. Rows: {day, ...}. Range up to 90 days; default the last 28 days.",
+  { name: "facebook_daily", description: "Facebook page metrics per day (Meta Page Insights): views, engagements, page_views, follows, unfollows. Rows: {day, ...}. Range up to 90 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "instagram_daily", description: "Instagram account metrics per day (Meta Instagram Insights): reach, views, interactions, accounts_engaged, follower_gain. Rows: {day, ...}. Range up to 30 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
@@ -1141,7 +1141,7 @@ async function mcpAccount(env){
 async function mcpFacebookDaily(env, a){
   const { since, until } = mcpRange(a, 90);
   const metrics = { views: "page_media_view", engagements: "page_post_engagements", page_views: "page_views_total",
-    follows: "page_daily_follows_unique", unfollows: "page_daily_unfollows_unique", reach: "page_impressions_unique" };
+    follows: "page_daily_follows_unique", unfollows: "page_daily_unfollows_unique" };   // page_impressions_unique בוטל במטא (נבדק 14.10.2026)
   const days = new Map();
   for (let d = since; d <= until; d = dayShift(d, 1)) days.set(d, { day: d });
   const notes = [];
