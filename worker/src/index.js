@@ -1112,12 +1112,12 @@ function mcpRange(a, maxDays){
 const insightDay = (endTime) => new Date(Date.parse(endTime) - 864e5).toISOString().slice(0, 10);
 // שאילתה עם כמה גרסאות שדות: מטא משנה ומבטלת מדדים, ומדד אחד שבוטל מפיל את כל הבקשה.
 async function graphFirst(env, path, variants, base){
-  let last;
+  const errors = [];
   for (const fields of variants){
-    try { return { data: await graph(env, path, { ...base, fields }, "GET"), fields }; }
-    catch (e){ last = e; }
+    try { return { data: await graph(env, path, { ...base, fields }, "GET"), fields, errors }; }
+    catch (e){ errors.push(e.message); }
   }
-  throw last;
+  throw new Error(errors[errors.length - 1]);
 }
 const insightVal = (ins, name) => {
   const row = ((ins && ins.data) || []).find(m => m.name === name);
@@ -1202,9 +1202,11 @@ async function mcpPosts(env, a){
 
   const fbCore = "id,created_time,message,permalink_url,status_type,attachments{media_type},shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)";
   try {
-    const { data, fields } = await graphFirst(env, `${env.FB_PAGE_ID}/published_posts`,
-      [fbCore + ",insights.metric(post_impressions_unique,post_media_view)", fbCore + ",insights.metric(post_impressions_unique)", fbCore], base);
-    if (!fields.includes("insights")) notes.push("facebook posts: Meta refused post insights, so views and reach are missing");
+    const { data, fields, errors } = await graphFirst(env, `${env.FB_PAGE_ID}/published_posts`,
+      // post_impressions_unique בוטל במטא; היורש של "כמה אנשים ראו" הוא post_total_media_view_unique
+      [fbCore + ",insights.metric(post_media_view,post_total_media_view_unique)", fbCore + ",insights.metric(post_media_view)",
+       fbCore + ",insights.metric(post_impressions_unique)", fbCore], base);
+    if (!fields.includes("insights")) notes.push("facebook posts: Meta refused post insights, so views and reach are missing (" + (errors[0] || "") + ")");
     for (const p of data.data || []){
       const media = p.attachments && p.attachments.data && p.attachments.data[0] && p.attachments.data[0].media_type || "";
       const likes = p.reactions && p.reactions.summary ? p.reactions.summary.total_count : 0;
@@ -1212,7 +1214,7 @@ async function mcpPosts(env, a){
       const shares = p.shares ? p.shares.count : 0;
       rows.push({ id: p.id, network: "facebook", kind: media === "album" ? "carousel" : media === "video" ? "video" : "photo",
         at: p.created_time, text: String(p.message || "").slice(0, 300), url: p.permalink_url || "",
-        views: insightVal(p.insights, "post_media_view"), reach: insightVal(p.insights, "post_impressions_unique"),
+        views: insightVal(p.insights, "post_media_view"), reach: insightVal(p.insights, "post_total_media_view_unique") ?? insightVal(p.insights, "post_impressions_unique"),
         likes, comments, shares, saves: null, interactions: likes + comments + shares });
     }
   } catch (e){ notes.push("facebook posts: " + e.message); }
@@ -1228,7 +1230,7 @@ async function mcpPosts(env, a){
       const dup = rows.findIndex(x => x.network === "facebook" && x.id.endsWith("_" + v.id));
       if (dup >= 0) rows.splice(dup, 1);
       rows.push({ id: v.id, network: "facebook", kind: "reel", at: v.created_time, text: String(v.description || "").slice(0, 300), url,
-        views: insightVal(vi, "blue_reels_play_count"), reach: insightVal(vi, "post_impressions_unique"),
+        views: insightVal(vi, "blue_reels_play_count"), reach: insightVal(vi, "post_total_media_view_unique") ?? insightVal(vi, "post_impressions_unique"),
         likes, comments: null, shares: null, saves: null, interactions: likes });
     }
   } catch (e){ notes.push("facebook reels: " + e.message); }
