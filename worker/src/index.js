@@ -49,6 +49,8 @@ export default {
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
+      // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
+      if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -1078,6 +1080,209 @@ async function postInsights(env, b){
     out.push({ id, reach: sum("reach"), likes: sum("likes"), saves: sum("saves"), sources: got.length });
   }
   return { posts: out, at: Date.now() };
+}
+
+/* ===== MCP: Claude קורא את פייסבוק ואינסטגרם ישירות (קריאה בלבד) =====
+   הבעלים ביקש דשבורד שמחובר ישר למטא, בלי Metricool (14.10.2026). השרת כבר מחזיק את טוקן העמוד,
+   אז הוא משמש כמחבר: Claude (והדשבורד) קוראים כאן, והשרת שואל את Graph API.
+   הכניסה: /mcp/<מפתח>. בקוד שמור רק ה-SHA-256 של המפתח (המאגר ציבורי), והמפתח עצמו נמסר לבעלים.
+   החלפת מפתח = החלפת ה-hash כאן. אין כאן שום כתיבה למטא.
+   מגבלת Workers החינמי: 50 בקשות חוץ לבקשה אחת, ולכן הטווחים מוגבלים (פייסבוק 90 יום, אינסטגרם 30). */
+const MCP_KEY_SHA256 = "eee833db388b0dd21265103af8026cfdc2a590e697c196dd2e82b5b35dd09bee";
+const MCP_TOOLS = [
+  { name: "account", description: "Current state of the cart's Facebook page and Instagram account: name, followers, and whether Instagram is connected to the server.",
+    inputSchema: { type: "object", properties: {} } },
+  { name: "facebook_daily", description: "Facebook page metrics per day (Meta Page Insights): views, engagements, page_views, follows, unfollows, reach. Rows: {day, ...}. Range up to 90 days; default the last 28 days.",
+    inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+  { name: "instagram_daily", description: "Instagram account metrics per day (Meta Instagram Insights): reach, views, interactions, accounts_engaged, follower_gain. Rows: {day, ...}. Range up to 30 days; default the last 28 days.",
+    inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+  { name: "posts", description: "Every Facebook post and reel and every Instagram post and reel published in the range, with views, reach, likes, comments, shares, saves and interactions. Range up to 90 days; default the last 28 days.",
+    inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+];
+const dayShift = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+function mcpRange(a, maxDays){
+  const ok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) && !isNaN(Date.parse(v));
+  const until = ok(a.until) ? String(a.until) : ilToday();
+  let since = ok(a.since) ? String(a.since) : dayShift(until, -27);
+  if (since > until) throw fail("bad_request", "since is after until");
+  if (since < dayShift(until, -(maxDays - 1))) since = dayShift(until, -(maxDays - 1));
+  return { since, until };
+}
+// Meta מסמנת יום לפי end_time בסופו (חצות שעון פסיפיק), ולכן היום עצמו הוא יום אחד לפני.
+const insightDay = (endTime) => new Date(Date.parse(endTime) - 864e5).toISOString().slice(0, 10);
+// שאילתה עם כמה גרסאות שדות: מטא משנה ומבטלת מדדים, ומדד אחד שבוטל מפיל את כל הבקשה.
+async function graphFirst(env, path, variants, base){
+  let last;
+  for (const fields of variants){
+    try { return { data: await graph(env, path, { ...base, fields }, "GET"), fields }; }
+    catch (e){ last = e; }
+  }
+  throw last;
+}
+const insightVal = (ins, name) => {
+  const row = ((ins && ins.data) || []).find(m => m.name === name);
+  if (!row) return null;
+  const v = row.total_value ? row.total_value.value : (row.values && row.values[0] ? row.values[0].value : null);
+  return typeof v === "number" ? v : (v && typeof v === "object" ? Object.values(v).reduce((s, x) => s + (Number(x) || 0), 0) : null);
+};
+
+async function mcpAccount(env){
+  const out = { rows: [], notes: [] };
+  const fb = await graph(env, env.FB_PAGE_ID, { fields: "name,followers_count,fan_count,link" }, "GET");
+  out.rows.push({ network: "facebook", name: fb.name, followers: fb.followers_count ?? fb.fan_count ?? null, url: fb.link || "" });
+  if (!env.IG_USER_ID) out.notes.push("Instagram is not connected to the server (IG_USER_ID missing). Reconnect the page in the app to link it.");
+  else {
+    const ig = await graph(env, env.IG_USER_ID, { fields: "username,followers_count,follows_count,media_count" }, "GET");
+    out.rows.push({ network: "instagram", name: ig.username, followers: ig.followers_count ?? null, url: "https://www.instagram.com/" + ig.username + "/" });
+  }
+  return out;
+}
+
+async function mcpFacebookDaily(env, a){
+  const { since, until } = mcpRange(a, 90);
+  const metrics = { views: "page_media_view", engagements: "page_post_engagements", page_views: "page_views_total",
+    follows: "page_daily_follows_unique", unfollows: "page_daily_unfollows_unique", reach: "page_impressions_unique" };
+  const days = new Map();
+  for (let d = since; d <= until; d = dayShift(d, 1)) days.set(d, { day: d });
+  const notes = [];
+  await Promise.all(Object.entries(metrics).map(async ([col, metric]) => {
+    try {
+      const r = await graph(env, `${env.FB_PAGE_ID}/insights`, { metric, period: "day", since, until: dayShift(until, 1) }, "GET");
+      for (const v of ((r.data || [])[0] || {}).values || []){
+        const row = days.get(insightDay(v.end_time));
+        if (row) row[col] = typeof v.value === "number" ? v.value : null;
+      }
+    } catch (e){ notes.push(`${col} (${metric}): ${e.message}`); }
+  }));
+  return { since, until, rows: [...days.values()], notes };
+}
+
+async function mcpInstagramDaily(env, a){
+  if (!env.IG_USER_ID) throw fail("not_configured", "Instagram is not connected to the server (IG_USER_ID missing).");
+  const { since, until } = mcpRange(a, 30);
+  const days = new Map();
+  for (let d = since; d <= until; d = dayShift(d, 1)) days.set(d, { day: d });
+  const notes = [];
+  const series = async (col, metric) => {
+    try {
+      const r = await graph(env, `${env.IG_USER_ID}/insights`, { metric, period: "day", since, until: dayShift(until, 1) }, "GET");
+      for (const v of ((r.data || [])[0] || {}).values || []){
+        const row = days.get(insightDay(v.end_time));
+        if (row) row[col] = typeof v.value === "number" ? v.value : null;
+      }
+    } catch (e){ notes.push(`${col} (${metric}): ${e.message}`); }
+  };
+  // views, interactions, accounts_engaged קיימים רק כסכום לטווח, אז שואלים כל יום לחוד (בקשה אחת ליום).
+  // היום הראשון בודק איזו קבוצת מדדים מטא מקבלת, ושאר הימים משתמשים בה: ניסיון חוזר לכל יום היה עובר את תקרת ה-50.
+  let metric = "views,total_interactions,accounts_engaged";
+  const totals = async (d) => {
+    const r = await graph(env, `${env.IG_USER_ID}/insights`, { metric, metric_type: "total_value", period: "day", since: d, until: dayShift(d, 1) }, "GET");
+    const row = days.get(d);
+    row.views = insightVal(r, "views");
+    if (metric !== "views"){ row.interactions = insightVal(r, "total_interactions"); row.accounts_engaged = insightVal(r, "accounts_engaged"); }
+  };
+  const [first, ...rest] = [...days.keys()];
+  try { await totals(first); }
+  catch (e){
+    notes.push(`interactions, accounts_engaged: ${e.message}`);
+    metric = "views";
+    try { await totals(first); } catch (e2){ notes.push(`views: ${e2.message}`); metric = ""; }
+  }
+  await Promise.all([series("reach", "reach"), series("follower_gain", "follower_count"),
+    ...(metric ? rest.map(d => totals(d).catch(e => notes.push(`${d}: ${e.message}`))) : [])]);
+  return { since, until, rows: [...days.values()], notes: [...new Set(notes)].slice(0, 10) };
+}
+
+async function mcpPosts(env, a){
+  const { since, until } = mcpRange(a, 90);
+  const from = since + "T00:00:00Z", to = dayShift(until, 1) + "T00:00:00Z";
+  const inRange = (t) => { const s = new Date(Date.parse(String(t).replace(/\+0000$/, "Z"))).toISOString(); return s >= from && s < to; };
+  const rows = [], notes = [];
+  const base = { since, until: dayShift(until, 1), limit: "100" };
+
+  const fbCore = "id,created_time,message,permalink_url,status_type,attachments{media_type},shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)";
+  try {
+    const { data, fields } = await graphFirst(env, `${env.FB_PAGE_ID}/published_posts`,
+      [fbCore + ",insights.metric(post_impressions_unique,post_media_view)", fbCore + ",insights.metric(post_impressions_unique)", fbCore], base);
+    if (!fields.includes("insights")) notes.push("facebook posts: Meta refused post insights, so views and reach are missing");
+    for (const p of data.data || []){
+      const media = p.attachments && p.attachments.data && p.attachments.data[0] && p.attachments.data[0].media_type || "";
+      const likes = p.reactions && p.reactions.summary ? p.reactions.summary.total_count : 0;
+      const comments = p.comments && p.comments.summary ? p.comments.summary.total_count : 0;
+      const shares = p.shares ? p.shares.count : 0;
+      rows.push({ id: p.id, network: "facebook", kind: media === "album" ? "carousel" : media === "video" ? "video" : "photo",
+        at: p.created_time, text: String(p.message || "").slice(0, 300), url: p.permalink_url || "",
+        views: insightVal(p.insights, "post_media_view"), reach: insightVal(p.insights, "post_impressions_unique"),
+        likes, comments, shares, saves: null, interactions: likes + comments + shares });
+    }
+  } catch (e){ notes.push("facebook posts: " + e.message); }
+
+  try {
+    const r = await graph(env, `${env.FB_PAGE_ID}/video_reels`, { fields: "id,description,created_time,permalink_url,video_insights", limit: "50" }, "GET");
+    for (const v of r.data || []){
+      if (!inRange(v.created_time)) continue;
+      const vi = v.video_insights;
+      const likes = insightVal(vi, "post_video_likes_by_reaction_type") ?? 0;
+      const url = v.permalink_url ? (v.permalink_url.startsWith("http") ? v.permalink_url : "https://www.facebook.com" + v.permalink_url) : "";
+      // ריל מופיע לפעמים גם בפוסטים של העמוד: מחליפים את השורה הכפולה בשורת הריל, שיש לה את מספרי הצפייה.
+      const dup = rows.findIndex(x => x.network === "facebook" && x.id.endsWith("_" + v.id));
+      if (dup >= 0) rows.splice(dup, 1);
+      rows.push({ id: v.id, network: "facebook", kind: "reel", at: v.created_time, text: String(v.description || "").slice(0, 300), url,
+        views: insightVal(vi, "blue_reels_play_count"), reach: insightVal(vi, "post_impressions_unique"),
+        likes, comments: null, shares: null, saves: null, interactions: likes });
+    }
+  } catch (e){ notes.push("facebook reels: " + e.message); }
+
+  if (!env.IG_USER_ID) notes.push("Instagram is not connected to the server (IG_USER_ID missing).");
+  else try {
+    const core = "id,caption,media_type,media_product_type,timestamp,permalink,like_count,comments_count";
+    const { data, fields } = await graphFirst(env, `${env.IG_USER_ID}/media`,
+      [core + ",insights.metric(reach,views,saved,shares,total_interactions)", core + ",insights.metric(reach,saved,shares)", core], base);
+    if (!fields.includes("insights")) notes.push("instagram posts: Meta refused media insights, so reach and views are missing");
+    for (const m of data.data || []){
+      if (!inRange(m.timestamp)) continue;
+      const likes = m.like_count ?? 0, comments = m.comments_count ?? 0;
+      const saves = insightVal(m.insights, "saved"), shares = insightVal(m.insights, "shares");
+      rows.push({ id: m.id, network: "instagram",
+        kind: m.media_product_type === "REELS" ? "reel" : m.media_type === "CAROUSEL_ALBUM" ? "carousel" : m.media_type === "VIDEO" ? "video" : "photo",
+        at: m.timestamp, text: String(m.caption || "").slice(0, 300), url: m.permalink || "",
+        views: insightVal(m.insights, "views"), reach: insightVal(m.insights, "reach"), likes, comments, shares, saves,
+        interactions: insightVal(m.insights, "total_interactions") ?? likes + comments + (saves || 0) + (shares || 0) });
+    }
+  } catch (e){ notes.push("instagram posts: " + e.message); }
+
+  const iso = (t) => new Date(Date.parse(String(t).replace(/\+0000$/, "Z"))).toISOString();
+  rows.forEach(r => { r.at = iso(r.at); });
+  rows.sort((x, y) => (y.at < x.at ? -1 : 1));
+  return { since, until, rows, notes };
+}
+
+async function mcp(env, request, key){
+  const h = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)))].map(b => b.toString(16).padStart(2, "0")).join("");
+  if (!sameStr(h, MCP_KEY_SHA256)) return new Response("not found", { status: 404 });
+  if (request.method !== "POST") return new Response(null, { status: 405, headers: { allow: "POST" } });
+  const msg = await request.json().catch(() => null);
+  const reply = (body) => new Response(JSON.stringify({ jsonrpc: "2.0", ...body }), { headers: { "content-type": "application/json" } });
+  if (!msg || Array.isArray(msg) || typeof msg.method !== "string") return reply({ id: null, error: { code: -32600, message: "Invalid request" } });
+  if (msg.id === undefined || msg.id === null) return new Response(null, { status: 202 });   // התראה, בלי תשובה
+  const { id, method, params = {} } = msg;
+  if (method === "initialize") return reply({ id, result: {
+    protocolVersion: params.protocolVersion || "2025-06-18", capabilities: { tools: {} },
+    serverInfo: { name: "cortado-meta", version: "1.0.0" },
+    instructions: "Read-only Facebook and Instagram data for Cafe Cortado (Kibbutz Snir), straight from Meta's Graph API." } });
+  if (method === "ping") return reply({ id, result: {} });
+  if (method === "tools/list") return reply({ id, result: { tools: MCP_TOOLS } });
+  if (method !== "tools/call") return reply({ id, error: { code: -32601, message: "Method not found: " + method } });
+  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts }[params.name];
+  if (!run) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
+  try {
+    const m = await withMeta(env);
+    if (!m.FB_PAGE_TOKEN || !m.FB_PAGE_ID) throw fail("not_configured", "The Facebook page is not connected to the server.");
+    const out = await run(m, params.arguments || {});
+    return reply({ id, result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out } });
+  } catch (e){
+    return reply({ id, result: { isError: true, content: [{ type: "text", text: e.message || String(e) }] } });
+  }
 }
 
 /* ===== Firestore מהשרת =====

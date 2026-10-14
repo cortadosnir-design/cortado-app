@@ -78,3 +78,4 @@
 | `/hours/fromgoogle` | שעות פתיחה: קריאה מהפרופיל בגוגל (`PLACES_API_KEY`) |
 | `/hours/bot` | שעות פתיחה מבוט קורטדו: שבוע שלם, אחרי "כן" של הבעלים בוואטסאפ. מזדהה ב-`BOT_KEY` (כותרת `x-bot-key`), לא במשתמש. כותב `hoursOverride` לשבוע ומפרסם לדף הנחיתה ולפייסבוק, כמו `hoursync.js` |
 | `/status` `/setup/pages` | חיבור העמוד |
+| `/mcp/<מפתח>` | מחבר ל-Claude (MCP, קריאה בלבד): `account`, `facebook_daily`, `instagram_daily`, `posts` ישירות מ-Graph API. בקוד רק ה-SHA-256 של המפתח (`MCP_KEY_SHA256`); המפתח עצמו אצל הבעלים, בהגדרת המחבר ב-Claude. מזין את דשבורד הפרסום |

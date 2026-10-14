@@ -416,6 +416,87 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── המחבר ל-Claude (/mcp/<מפתח>): מפתח, פרוטוקול, וימים/פוסטים ממטא מעוצבים לשורות ── */
+{
+  const a = wsrc.indexOf("const MCP_KEY_SHA256"), z = wsrc.indexOf("/* ===== Firestore מהשרת");
+  const key = "test-key";
+  const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)))].map(b => b.toString(16).padStart(2, "0")).join("");
+  const block = wsrc.slice(a, z).replace(/const MCP_KEY_SHA256 = "[0-9a-f]+"/, `const MCP_KEY_SHA256 = "${hash}"`);
+  const sameStr = (x, y) => x === y;
+  const ENV = { FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t", IG_USER_ID: "ig1" };
+  const calls = [];
+  const graph = async (env, path, params) => {
+    calls.push([path, params]);
+    if (path === "p1/insights"){
+      if (params.metric === "page_views_total") throw new Error("(#100) The value must be a valid insights metric");
+      return { data: [{ name: params.metric, values: [{ value: 5, end_time: "2026-10-08T07:00:00+0000" }, { value: 7, end_time: "2026-10-09T07:00:00+0000" }] }] };
+    }
+    if (path === "ig1/insights" && params.metric_type) return { data: [{ name: "views", total_value: { value: 11 } }, { name: "total_interactions", total_value: { value: 2 } }, { name: "accounts_engaged", total_value: { value: 1 } }] };
+    if (path === "ig1/insights") return { data: [{ name: params.metric, values: [{ value: 40, end_time: "2026-10-08T07:00:00+0000" }] }] };
+    if (path === "p1/published_posts"){
+      if (/post_media_view/.test(params.fields)) throw new Error("(#100) invalid metric post_media_view");
+      return { data: [
+        { id: "p1_1", created_time: "2026-10-07T05:02:08+0000", message: "יום קצר בצפון", permalink_url: "https://fb/p1", attachments: { data: [{ media_type: "album" }] },
+          shares: { count: 4 }, reactions: { summary: { total_count: 9 } }, comments: { summary: { total_count: 0 } }, insights: { data: [{ name: "post_impressions_unique", values: [{ value: 131 }] }] } },
+        { id: "p1_99", created_time: "2026-10-08T09:03:45+0000", message: "", permalink_url: "https://fb/dup", reactions: { summary: { total_count: 0 } }, comments: { summary: { total_count: 0 } } } ] };
+    }
+    if (path === "p1/video_reels") return { data: [
+      { id: "99", description: "4 עצירות", created_time: "2026-10-08T09:03:45+0000", permalink_url: "/reel/99/", video_insights: { data: [{ name: "blue_reels_play_count", values: [{ value: 119 }] }, { name: "post_video_likes_by_reaction_type", values: [{ value: { REACTION_LIKE: 2, REACTION_LOVE: 1 } }] }] } },
+      { id: "50", description: "ישן", created_time: "2026-09-01T09:00:00+0000", permalink_url: "/reel/50/" } ] };
+    if (path === "ig1/media") return { data: [{ id: "m1", caption: "דוכנים", media_type: "IMAGE", media_product_type: "FEED", timestamp: "2026-10-10T06:02:26+0000", permalink: "https://ig/m1", like_count: 8, comments_count: 0,
+      insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }] };
+    if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
+    if (path === "ig1") return { username: "cortado_snir", followers_count: 672 };
+    throw new Error("unexpected " + path);
+  };
+  const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", block + "\nreturn { mcp };")(
+    (c, msg) => Object.assign(new Error(msg), { code: c }), graph, async (e) => e, sameStr, () => "2026-10-14");
+  const call = async (body, k = key, method = "POST") => {
+    const r = await m.mcp(ENV, new Request("https://x/mcp/" + k, { method, ...(method === "POST" ? { body: JSON.stringify(body) } : {}) }), k);
+    return { status: r.status, body: r.status === 200 ? await r.json() : null };
+  };
+  let p = 0, f = 0;
+  const ok = (n, c, x = "") => c ? (p++, console.log("  ✓ " + n)) : (f++, console.log("  ✗ " + n + "  " + x));
+  console.log("\n17. המחבר ל-Claude: פייסבוק ואינסטגרם ישירות ממטא");
+  ok("מפתח שגוי → 404", (await call({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "nope")).status === 404);
+  ok("GET → 405", (await call(null, key, "GET")).status === 405);
+  const init = await call({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } });
+  ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
+  ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
+  const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
+  ok("ארבעה כלים", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts");
+  const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
+
+  const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
+  ok("פייסבוק: יום לפי end_time פחות יום", fb.rows[0].day === "2026-10-07" && fb.rows[0].views === 5 && fb.rows[1].views === 7, JSON.stringify(fb.rows));
+  ok("מדד שמטא דחתה → הערה, לא נפילה", fb.notes.length === 1 && /page_views_total/.test(fb.notes[0]) && fb.rows[0].page_views === undefined, JSON.stringify(fb.notes));
+  calls.length = 0;
+  const longFb = (await tool("facebook_daily", { since: "2025-01-01", until: "2026-10-14" })).structuredContent;
+  ok("טווח ארוך מוגבל ל-90 יום", longFb.since === "2026-07-17" && longFb.rows.length === 90);
+
+  calls.length = 0;
+  const ig = (await tool("instagram_daily", {})).structuredContent;
+  ok("אינסטגרם: ברירת מחדל 28 יום עד היום", ig.since === "2026-09-17" && ig.until === "2026-10-14" && ig.rows.length === 28);
+  ok("אינסטגרם: הגעה יומית וסכומים לכל יום", ig.rows.find(r => r.day === "2026-10-07").reach === 40 && ig.rows[0].views === 11 && ig.rows[0].interactions === 2);
+  ok("אינסטגרם: לא יותר מ-40 בקשות למטא (תקרת Workers 50)", calls.length <= 40, String(calls.length));
+
+  const posts = (await tool("posts", { since: "2026-10-07", until: "2026-10-14" })).structuredContent;
+  const byId = Object.fromEntries(posts.rows.map(r => [r.id, r]));
+  ok("פוסט פייסבוק: גרסת שדות חלופית כשמדד נדחה", byId.p1_1 && byId.p1_1.reach === 131 && byId.p1_1.kind === "carousel" && byId.p1_1.interactions === 13, JSON.stringify(byId.p1_1));
+  ok("ריל: צפיות ולייקים, כתובת מלאה, בלי כפילות בפוסטים", byId["99"].views === 119 && byId["99"].likes === 3 && byId["99"].url === "https://www.facebook.com/reel/99/" && !byId.p1_99);
+  ok("ריל מחוץ לטווח לא נכנס", !byId["50"]);
+  ok("אינסטגרם: צפיות והגעה", byId.m1.views === 376 && byId.m1.reach === 169 && byId.m1.at === "2026-10-10T06:02:26.000Z");
+  ok("ממוין מהחדש לישן", posts.rows[0].id === "m1");
+
+  const acc = (await tool("account")).structuredContent;
+  ok("חשבון: עוקבים בשתי הרשתות", acc.rows[0].followers === 5 && acc.rows[1].followers === 672);
+  const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);
+  const nb = await noIg.json();
+  ok("בלי אינסטגרם בשרת → שגיאה ברורה, לא קריסה", nb.result.isError && /IG_USER_ID/.test(nb.result.content[0].text));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── כל הקובץ נטען כמודול, כמו ש-wrangler בונה אותו. הבדיקות למעלה חותכות חלקים, ולכן לא תופסות הצהרה כפולה ── */
 {
   let err = null;
