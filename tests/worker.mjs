@@ -365,6 +365,60 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── סטורי מהבוט: תמונה אחת, סטורי לפייסבוק ולאינסטגרם, תיוג שלא עובר לא מפיל ── */
+{
+  console.log("\nסטורי מהבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botStory("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
+  const mk = ({ tagFails = false, fbFails = false } = {}) => {
+    const calls = [], uploads = [];
+    const graph = async (_e, path, params = {}, method = "POST") => {
+      calls.push([method, path, params]);
+      if (path.endsWith("/photo_stories")){ if (fbFails) throw new Error("fb no"); return { success: true, post_id: "s1" }; }
+      if (method === "GET") return { images: [{ width: 500, source: "https://cdn/small" }, { width: 1080, source: "https://cdn/big" }] };
+      if (path.endsWith("/media")){ if (tagFails && params.user_tags) throw new Error("tag no"); return { id: "c1" }; }
+      if (path.endsWith("/media_publish")) return { id: "ig9" };
+      throw new Error("unexpected " + path);
+    };
+    const fn = new Function("botAuth", "withMeta", "graph", "graphUpload", "dataUrlToBlob", "igReady", "hebrew", "fail", wsrc.slice(a, z) + "\nreturn botStory;")(
+      auth, async (e) => e, graph, async (_e, path, fields, file) => { uploads.push([path, fields, file.type]); return { id: "ph1" }; },
+      (u) => { const m = /^data:([^;]+);base64,(.+)$/.exec(String(u || "")); return m ? new Blob([Buffer.from(m[2], "base64")], { type: m[1] }) : null; },
+      async () => true, (m) => m, fail);
+    return { botStory: fn, calls, uploads };
+  };
+  const env = { BOT_KEY: "k", FB_PAGE_ID: "P", FB_PAGE_TOKEN: "T", IG_USER_ID: "I" };
+  const TAGS = ["@galiluz.north", "galil.elion", "@galilgolan_travel_culture", "@galilback"];
+  const req = (o, key = "k") => new Request("https://x/post/bot/story", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify(o) });
+  const img = "data:image/jpeg;base64,AQID";
+
+  const t1 = mk();
+  const out = await t1.botStory(env, req({ image: img, tags: TAGS }));
+  ok("פייסבוק ואינסטגרם יצאו כסטורי", out.ok && out.fbStoryId === "s1" && out.igStoryId === "ig9", JSON.stringify(out));
+  ok("התמונה עלתה פעם אחת לעמוד, לא מפורסמת", t1.uploads.length === 1 && t1.uploads[0][0] === "P/photos" && t1.uploads[0][1].published === "false");
+  const c = t1.calls.find(x => x[1] === "I/media")[2];
+  ok("אינסטגרם: STORIES, הכתובת הגדולה, ותיוג ארבעת החשבונות בלי @", c.media_type === "STORIES" && c.image_url === "https://cdn/big"
+    && JSON.stringify(JSON.parse(c.user_tags).map(u => u.username)) === JSON.stringify(["galiluz.north", "galil.elion", "galilgolan_travel_culture", "galilback"]));
+  ok("פייסבוק: photo_stories מאותה תמונה", t1.calls.some(x => x[1] === "P/photo_stories" && x[2].photo_id === "ph1"));
+
+  const t2 = mk({ tagFails: true });
+  const untagged = await t2.botStory(env, req({ image: img, tags: TAGS }));
+  ok("תיוג נדחה: הסטורי יוצא בלי תיוג, והסיבה מדווחת", untagged.igStoryId === "ig9" && untagged.igTagError === "tag no" && !untagged.igTagged.length);
+
+  const half = await mk({ fbFails: true }).botStory(env, req({ image: img }));
+  ok("פייסבוק נכשל: אינסטגרם בכל זאת יוצא", half.fbError === "fb no" && half.igStoryId === "ig9" && half.ok);
+  const fbOnly = await mk().botStory({ ...env, IG_USER_ID: "" }, req({ image: img }));
+  ok("בלי חשבון אינסטגרם: פייסבוק בלבד, עם סיבה", fbOnly.fbStoryId === "s1" && /לא מחובר/.test(fbOnly.igSkipped));
+  const t3 = mk(); let e1 = null; try { await t3.botStory(env, req({ image: "https://x/y.jpg" })); } catch (e){ e1 = e; }
+  ok("בלי data URL של תמונה: נדחה בלי להעלות", e1 && e1.code === "bad_request" && !t3.uploads.length);
+  const t4 = mk(); let e2 = null; try { await t4.botStory(env, req({ image: img }, "nope")); } catch (e){ e2 = e; }
+  ok("מפתח שגוי: נדחה בלי להעלות", e2 && e2.status === 403 && !t4.uploads.length);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/story"') > 0 && wsrc.indexOf('"/post/bot/story"') < wsrc.indexOf("await requireUser(request, env)"));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── גוגל לפי תאריך (specialHours), עם בדיקה בלי כתיבה ── */
 {
   console.log("\nגוגל לפי תאריך");

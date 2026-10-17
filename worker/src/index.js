@@ -49,6 +49,7 @@ export default {
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
+      if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
       // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
       if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
       // חיבור חד-פעמי של פרופיל העסק בגוגל. נשמר רק אם מייסד אישר בגוגל.
@@ -966,6 +967,43 @@ async function botReel(env, request){
   try { await fsPatch(env, `posts/${id}`, { ...out, status, publishAt: Date.now() }); }
   catch (e){ out.saveError = hebrew(e.message); }
   return { ok: true, ...out };
+}
+
+/* ===== סטורי מהבוט: "מחר בעגלה", בלי "כן" (הבעלים, 17.10.2026) =====
+   התמונה עולה פעם אחת לעמוד כתמונה לא מפורסמת. ממנה סטורי לפייסבוק, ומהכתובת שלה ב-CDN סטורי לאינסטגרם
+   (אין לנו אחסון משלנו). כל ערוץ מדווח לבד, וכישלון של אחד לא עוצר את השני. */
+async function botStory(env, request){
+  botAuth(env, request);
+  const b = await request.json().catch(() => ({}));
+  env = await withMeta(env);
+  if (!env.FB_PAGE_ID || !env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+  const image = dataUrlToBlob(b.image);
+  if (!image || !/^image\//.test(image.type)) throw fail("bad_request", "אין תמונה לסטורי.");
+  if (image.size > 8 * 1024 * 1024) throw fail("bad_request", "התמונה גדולה מ-8MB.");
+  const tags = (Array.isArray(b.tags) ? b.tags : []).map(t => String(t).trim().replace(/^@/, "")).filter(t => /^[\w.]{1,30}$/.test(t)).slice(0, 20);
+  const photo = String((await graphUpload(env, `${env.FB_PAGE_ID}/photos`, { published: "false" }, image)).id);
+  const out = { fbStoryId: "", fbError: "", igStoryId: "", igSkipped: "", igError: "", igTagged: [], igTagError: "" };
+  await Promise.all([
+    graph(env, `${env.FB_PAGE_ID}/photo_stories`, { photo_id: photo })
+      .then(r => { out.fbStoryId = String(r.post_id || r.id || ""); }, e => { out.fbError = hebrew(e.message); }),
+    (async () => {
+      if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
+      try {
+        const ph = await graph(env, photo, { fields: "images" }, "GET");
+        const src = (ph.images || []).slice().sort((x, y) => (y.width || 0) - (x.width || 0))[0];
+        if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
+        const container = async (withTags) => (await graph(env, `${env.IG_USER_ID}/media`, { image_url: src.source, media_type: "STORIES",
+          ...(withTags ? { user_tags: JSON.stringify(tags.map(username => ({ username }))) } : {}) })).id;
+        let c;
+        // תיוג שאינסטגרם דוחה (חשבון שלא מאפשר תיוג, שם שהשתנה) לא מפיל את הסטורי: יוצא בלי תיוג, והסיבה מדווחת
+        if (tags.length) try { c = await container(true); out.igTagged = tags; } catch (e){ out.igTagError = hebrew(e.message); }
+        c ||= await container(false);
+        if (!(await igReady(env, c, 10, 3000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונה, והסטורי לא פורסם.", 502);
+        out.igStoryId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
+      } catch (e){ out.igError = hebrew(e.message); out.igTagged = []; }
+    })(),
+  ]);
+  return { ok: !!(out.fbStoryId || out.igStoryId), ...out };
 }
 
 // מה מהתור הגיע זמנו. נפרד מהרשת כדי שאפשר לבדוק אותו.

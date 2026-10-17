@@ -240,8 +240,11 @@ try {
     ok("\"פתוח עכשיו\" לא מחושב משעות אפויות, רק מ-public/hours", bk.status === "שעות פתיחה", bk.status);
     ok("שעות אפויות של שבוע שעבר נמחקות בדפדפן: מהטבלה, מהתווית ומה-JSON-LD",
       st.cells === "||||||" && st.rows === 7 && st.labels === 0 && st.ld === undefined && st.status === "שעות פתיחה", JSON.stringify(st));
+    // במוצאי שבת אחרי 19:00 לא נשארה בשבוע שום שעת פתיחה, ואין "פתוח עכשיו" או "נפתח" (נפל ב-17.10.2026 בלילה)
+    const afterLast = new Date(today + "T12:00:00Z").getUTCDay() === 6
+      && new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()) >= "19:00";
     ok("הדף מצייר מ-public/hours בדיוק את מה שנאפה מאותו מסמך, ותווית השבוע לא מוכפלת",
-      lv.cells === bk.cells && lv.labels === 1 && /פתוח עכשיו|נפתח/.test(lv.status)
+      lv.cells === bk.cells && lv.labels === 1 && (/פתוח עכשיו|נפתח/.test(lv.status) || afterLast)
       && lv.ld.map(x => x.dayOfWeek + x.opens + x.closes + x.validFrom + x.validThrough).join() === bk.ld.map(x => x.dayOfWeek + x.opens + x.closes + x.validFrom + x.validThrough).join(), JSON.stringify(lv));
     const fontFiles = [...src.matchAll(/(?:url\(|href=")(fonts\/[^)"]+\.woff2)/g)].map(m => m[1]);
     ok("הגופנים מוגשים מהאתר עצמו, וכל קובץ שהדף מפנה אליו קיים", !/fonts\.(googleapis|gstatic)\.com/.test(src) && fontFiles.length >= 10
