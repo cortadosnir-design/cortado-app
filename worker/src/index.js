@@ -51,6 +51,9 @@ export default {
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
       if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
+      // חיבור חד-פעמי של פרופיל העסק בגוגל. נשמר רק אם מייסד אישר בגוגל.
+      if (url.pathname === "/google/connect") return await googleConnect(env, request);
+      if (url.pathname === "/google/callback") return await googleCallback(env, url);
       const user = await requireUser(request, env);
       const owner = ownersOf(env).includes((user.email || "").toLowerCase())
         || await isAdminUid(env, user.uid);
@@ -1098,6 +1101,10 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "posts", description: "Every Facebook post and reel and every Instagram post and reel published in the range, with views, reach, likes, comments, shares, saves and interactions. Range up to 90 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+  { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
+    inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
+  { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
+    inputSchema: { type: "object", properties: { review_id: { type: "string" }, comment: { type: "string", description: "The reply text, up to 4000 characters" } }, required: ["review_id", "comment"] } },
 ];
 const dayShift = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
 function mcpRange(a, maxDays){
@@ -1271,13 +1278,18 @@ async function mcp(env, request, key){
   if (method === "initialize") return reply({ id, result: {
     protocolVersion: params.protocolVersion || "2025-06-18", capabilities: { tools: {} },
     serverInfo: { name: "cortado-meta", version: "1.0.0" },
-    instructions: "Read-only Facebook and Instagram data for Cafe Cortado (Kibbutz Snir), straight from Meta's Graph API." } });
+    instructions: "Facebook and Instagram data for Cafe Cortado (Kibbutz Snir), read-only from Meta's Graph API, plus its Google reviews: read them and publish owner-approved replies." } });
   if (method === "ping") return reply({ id, result: {} });
   if (method === "tools/list") return reply({ id, result: { tools: MCP_TOOLS } });
   if (method !== "tools/call") return reply({ id, error: { code: -32601, message: "Method not found: " + method } });
+  const a = params.arguments || {};
+  // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
+  const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
+    google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
   const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts }[params.name];
-  if (!run) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
+  if (!run && !google) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
   try {
+    if (google){ const out = await google(); return reply({ id, result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out } }); }
     const m = await withMeta(env);
     if (!m.FB_PAGE_TOKEN || !m.FB_PAGE_ID) throw fail("not_configured", "The Facebook page is not connected to the server.");
     const out = await run(m, params.arguments || {});
@@ -1485,6 +1497,124 @@ async function setGoogleHours(env, { weeks, today }){
   return { ok: true, days: days.length, check };
 }
 
+/* ===== ביקורות בגוגל + חיבור חד-פעמי (17.10.2026) =====
+   ה-API אושר ב-12.10.2026. במקום ארבעה סודות שמעתיקים ביד ל-Cloudflare:
+   /google/connect — הבעלים מדביקים פעם אחת client ID ו-secret של OAuth client מה-Cloud Console
+   (או שהם כבר בלוח), מאשרים בגוגל, והשרת שומר ב-Firestore (secrets/google) את ה-refresh token,
+   החשבון והמיקום. נשמר רק אם מי שאישר בגוגל הוא אחד המייסדים, כך שזר לא יכול להחליף את החיבור.
+   מה שמוגדר בלוח של Cloudflare עדיין מנצח, כמו ב-withMeta. */
+const GB_KEYS = ["GB_CLIENT_ID", "GB_CLIENT_SECRET", "GB_REFRESH_TOKEN", "GB_ACCOUNT", "GB_LOCATION"];
+const GB_REDIRECT = "https://cortado-api.cortado-snir.workers.dev/google/callback";
+const GB_SCOPE = "openid email https://www.googleapis.com/auth/business.manage";
+async function gbEnv(env){
+  if (GB_KEYS.every(k => env[k]) || !env.FIREBASE_SA) return env;
+  let d = null;
+  try { d = await fsGet(env, "secrets/google"); } catch {}
+  if (!d) return env;
+  const out = { ...env };
+  for (const k of GB_KEYS) if (!out[k] && d[k]) out[k] = String(d[k]);
+  return out;
+}
+const gbPage = (title, body, status = 200) => new Response(
+  `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>` +
+  `<body style="font:17px system-ui;max-width:520px;margin:32px auto;padding:0 16px;line-height:1.5"><h2>${title}</h2>${body}</body></html>`,
+  { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+const gbEsc = (s) => String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+async function googleConnect(env, request){
+  if (!env.FIREBASE_SA) return gbPage("חסר FIREBASE_SA", "השרת לא יכול לשמור את החיבור.", 500);
+  let id = env.GB_CLIENT_ID, secret = env.GB_CLIENT_SECRET;
+  if (request.method === "POST"){
+    const f = await request.formData().catch(() => null);
+    id = String(f?.get("id") || "").trim(); secret = String(f?.get("secret") || "").trim();
+    if (!/\.apps\.googleusercontent\.com$/.test(id) || secret.length < 10)
+      return gbPage("משהו לא תקין", "ה-Client ID צריך להסתיים ב-apps.googleusercontent.com. <a href='/google/connect'>לנסות שוב</a>", 400);
+  }
+  if (!id || !secret) return gbPage("חיבור גוגל לעגלה",
+    `<p>מדביקים כאן פעם אחת את שני הערכים של ה-OAuth client מ-Google Cloud Console, ואז מאשרים בגוגל עם cortado.snir@gmail.com.</p>
+     <form method="post"><p><label>Client ID<br><input name="id" style="width:100%;font-size:16px" autocomplete="off"></label></p>
+     <p><label>Client secret<br><input name="secret" style="width:100%;font-size:16px" autocomplete="off"></label></p>
+     <p><button style="font-size:17px;padding:8px 20px">המשך לגוגל</button></p></form>
+     <p style="color:#666">Redirect URI שצריך להיות מוגדר ב-client:<br><code>${GB_REDIRECT}</code></p>`);
+  const state = b64url(crypto.getRandomValues(new Uint8Array(18)));
+  // הסוד ממתין כאן עד שהבעלים מאשרים בגוגל. רק אז הוא עובר ל-secrets/google.
+  await fsPatch(env, "secrets/google_pending", { state, id, secret, at: new Date().toISOString() });
+  const q = new URLSearchParams({ client_id: id, redirect_uri: GB_REDIRECT, response_type: "code", scope: GB_SCOPE,
+    access_type: "offline", prompt: "consent", include_granted_scopes: "true", state, login_hint: DEFAULT_OWNERS[0] });
+  return Response.redirect("https://accounts.google.com/o/oauth2/v2/auth?" + q, 302);
+}
+
+// accounts → המיקום של העגלה. בדרך כלל יש אחד; כמה — זה שבשם שלו "קורטדו".
+async function gbFindLocation(token){
+  const auth = { authorization: "Bearer " + token };
+  const a = await (await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", { headers: auth })).json().catch(() => ({}));
+  if (!a.accounts?.length) throw fail("google_error", a.error?.message || "לא נמצא חשבון עסקי בגוגל.", 502);
+  const found = [];
+  for (const acc of a.accounts){
+    const l = await (await fetch(`${GB_API}/${acc.name}/locations?readMask=name,title&pageSize=100`, { headers: auth })).json().catch(() => ({}));
+    for (const loc of l.locations || []) found.push({ account: acc.name, location: loc.name, title: loc.title || "" });
+  }
+  if (!found.length) throw fail("google_error", "לא נמצא אף עסק בחשבון הזה.", 502);
+  return found.find(x => /קורטדו|cortado/i.test(x.title)) || found[0];
+}
+
+async function googleCallback(env, url){
+  const p = await fsGet(env, "secrets/google_pending").catch(() => null);
+  if (url.searchParams.get("error")) return gbPage("בוטל", "גוגל לא אישרה: " + gbEsc(url.searchParams.get("error")), 400);
+  if (!p || !p.state || !sameStr(String(url.searchParams.get("state") || ""), String(p.state)))
+    return gbPage("הקישור פג", "<a href='/google/connect'>להתחיל מחדש</a>", 400);
+  const t = await (await fetch("https://oauth2.googleapis.com/token", { method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ code: url.searchParams.get("code") || "", client_id: p.id, client_secret: p.secret,
+      redirect_uri: GB_REDIRECT, grant_type: "authorization_code" }) })).json().catch(() => ({}));
+  if (!t.refresh_token || !t.id_token) return gbPage("גוגל לא החזירה טוקן", gbEsc(t.error_description || t.error || "") + " <a href='/google/connect'>לנסות שוב</a>", 502);
+  // ה-id_token הגיע ישירות מגוגל ב-TLS, אין צורך לאמת חתימה כדי לקרוא ממנו את המייל.
+  const seg = t.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  const who = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(seg + "===".slice((seg.length + 3) % 4)), c => c.charCodeAt(0))));
+  if (!who.email_verified || !ownersOf(env).includes(String(who.email).toLowerCase()))
+    return gbPage("החשבון הזה לא מורשה", `אישרת עם ${gbEsc(who.email)}. צריך להתחבר עם ${DEFAULT_OWNERS[0]}.`, 403);
+  let where;
+  try { where = await gbFindLocation(t.access_token); }
+  catch (e){ return gbPage("ההתחברות עברה, אבל העסק לא נמצא", gbEsc(e.message) + "<br>בדרך כלל: צריך להפעיל ב-Cloud Console את My Business Account Management API ו-My Business Business Information API.", 502); }
+  await fsPatch(env, "secrets/google", { GB_CLIENT_ID: p.id, GB_CLIENT_SECRET: p.secret, GB_REFRESH_TOKEN: t.refresh_token,
+    GB_ACCOUNT: where.account, GB_LOCATION: where.location, title: where.title, by: who.email, at: new Date().toISOString() });
+  await fsPatch(env, "secrets/google_pending", { state: "", id: "", secret: "" });
+  gbToken = { value: "", exp: 0 };
+  return gbPage("גוגל מחוברת ✓", `העסק: <b>${gbEsc(where.title)}</b>. אפשר לסגור את הדף.`);
+}
+
+/* ביקורות: ה-API היחיד לביקורות הוא עדיין v4. כוכבים מגיעים כמילה (FIVE). */
+const GB_V4 = "https://mybusiness.googleapis.com/v4";
+const GB_STARS = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
+async function gbReady(env){
+  const g = await gbEnv(env);
+  for (const k of ["GB_CLIENT_ID", "GB_CLIENT_SECRET", "GB_REFRESH_TOKEN", "GB_ACCOUNT", "GB_LOCATION"])
+    if (!g[k]) throw fail("not_configured", "Google is not connected yet. The owner opens https://cortado-api.cortado-snir.workers.dev/google/connect once.");
+  return g;
+}
+async function gbReviews(env, { unansweredOnly = true, limit = 30 } = {}){
+  const g = await gbReady(env), token = await gbAccessToken(g);
+  const r = await fetch(`${GB_V4}/${g.GB_ACCOUNT}/${g.GB_LOCATION}/reviews?pageSize=50&orderBy=${encodeURIComponent("updateTime desc")}`,
+    { headers: { authorization: "Bearer " + token } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw fail("google_error", "Google: " + (d.error?.message || r.status), 502);
+  const rows = (d.reviews || []).map(x => ({ id: x.reviewId, name: x.reviewer?.displayName || "", stars: GB_STARS[x.starRating] || null,
+    text: x.comment || "", at: x.createTime, reply: x.reviewReply?.comment || null }))
+    .filter(x => !unansweredOnly || !x.reply).slice(0, Math.max(1, Math.min(50, Number(limit) || 30)));
+  return { rating: d.averageRating ?? null, total: d.totalReviewCount ?? null, rows };
+}
+async function gbReply(env, { reviewId, comment }){
+  const id = String(reviewId || ""), text = String(comment || "").trim();
+  if (!/^[\w-]{6,200}$/.test(id)) throw fail("bad_request", "review_id is missing or invalid");
+  if (!text || text.length > 4000) throw fail("bad_request", "comment must be 1-4000 characters");
+  const g = await gbReady(env), token = await gbAccessToken(g);
+  const r = await fetch(`${GB_V4}/${g.GB_ACCOUNT}/${g.GB_LOCATION}/reviews/${id}/reply`, { method: "PUT",
+    headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ comment: text }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw fail("google_error", "Google: " + (d.error?.message || r.status), 502);
+  return { ok: true, review_id: id, reply: d.comment || text };
+}
+
 /* ===== קריאת השעות מגוגל (Places API) =====
    גוגל היא המקור: קוראים את מה שכתוב בפרופיל העסק, והאפליקציה מפיצה משם
    לדף הנחיתה ולפייסבוק. קריאה לא דורשת את אישור Business Profile — רק
@@ -1647,7 +1777,7 @@ async function publishRolling(env, weeks, today){
     catch (e){ out.facebookCheck = "לא הצלחתי לקרוא חזרה מפייסבוק: " + hebrew(e.message); }
   } catch (e){ out.facebook = e.code === "not_configured" ? "עמוד הפייסבוק עוד לא מחובר." : hebrew(e.message); }
   try {
-    const g = await setGoogleHours(env, { weeks, today });
+    const g = await setGoogleHours(await gbEnv(env), { weeks, today });
     if (g.dry) Object.assign(out, { google: "dry", googleDry: g.text });
     else Object.assign(out, { google: "ok", googleCheck: g.check });
   } catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }

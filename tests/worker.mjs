@@ -119,10 +119,10 @@ if (f2) process.exitCode = 1;
 {
   console.log("\nשעות מהבוט (בוט קורטדו)");
   const a = wsrc.indexOf("const BOT_DAYS"), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botHours(")) + 2;
-  const mk = (deps) => new Function("fail", "hebrew", "fsGet", "fsPatch", "withMeta", "setFacebookHours", "setGoogleHours", "graph",
+  const mk = (deps) => new Function("fail", "hebrew", "fsGet", "fsPatch", "withMeta", "setFacebookHours", "setGoogleHours", "graph", "gbEnv",
     wsrc.slice(a, z) + "\nreturn { botPlan, botHours, rollingWeek, rollingText };")(
     (c, m, s = 400) => Object.assign(new Error(m), { code: c, status: s }), (m) => m,
-    deps.fsGet, deps.fsPatch, async (e) => e, deps.fb, deps.gb, deps.graph || (async () => ({ hours: deps.fbShown || {} })));
+    deps.fsGet, deps.fsPatch, async (e) => e, deps.fb, deps.gb, deps.graph || (async () => ({ hours: deps.fbShown || {} })), async (e) => e);
   let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
   const throws = async (fn, code) => { try { await fn(); return false; } catch (e){ return e.code === code; } };
 
@@ -464,7 +464,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("ארבעה כלים", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts");
+  ok("ארבעה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,google_reviews,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -493,6 +493,63 @@ if (f2) process.exitCode = 1;
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);
   const nb = await noIg.json();
   ok("בלי אינסטגרם בשרת → שגיאה ברורה, לא קריסה", nb.result.isError && /IG_USER_ID/.test(nb.result.content[0].text));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
+/* ── ביקורות בגוגל: חיבור חד-פעמי (רק מייסד), קריאה וכתיבת תשובה ── */
+{
+  const a = wsrc.indexOf("const GB_KEYS"), z = wsrc.indexOf("/* ===== קריאת השעות מגוגל");
+  const store = {}, sent = [];
+  let who = "cortado.snir@gmail.com";
+  const jwt = (o) => "h." + Buffer.from(JSON.stringify(o)).toString("base64url") + ".s";
+  const fetch = async (u, o = {}) => {
+    u = String(u); sent.push([u, o]);
+    const res = (b, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => b });
+    if (u.includes("oauth2.googleapis.com/token")) return res({ refresh_token: "R", access_token: "A", id_token: jwt({ email: who, email_verified: true }) });
+    if (u.endsWith("/v1/accounts")) return res({ accounts: [{ name: "accounts/1" }] });
+    if (u.includes("accounts/1/locations?")) return res({ locations: [{ name: "locations/9", title: "קפה קורטדו" }] });
+    if (u.includes("/reviews?")) return res({ averageRating: 5, totalReviewCount: 3, reviews: [
+      { reviewId: "rev_aaaaaa", reviewer: { displayName: "D B" }, starRating: "FIVE", comment: "מומלץ מאוד", createTime: "2026-10-17T07:50:00Z" },
+      { reviewId: "rev_bbbbbb", reviewer: { displayName: "דור" }, starRating: "FIVE", comment: "", createTime: "2026-10-03T11:00:00Z", reviewReply: { comment: "תודה" } } ] });
+    if (u.includes("/reply")) return res({ comment: JSON.parse(o.body).comment });
+    throw new Error("unexpected " + u);
+  };
+  const fsGet = async (env, path) => store[path] || null;
+  const fsPatch = async (env, path, f) => { store[path] = { ...(store[path] || {}), ...f }; return true; };
+  const g = new Function("fail", "fsGet", "fsPatch", "sameStr", "ownersOf", "DEFAULT_OWNERS", "b64url", "GB_API", "gbAccessToken", "fetch",
+    wsrc.slice(a, z) + "\nreturn { googleConnect, googleCallback, gbReviews, gbReply, gbEnv };")(
+    (c, m) => Object.assign(new Error(m), { code: c }), fsGet, fsPatch, (x, y) => x === y, () => ["cortado.snir@gmail.com"], ["cortado.snir@gmail.com"],
+    () => "STATE", "https://gb", async () => "A", fetch);
+  const ENV = { FIREBASE_SA: "x" };
+  let p = 0, f = 0;
+  const ok = (n, c, x = "") => c ? (p++, console.log("  ✓ " + n)) : (f++, console.log("  ✗ " + n + "  " + x));
+  console.log("\n18. ביקורות בגוגל");
+  const notYet = await g.gbReviews(ENV).catch(e => e);
+  ok("לפני החיבור → not_configured עם הקישור", notYet.code === "not_configured" && /google\/connect/.test(notYet.message));
+  const form = await g.googleConnect(ENV, new Request("https://x/google/connect"));
+  ok("בלי client → טופס", form.status === 200 && /Client ID/.test(await form.text()));
+  const bad = await g.googleConnect(ENV, new Request("https://x/google/connect", { method: "POST", body: new URLSearchParams({ id: "nope", secret: "1234567890" }) }));
+  ok("client ID לא תקין → 400", bad.status === 400);
+  const go = await g.googleConnect(ENV, new Request("https://x/google/connect", { method: "POST", body: new URLSearchParams({ id: "abc.apps.googleusercontent.com", secret: "SECRET12345" }) }));
+  ok("client תקין → הפניה לגוגל עם offline ו-state", go.status === 302 && /access_type=offline/.test(go.headers.get("location")) && store["secrets/google_pending"].state === "STATE");
+  ok("state שגוי → לא נשמר כלום", (await g.googleCallback(ENV, new URL("https://x/google/callback?code=c&state=WRONG"))).status === 400 && !store["secrets/google"]);
+  who = "stranger@gmail.com";
+  ok("מישהו שאינו מייסד → 403 ולא נשמר", (await g.googleCallback(ENV, new URL("https://x/google/callback?code=c&state=STATE"))).status === 403 && !store["secrets/google"]);
+  who = "cortado.snir@gmail.com";
+  const done = await g.googleCallback(ENV, new URL("https://x/google/callback?code=c&state=STATE"));
+  const sg = store["secrets/google"] || {};
+  ok("מייסד → נשמרים טוקן, חשבון ומיקום", done.status === 200 && sg.GB_REFRESH_TOKEN === "R" && sg.GB_ACCOUNT === "accounts/1" && sg.GB_LOCATION === "locations/9" && sg.GB_CLIENT_SECRET === "SECRET12345", JSON.stringify(sg));
+  ok("הממתין נמחק", store["secrets/google_pending"].secret === "");
+  const rv = await g.gbReviews(ENV);
+  ok("ביקורות: רק בלי תשובה, עם כוכבים כמספר", rv.rows.length === 1 && rv.rows[0].id === "rev_aaaaaa" && rv.rows[0].stars === 5 && rv.total === 3, JSON.stringify(rv));
+  ok("ביקורות: הכתובת לפי החשבון והמיקום", sent.some(([u]) => u.includes("/v4/accounts/1/locations/9/reviews?")));
+  ok("כל הביקורות כשמבקשים", (await g.gbReviews(ENV, { unansweredOnly: false })).rows.length === 2);
+  const rep = await g.gbReply(ENV, { reviewId: "rev_aaaaaa", comment: "תודה רבה" });
+  const put = sent.find(([u]) => u.endsWith("/reviews/rev_aaaaaa/reply"));
+  ok("תשובה: PUT עם הטקסט", rep.ok && put && put[1].method === "PUT" && JSON.parse(put[1].body).comment === "תודה רבה");
+  ok("תשובה ריקה או מזהה שבור → נדחה", (await g.gbReply(ENV, { reviewId: "rev_aaaaaa", comment: " " }).catch(e => e)).code === "bad_request"
+    && (await g.gbReply(ENV, { reviewId: "../x", comment: "a" }).catch(e => e)).code === "bad_request");
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
