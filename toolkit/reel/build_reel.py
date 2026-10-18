@@ -13,7 +13,7 @@ spec.json:
   ],
   "end": "נתראה בעגלה",                          // ribbon on the closing card
   "seed": 7,                                     // picks the music; any integer
-  "music": "drive"                               // optional: "drive" = beat and a drop on bar 3 (default "cafe")
+  "music": "drive"                               // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet
 }
 Paths are relative to the social-media branch root. Writes <out>/reel.mp4, cover.jpg, sheet.jpg.
 Exits non-zero, with the reason, when anything is off: nothing half-made is left as reel.mp4.
@@ -196,7 +196,7 @@ def main():
     if tracks:  # a real licensed track wins over the generated one
         run(["ffmpeg", "-y", "-v", "error", "-i", str(tracks[seed % len(tracks)]), "-t", str(total), "-af", f"afade=t=out:st={total - 1.8}:d=1.8", "-ar", "48000", str(proj / "assets/music.wav")])
     else:
-        run([sys.executable, str(HERE / "music.py"), "--seconds", str(total), "--seed", str(seed), "--style", s.get("music", "cafe"), "--out", str(proj / "assets/music.wav")])
+        run([sys.executable, str(HERE / "music.py"), "--seconds", str(total), "--seed", str(seed), "--style", s.get("music", "drive"), "--out", str(proj / "assets/music.wav")])
     (proj / "index.html").write_text(compose(s, sc, total), encoding="utf-8")
     (proj / "hyperframes.json").write_text('{"paths":{"assets":"assets"},"media":{"autoProxy":true}}')
     (proj / "meta.json").write_text(json.dumps({"id": "cortado-reel", "name": "cortado reel"}))
