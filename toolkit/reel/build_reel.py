@@ -13,6 +13,8 @@ spec.json:
   ],
   "end": "נתראה בעגלה",                          // ribbon on the closing card
   "seed": 7,                                     // picks the music; any integer
+  "intro": true,                                 // optional: chalkboard opening, grandma Aida's logo draws in, music drops on the first photo
+  "place": "גלריה כפיים · קיבוץ שניר",           // optional: the line under the closing ribbon
   "music": "drive"                               // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet
 }
 Paths are relative to the social-media branch root. Writes <out>/reel.mp4, cover.jpg, sheet.jpg.
@@ -25,6 +27,8 @@ ROOT = HERE.parent.parent                 # the social-media branch
 TK = HERE.parent                          # toolkit/
 W, H, FPS = 1080, 1920, 30
 END_DUR, XFADE = 2.8, 0.5                 # closing card, scene push
+DRIVE_BPM = 100                           # the intro is one bar of this, so the music drops as the first photo lands
+INTRO = 4 * 60 / DRIVE_BPM - 0.4          # scene 0 starts pushing in here and settles on the drop
 BANNED = ["כשר", "חוויה", "מוזמנים", "מחכים לכם", "קסום", "מדהים"]
 CHROME = ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"]
 
@@ -68,11 +72,39 @@ def check_spec(s):
     return sc
 
 
+def intro_html():
+    rays = "".join(f'<line x1="540" y1="660" x2="540" y2="580" transform="rotate({k * 30} 540 960)"/>' for k in range(12))
+    word = "".join(f"<span>{c}</span>" for c in "cortado")
+    return (f'<section class="scene clip intro" id="intro" data-start="0" data-duration="{INTRO + XFADE:.2f}" style="z-index:0">'
+            '<img class="doodles" id="idoo" src="assets/doodles-story.svg" alt="">'
+            f'<svg class="iart" viewBox="0 0 {W} {H}"><g id="irays">{rays}</g>'
+            '<circle id="iring" cx="540" cy="960" r="250"/><circle id="iring2" cx="540" cy="960" r="272"/></svg>'
+            '<img class="ilogo" id="ilogo" src="assets/logo.png" alt="">'
+            f'<div class="iword" id="iword">{word}</div><div class="iplace" id="iplace">קיבוץ שניר</div>'
+            '<div class="dim" id="dI"></div></section>')
+
+
+def intro_anim():
+    # chalk ring draws, grandma Aida pops in, a burst, "cortado" letter by letter, a pulse on the last beat before the drop
+    return ('tl.fromTo("#idoo",{opacity:0,scale:1.08},{opacity:.5,scale:1,duration:1.2,ease:"power2.out"},0);'
+            'tl.fromTo("#iring",{strokeDashoffset:1571},{strokeDashoffset:0,duration:0.9,ease:"power2.inOut"},0.05);'
+            'tl.fromTo("#iring2",{strokeDashoffset:-1709},{strokeDashoffset:0,duration:1.0,ease:"power2.inOut"},0.15);'
+            'tl.fromTo("#ilogo",{scale:0.2,rotation:-30,opacity:0},{scale:1,rotation:0,opacity:1,duration:0.75,ease:"back.out(1.9)"},0.3);'
+            'tl.fromTo("#irays",{scale:0.6,opacity:0,transformOrigin:"540px 960px"},{scale:1.25,opacity:1,duration:0.35,ease:"power2.out"},0.85);'
+            'tl.to("#irays",{opacity:0,duration:0.5,ease:"power1.in"},1.2);'
+            'tl.fromTo("#iword span",{opacity:0,y:50},{opacity:1,y:0,duration:0.4,stagger:0.05,ease:"back.out(2)"},0.85);'
+            'tl.fromTo("#iplace",{opacity:0},{opacity:.9,duration:0.4},1.3);'
+            f'tl.to("#ilogo",{{scale:1.07,duration:0.18,yoyo:true,repeat:1,ease:"power1.inOut"}},{INTRO - 0.36:.2f});'
+            f'tl.fromTo("#dI",{{opacity:0}},{{opacity:0.45,duration:{XFADE},ease:"power2.in"}},{INTRO:.2f});')
+
+
 def compose(s, sc, total):
-    t, parts, anims = 0.0, [], []
+    intro = bool(s.get("intro"))
+    t, parts, anims = (INTRO + XFADE, [intro_html()], [intro_anim()]) if intro else (0.0, [], [])
     for i, x in enumerate(sc):
-        start = max(0.0, t - (XFADE if i else 0))
-        dur = x["dur"] + (XFADE if i else 0) + XFADE        # overlaps the next scene's push
+        push = bool(i or intro)
+        start = max(0.0, t - (XFADE if push else 0))
+        dur = x["dur"] + (XFADE if push else 0) + XFADE        # overlaps the next scene's push
         ext = pathlib.Path(x["media"]).suffix.lower()
         src = f"assets/m{i}{ext}"
         if ext in (".mp4", ".mov", ".webm"):
@@ -86,14 +118,16 @@ def compose(s, sc, total):
         parts.append(f'<section class="scene clip" id="s{i}" data-start="{start:.2f}" data-duration="{dur:.2f}" style="z-index:{i + 1}">'
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
         a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.09,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
-        if i:
+        if push:
             a += f'tl.fromTo("#s{i}",{{y:{H}}},{{y:0,duration:{XFADE},ease:"power3.inOut"}},{start:.2f});'
+        if i:
             a += f'tl.fromTo("#d{i - 1}",{{opacity:0}},{{opacity:0.45,duration:{XFADE},ease:"power2.in"}},{start:.2f});'
+        land = start + (XFADE if push else 0)
         if i == 0:
-            a += 'tl.fromTo("#hook .badge",{opacity:0,y:-30},{opacity:1,y:0,duration:0.5,ease:"power3.out"},0.1);'
-            a += 'tl.fromTo("#hook .hook",{opacity:0,y:70},{opacity:1,y:0,duration:0.6,ease:"back.out(1.4)"},0.25);'
+            a += f'tl.fromTo("#hook .badge",{{opacity:0,y:-30}},{{opacity:1,y:0,duration:0.5,ease:"power3.out"}},{land + 0.1:.2f});'
+            a += f'tl.fromTo("#hook .hook",{{opacity:0,y:70}},{{opacity:1,y:0,duration:0.6,ease:"back.out(1.4)"}},{land + 0.25:.2f});'
         if x.get("text"):
-            cs = start + (1.2 if i == 0 else XFADE + 0.15)
+            cs = land + (1.2 if i == 0 else 0.15)
             a += f'tl.fromTo("#c{i}",{{opacity:0,y:40}},{{opacity:1,y:0,duration:0.45,ease:"power3.out"}},{cs:.2f});'
         anims.append(a)
         t = start + dur - XFADE
@@ -102,7 +136,7 @@ def compose(s, sc, total):
                  f'<img class="doodles" src="assets/doodles-story.svg" alt="">'
                  f'<div class="badge big" id="eb"><img src="assets/logo.png" alt=""><span>cortado</span></div>'
                  f'<div class="ribbon" id="er">{html.escape(s.get("end") or "נתראה בעגלה")}</div>'
-                 f'<div class="place" id="ep">קיבוץ שניר · על הדשא ליד המרכולית</div>'
+                 f'<div class="place" id="ep">{html.escape(s.get("place") or "קיבוץ שניר · על הדשא ליד המרכולית")}</div>'
                  '<div class="socials" id="eq"><div class="s"><span class="q"><img src="assets/qr-instagram.svg" alt=""></span><span>אינסטגרם</span></div>'
                  '<div class="s"><span class="q"><img src="assets/qr-facebook.svg" alt=""></span><span>פייסבוק</span></div>'
                  '<div class="s"><span class="q"><img src="assets/qr-whatsapp.svg" alt=""></span><span>וואטסאפ</span></div></div></section>')
@@ -142,6 +176,16 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .ribbon{{position:absolute;top:760px;left:0;right:0;margin:auto;width:fit-content;background:var(--cart);color:var(--chalk);border-radius:999px;
   padding:16px 64px 24px;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:66px;transform:rotate(-2deg);box-shadow:0 10px 24px rgba(0,0,0,.3)}}
 .place{{position:absolute;top:960px;left:64px;right:116px;text-align:center;color:var(--chalk);font-size:40px;font-weight:500}}
+.intro{{background:var(--board)}}
+.intro .doodles{{opacity:.5}}
+.iart{{position:absolute;inset:0;width:100%;height:100%}}
+#iring,#iring2{{fill:none;stroke:var(--chalk);stroke-width:6;stroke-linecap:round;stroke-dasharray:1571}}
+#iring2{{stroke:var(--chalk-pink,#E7A3AE);stroke-width:4;stroke-dasharray:1709}}
+#irays line{{stroke:var(--aida-light,#F2AF75);stroke-width:8;stroke-linecap:round}}
+.ilogo{{position:absolute;left:310px;top:730px;width:460px;height:460px;border-radius:50%;box-shadow:0 0 0 10px var(--foam),0 30px 70px rgba(0,0,0,.45)}}
+.iword{{position:absolute;top:1290px;left:0;right:0;text-align:center;direction:ltr;font-weight:800;font-size:120px;color:var(--chalk);letter-spacing:2px}}
+.iword span{{display:inline-block}}
+.iplace{{position:absolute;top:1440px;left:0;right:0;text-align:center;color:var(--aida-light,#F2AF75);font-size:44px;font-weight:600}}
 .socials{{position:absolute;left:64px;top:1160px;display:flex;gap:16px;direction:ltr}}
 .socials .s{{display:flex;flex-direction:column;align-items:center;gap:6px}}
 .socials .q{{background:var(--foam);border-radius:10px;padding:5px;line-height:0}}
@@ -179,7 +223,7 @@ def main():
     a = ap.parse_args()
     s = json.loads(pathlib.Path(a.spec).read_text(encoding="utf-8"))
     sc = check_spec(s)
-    total = round(sum(x["dur"] for x in sc) + END_DUR, 2)
+    total = round(sum(x["dur"] for x in sc) + END_DUR + (INTRO if s.get("intro") else 0), 2)
     if total > 40:
         fail(f"{total}s is too long for this cart's reels (keep under 40s)")
     out = pathlib.Path(a.out).resolve()
@@ -196,7 +240,7 @@ def main():
     if tracks:  # a real licensed track wins over the generated one
         run(["ffmpeg", "-y", "-v", "error", "-i", str(tracks[seed % len(tracks)]), "-t", str(total), "-af", f"afade=t=out:st={total - 1.8}:d=1.8", "-ar", "48000", str(proj / "assets/music.wav")])
     else:
-        run([sys.executable, str(HERE / "music.py"), "--seconds", str(total), "--seed", str(seed), "--style", s.get("music", "drive"), "--out", str(proj / "assets/music.wav")])
+        run([sys.executable, str(HERE / "music.py"), "--seconds", str(total), "--seed", str(seed), "--style", s.get("music", "drive"), "--bpm", str(DRIVE_BPM), "--drop-bars", "1" if s.get("intro") else "2", "--out", str(proj / "assets/music.wav")])
     (proj / "index.html").write_text(compose(s, sc, total), encoding="utf-8")
     (proj / "hyperframes.json").write_text('{"paths":{"assets":"assets"},"media":{"autoProxy":true}}')
     (proj / "meta.json").write_text(json.dumps({"id": "cortado-reel", "name": "cortado reel"}))
@@ -230,23 +274,27 @@ def main():
     raw.unlink()
 
     # review stills: the hook settled, every scene caption settled, the closing card
-    times, t = [], 0.0
+    times, t = ([INTRO - 0.2], INTRO + XFADE) if s.get("intro") else ([], 0.0)
     for i, x in enumerate(sc):
-        st = max(0.0, t - (XFADE if i else 0))
-        times.append(st + (1.8 if i == 0 else XFADE + 1.0))
-        t = st + x["dur"] + (XFADE if i else 0)
+        push = bool(i or s.get("intro"))
+        st = max(0.0, t - (XFADE if push else 0))
+        times.append(st + (XFADE if push else 0) + (1.8 if i == 0 else 1.0))
+        t = st + x["dur"] + (XFADE if push else 0)
     times.append(total - 0.6)
     for k, tt in enumerate(times):
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{tt:.2f}", "-i", str(out / "reel.mp4"), "-frames:v", "1", str(out / f"still-{k}.jpg")])
-    shutil.copy(out / "still-0.jpg", out / "cover.jpg")
+    shutil.copy(out / ("still-1.jpg" if s.get("intro") else "still-0.jpg"), out / "cover.jpg")  # with an intro, the hook frame sells better than the logo
     # house rule (8.10.2026): the three QRs must scan on a frame of the encoded video
     import cv2
     im, qr = cv2.imread(str(out / f"still-{len(times) - 1}.jpg")), cv2.QRCodeDetector()
     want = {"instagram.com/cortado_snir", "facebook.com/122109319071470402", "chat.whatsapp.com/HVwYjRh8VBfAzGT2AmoXyP"}
     got = set()
     for x0 in range(50, 420, 8):  # slide a QR-sized window across the row: robust to small layout shifts
-        crop = cv2.resize(im[1150:1265, x0:x0 + 110], None, fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
-        got |= {w for w in want if w in (qr.detectAndDecode(crop)[0] or "")}
+        g = cv2.cvtColor(im[1150:1265, x0:x0 + 110], cv2.COLOR_BGR2GRAY)
+        # H.264 softens the codes a little: also try a smooth upscale and a hard black/white version
+        for crop in (cv2.resize(g, None, fx=4, fy=4, interpolation=cv2.INTER_NEAREST), cv2.resize(g, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC),
+                     cv2.threshold(cv2.resize(g, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]):
+            got |= {w for w in want if w in (qr.detectAndDecode(crop)[0] or "")}
     if got != want:
         (out / "reel.mp4").rename(out / "reel.bad.mp4")
         fail(f"QR codes on the closing card don't all scan (read: {sorted(got)})")

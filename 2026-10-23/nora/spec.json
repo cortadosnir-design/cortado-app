@@ -1,13 +1,34 @@
 {
-  "hook": "יש לנו שכנה בשניר",
+  "intro": true,
+  "hook": "את השכנים לא בוחרים",
   "scenes": [
-    {"media": "2026-10-23/nora/nora-studio.jpg", "text": "נורה · גלריה כפיים", "dur": 4.4},
-    {"media": "2026-10-23/nora/nora-workshop.jpg", "text": "צלחות של פעם", "dur": 3.4},
-    {"media": "2026-10-23/nora/nora-stands.jpg", "text": "חוזרות לחיים", "dur": 3.4},
-    {"media": "2026-10-23/nora/nora-ceramics.jpg", "text": "וקרמיקה בעבודת יד", "dur": 3.4},
-    {"media": "2026-10-23/nora/nora-cups.jpg", "text": "כלים שמחכים לבית חדש", "dur": 3.6}
+    {
+      "media": "2026-10-23/nora/nora-studio.jpg",
+      "dur": 3.6
+    },
+    {
+      "media": "2026-10-23/nora/nora-workshop.jpg",
+      "text": "צלחות של פעם",
+      "dur": 3.0
+    },
+    {
+      "media": "2026-10-23/nora/nora-stands.jpg",
+      "text": "חוזרות לחיים",
+      "dur": 3.0
+    },
+    {
+      "media": "2026-10-23/nora/nora-ceramics.jpg",
+      "text": "וקרמיקה בעבודת יד",
+      "dur": 3.0
+    },
+    {
+      "media": "2026-10-23/nora/nora-cups.jpg",
+      "text": "אבל בנורה היינו בוחרים",
+      "dur": 3.6
+    }
   ],
   "end": "אוהבים אותך, נורה",
+  "place": "גלריה כפיים · קיבוץ שניר",
   "seed": 4,
   "music": "drive"
 }

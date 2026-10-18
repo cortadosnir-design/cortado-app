@@ -99,15 +99,15 @@ def make(seconds, seed):
     return mix / (np.max(np.abs(mix)) + 1e-9) * 0.7
 
 
-def make_drive(seconds, seed):
+def make_drive(seconds, seed, bpm=None, drop_bars=2):
     """Moving and energetic (owner, 16.10.2026: reels need a beat and a drop, not sleepy café music).
-    Two quiet bars of piano and strings, then kick, claps and bass come in on bar 3, through to the end."""
+    Quiet piano and strings for drop_bars bars, then kick, claps and bass, through to the end."""
     rng = np.random.default_rng(seed)
-    key, bpm = 50 + int(rng.integers(0, 5)), 100 + int(rng.integers(0, 9))   # D3..F#3
+    key, bpm = 50 + int(rng.integers(0, 5)), bpm or 100 + int(rng.integers(0, 9))   # D3..F#3
     prog = [(9, "m7"), (5, "maj7"), (0, "maj7"), (7, "sus")]                  # vi-IV-I-V, the warm one
     beat = 60 / bpm; bar = 4 * beat; n = int(seconds * SR); mix = np.zeros(n)
     t = np.arange(n) / SR
-    drop = 2 * bar
+    drop = drop_bars * bar
     for i in range(int(seconds / bar) + 1):
         s = int(i * bar * SR)
         if s >= n:
@@ -115,7 +115,7 @@ def make_drive(seconds, seed):
         root, q = prog[i % 4]
         notes = [key + root + x for x in SHAPES[q]]
         m = min(int(bar * SR * 1.2), n - s)
-        loud = 1.0 if i >= 2 else 0.6
+        loud = 1.0 if i >= drop_bars else 0.6
         for k, note in enumerate(notes):                     # strings: detuned saws, slow swell
             tt = np.arange(m) / SR
             saw = sum(((tt * f(note + 12) * d) % 1) * 2 - 1 for d in (0.997, 1.0, 1.004))
@@ -126,7 +126,7 @@ def make_drive(seconds, seed):
                 break
             lj = min(int(1.0 * SR), n - sj)
             mix[sj:sj + lj] += 0.10 * rhodes(f(notes[[0, 2, 1, 3, 2, 1, 3, 2][j]] + 24), lj)
-        if i < 2:
+        if i < drop_bars:
             continue
         bl = min(int(bar * SR), n - s)                       # driving bass in eighths
         for j in range(8):
@@ -139,11 +139,11 @@ def make_drive(seconds, seed):
                 break
             tt = np.arange(lj) / SR                          # kick: a falling sine
             mix[sj:sj + lj] += 0.55 * np.sin(2 * np.pi * (50 * tt + 60 * (1 - np.exp(-tt * 30)) / 30)) * np.exp(-tt / 0.12)
-            if j % 2:                                        # claps on 2 and 4
+            if j % 2 and n - sj > 400:                       # claps on 2 and 4
                 lc = min(int(0.15 * SR), n - sj); no = rng.normal(0, 1, lc)
                 mix[sj:sj + lc] += 0.16 * (no - lowpass(no, 4)) * env(lc, 0.002, 0.05)
             sh = sj + int(beat / 2 * SR); lh = min(int(0.05 * SR), n - sh)
-            if lh > 0:                                       # off-beat shaker
+            if lh > 100:                                     # off-beat shaker
                 no = rng.normal(0, 1, lh); mix[sh:sh + lh] += 0.05 * (no - lowpass(no, 3)) * env(lh, 0.001, 0.02)
     ds, rs = int(drop * SR), int((drop - bar / 2) * SR)      # noise riser into the drop, then a crash
     if ds < n:
@@ -170,8 +170,10 @@ if __name__ == "__main__":
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out", required=True)
     ap.add_argument("--style", choices=["cafe", "drive"], default="cafe")
+    ap.add_argument("--bpm", type=int)                 # drive only
+    ap.add_argument("--drop-bars", type=int, default=2)  # drive only
     a = ap.parse_args()
-    x = (make_drive if a.style == "drive" else make)(a.seconds, a.seed)
+    x = make_drive(a.seconds, a.seed, a.bpm, a.drop_bars) if a.style == "drive" else make(a.seconds, a.seed)
     assert len(x) == int(a.seconds * SR) and np.isfinite(x).all() and np.max(np.abs(x)) <= 0.71
     write(a.out, x)
     print(a.out)
