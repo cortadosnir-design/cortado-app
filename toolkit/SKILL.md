@@ -194,3 +194,20 @@ Name it `NN-name.html`.
 ## Not for publishing (owner, 10.10.2026)
 - `pastry-tray.jpg` (tray with iced coffee, muffin, cheese pastry, croissant): do not use in anything published.
 - `pizza.jpg` is the owner's margherita photo from 10.10.2026, cropped above the hand. It is the only pizza image; the old olive pizza and the board photo with the woman are gone.
+
+## Reels (18.10.2026): `reel/build_reel.py`
+
+Owner's choice: HyperFrames (Apache-2.0, pinned in `reel/package.json`), no talking — music and
+on-screen text only — and no paid tools. One command builds a finished 1080x1920 reel in the house
+style from a JSON spec (hook card + 3–6 real photos/clips with ≤6-word chips + the board closing card
+with logo, "נתראה בעגלה" ribbon and the three QRs):
+
+    cd toolkit/reel && npm ci && cd -
+    python3 toolkit/reel/build_reel.py spec.json --out /tmp/reel     # spec format: top of build_reel.py
+
+It refuses texts with hours, prices, hashtags or the banned words; masters the sound to −14 LUFS;
+checks size (<38MB for the bot), length, and that all three QRs scan on the encoded closing frame;
+writes `reel.mp4`, `cover.jpg` and `sheet.jpg` (one settled still per scene). Look at `sheet.jpg`
+before it goes anywhere. Music comes from `reel/music.py` (generated, seeded, no license); a real
+licensed track dropped into `assets/music/*.mp3` is used instead. Render takes ~2–3 minutes.
+Media must be real: the cart's photos in `assets/photos/` or clips the owners sent. Never generated footage.

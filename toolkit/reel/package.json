@@ -1,0 +1,14 @@
+{
+  "name": "cortado-reel",
+  "version": "1.0.0",
+  "description": "Cortado reels: HyperFrames composition + generated café music. See build_reel.py.",
+  "scripts": {
+    "build": "python3 build_reel.py"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "gsap": "3.14.2",
+    "hyperframes": "0.8.172"
+  },
+  "private": true
+}
