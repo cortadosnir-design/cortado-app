@@ -99,6 +99,64 @@ def make(seconds, seed):
     return mix / (np.max(np.abs(mix)) + 1e-9) * 0.7
 
 
+def make_drive(seconds, seed):
+    """Moving and energetic (owner, 16.10.2026: reels need a beat and a drop, not sleepy café music).
+    Two quiet bars of piano and strings, then kick, claps and bass come in on bar 3, through to the end."""
+    rng = np.random.default_rng(seed)
+    key, bpm = 50 + int(rng.integers(0, 5)), 100 + int(rng.integers(0, 9))   # D3..F#3
+    prog = [(9, "m7"), (5, "maj7"), (0, "maj7"), (7, "sus")]                  # vi-IV-I-V, the warm one
+    beat = 60 / bpm; bar = 4 * beat; n = int(seconds * SR); mix = np.zeros(n)
+    t = np.arange(n) / SR
+    drop = 2 * bar
+    for i in range(int(seconds / bar) + 1):
+        s = int(i * bar * SR)
+        if s >= n:
+            break
+        root, q = prog[i % 4]
+        notes = [key + root + x for x in SHAPES[q]]
+        m = min(int(bar * SR * 1.2), n - s)
+        loud = 1.0 if i >= 2 else 0.6
+        for k, note in enumerate(notes):                     # strings: detuned saws, slow swell
+            tt = np.arange(m) / SR
+            saw = sum(((tt * f(note + 12) * d) % 1) * 2 - 1 for d in (0.997, 1.0, 1.004))
+            mix[s:s + m] += 0.035 * loud * lowpass(saw, 24) * np.minimum(tt / 0.6, 1) * np.exp(-tt / 6)
+        for j in range(8):                                   # piano eighths, chord tones up and down
+            sj = s + int(j * beat / 2 * SR)
+            if sj >= n:
+                break
+            lj = min(int(1.0 * SR), n - sj)
+            mix[sj:sj + lj] += 0.10 * rhodes(f(notes[[0, 2, 1, 3, 2, 1, 3, 2][j]] + 24), lj)
+        if i < 2:
+            continue
+        bl = min(int(bar * SR), n - s)                       # driving bass in eighths
+        for j in range(8):
+            sj = s + int(j * beat / 2 * SR); lj = min(int(beat / 2 * SR), n - sj)
+            if lj > 0:
+                mix[sj:sj + lj] += 0.20 * np.sin(2 * np.pi * f(key + root - 12) * np.arange(lj) / SR) * env(lj, 0.004, 0.25)
+        for j in range(4):
+            sj = s + int(j * beat * SR); lj = min(int(0.35 * SR), n - sj)
+            if lj <= 0:
+                break
+            tt = np.arange(lj) / SR                          # kick: a falling sine
+            mix[sj:sj + lj] += 0.55 * np.sin(2 * np.pi * (50 * tt + 60 * (1 - np.exp(-tt * 30)) / 30)) * np.exp(-tt / 0.12)
+            if j % 2:                                        # claps on 2 and 4
+                lc = min(int(0.15 * SR), n - sj); no = rng.normal(0, 1, lc)
+                mix[sj:sj + lc] += 0.16 * (no - lowpass(no, 4)) * env(lc, 0.002, 0.05)
+            sh = sj + int(beat / 2 * SR); lh = min(int(0.05 * SR), n - sh)
+            if lh > 0:                                       # off-beat shaker
+                no = rng.normal(0, 1, lh); mix[sh:sh + lh] += 0.05 * (no - lowpass(no, 3)) * env(lh, 0.001, 0.02)
+    ds, rs = int(drop * SR), int((drop - bar / 2) * SR)      # noise riser into the drop, then a crash
+    if ds < n:
+        r = np.linspace(0, 1, ds - rs) ** 2; no = rng.normal(0, 1, ds - rs)
+        mix[rs:ds] += 0.10 * r * (no - lowpass(no, 8))
+        lc = min(int(1.5 * SR), n - ds); no = rng.normal(0, 1, lc)
+        mix[ds:ds + lc] += 0.14 * (no - lowpass(no, 3)) * env(lc, 0.001, 0.5)
+    fade = np.ones(n); fo = int(1.8 * SR)
+    fade[:int(0.3 * SR)] = np.linspace(0, 1, int(0.3 * SR)); fade[-fo:] = np.linspace(1, 0, fo) ** 1.5
+    mix *= fade
+    return mix / (np.max(np.abs(mix)) + 1e-9) * 0.7
+
+
 def write(path, x):
     st = np.stack([x, np.roll(x, int(0.012 * SR))], axis=1)  # a touch of width
     with wave.open(path, "wb") as w:
@@ -111,8 +169,9 @@ if __name__ == "__main__":
     ap.add_argument("--seconds", type=float, required=True)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--style", choices=["cafe", "drive"], default="cafe")
     a = ap.parse_args()
-    x = make(a.seconds, a.seed)
+    x = (make_drive if a.style == "drive" else make)(a.seconds, a.seed)
     assert len(x) == int(a.seconds * SR) and np.isfinite(x).all() and np.max(np.abs(x)) <= 0.71
     write(a.out, x)
     print(a.out)
