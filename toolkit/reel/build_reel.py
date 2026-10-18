@@ -28,8 +28,24 @@ BANNED = ["כשר", "חוויה", "מוזמנים", "מחכים לכם", "קסו
 CHROME = ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"]
 
 
+# toolkit/SKILL.md: pastry-tray is not for publishing (owner, 10.10.2026); hermon.jpg needs a CC BY-SA credit line
+NOT_FOR_PUBLISHING = {"pastry-tray.jpg", "hermon.jpg"}
+
+
 def fail(msg):
-    sys.exit(f"build_reel: {msg}")
+    sys.exit(f"build: {msg}")
+
+
+def voice_ok(t):
+    if re.search(r"\d{1,2}[:.]\d{2}|₪|ש\"ח|#", t) or any(b in t for b in BANNED):
+        fail(f"text breaks the cart's voice rules: {t!r}")
+
+
+def media_ok(rel):
+    if pathlib.Path(rel).name in NOT_FOR_PUBLISHING:
+        fail(f"{rel} is not for publishing (toolkit/SKILL.md)")
+    if not (ROOT / rel).is_file():
+        fail(f"media not found: {rel}")
 
 
 def check_spec(s):
@@ -39,16 +55,12 @@ def check_spec(s):
     sc = s.get("scenes") or []
     if not 3 <= len(sc) <= 6:
         fail("need 3-6 scenes")
-    texts = [s["hook"], s.get("end", "")] + [x.get("text", "") for x in sc]
-    for t in texts:
-        if re.search(r"\d{1,2}[:.]\d{2}|₪|ש\"ח|#", t) or any(b in t for b in BANNED):
-            fail(f"text breaks the cart's voice rules: {t!r}")
+    for t in [s["hook"], s.get("end", "")] + [x.get("text", "") for x in sc]:
+        voice_ok(t)
     for x in sc:
         if x.get("text") and words(x["text"]) > 6:
             fail(f"scene text over 6 words: {x['text']!r}")
-        p = ROOT / x["media"]
-        if not p.is_file():
-            fail(f"media not found: {x['media']}")
+        media_ok(x["media"])
         x["dur"] = float(x.get("dur", 2.5))
         if not 1.6 <= x["dur"] <= 6:
             fail("scene duration must be 1.6-6s")

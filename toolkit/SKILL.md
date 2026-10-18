@@ -210,4 +210,5 @@ checks size (<38MB for the bot), length, and that all three QRs scan on the enco
 writes `reel.mp4`, `cover.jpg` and `sheet.jpg` (one settled still per scene). Look at `sheet.jpg`
 before it goes anywhere. Music comes from `reel/music.py` (generated, seeded, no license); a real
 licensed track dropped into `assets/music/*.mp3` is used instead. Render takes ~2–3 minutes.
+Static feed post (Friday slot): `python3 toolkit/reel/build_post.py spec.json --out /tmp/post` → `post.jpg` (spec at its top).
 Media must be real: the cart's photos in `assets/photos/` or clips the owners sent. Never generated footage.
