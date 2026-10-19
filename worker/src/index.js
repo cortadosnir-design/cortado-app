@@ -1540,17 +1540,18 @@ async function setGoogleHours(env, { weeks, today }){
    /google/connect — הבעלים מדביקים פעם אחת client ID ו-secret של OAuth client מה-Cloud Console
    (או שהם כבר בלוח), מאשרים בגוגל, והשרת שומר ב-Firestore (secrets/google) את ה-refresh token,
    החשבון והמיקום. נשמר רק אם מי שאישר בגוגל הוא אחד המייסדים, כך שזר לא יכול להחליף את החיבור.
-   מה שמוגדר בלוח של Cloudflare עדיין מנצח, כמו ב-withMeta. */
+   החיבור מ-/google/connect מנצח את הלוח של Cloudflare: הוא חדש יותר, ואישר אותו מייסד בגוגל.
+   (19.10.2026: refresh token ישן בלוח התערבב עם client חדש מהחיבור, וגוגל דחתה את ההתחברות.) */
 const GB_KEYS = ["GB_CLIENT_ID", "GB_CLIENT_SECRET", "GB_REFRESH_TOKEN", "GB_ACCOUNT", "GB_LOCATION"];
 const GB_REDIRECT = "https://cortado-api.cortado-snir.workers.dev/google/callback";
 const GB_SCOPE = "openid email https://www.googleapis.com/auth/business.manage";
 async function gbEnv(env){
-  if (GB_KEYS.every(k => env[k]) || !env.FIREBASE_SA) return env;
+  if (!env.FIREBASE_SA) return env;
   let d = null;
   try { d = await fsGet(env, "secrets/google"); } catch {}
-  if (!d) return env;
+  if (!d?.GB_REFRESH_TOKEN) return env;
   const out = { ...env };
-  for (const k of GB_KEYS) if (!out[k] && d[k]) out[k] = String(d[k]);
+  for (const k of GB_KEYS) if (d[k]) out[k] = String(d[k]);
   return out;
 }
 const gbPage = (title, body, status = 200) => new Response(

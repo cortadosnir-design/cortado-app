@@ -595,6 +595,9 @@ if (f2) process.exitCode = 1;
   const sg = store["secrets/google"] || {};
   ok("מייסד → נשמרים טוקן, חשבון ומיקום", done.status === 200 && sg.GB_REFRESH_TOKEN === "R" && sg.GB_ACCOUNT === "accounts/1" && sg.GB_LOCATION === "locations/9" && sg.GB_CLIENT_SECRET === "SECRET12345", JSON.stringify(sg));
   ok("הממתין נמחק", store["secrets/google_pending"].secret === "");
+  // 19.10.2026: refresh token ישן בלוח של Cloudflare לא מתערבב עם client חדש מהחיבור
+  const ge = await g.gbEnv({ ...ENV, GB_CLIENT_ID: "old", GB_CLIENT_SECRET: "old", GB_REFRESH_TOKEN: "old", GB_ACCOUNT: "old", GB_LOCATION: "old" });
+  ok("החיבור מנצח את הלוח", ge.GB_REFRESH_TOKEN === "R" && ge.GB_CLIENT_SECRET === "SECRET12345" && ge.GB_LOCATION === "locations/9", JSON.stringify(ge));
   const rv = await g.gbReviews(ENV);
   ok("ביקורות: רק בלי תשובה, עם כוכבים כמספר", rv.rows.length === 1 && rv.rows[0].id === "rev_aaaaaa" && rv.rows[0].stars === 5 && rv.total === 3, JSON.stringify(rv));
   ok("ביקורות: הכתובת לפי החשבון והמיקום", sent.some(([u]) => u.includes("/v4/accounts/1/locations/9/reviews?")));
