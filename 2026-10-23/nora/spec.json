@@ -1,34 +1,22 @@
 {
   "intro": true,
-  "hook": "את השכנים לא בוחרים",
+  "hook": "לפעמים את השכנים כן בוחרים",
   "scenes": [
-    {
-      "media": "2026-10-23/nora/nora-studio.jpg",
-      "dur": 3.6
-    },
-    {
-      "media": "2026-10-23/nora/nora-workshop.jpg",
-      "text": "צלחות של פעם",
-      "dur": 3.0
-    },
-    {
-      "media": "2026-10-23/nora/nora-stands.jpg",
-      "text": "חוזרות לחיים",
-      "dur": 3.0
-    },
-    {
-      "media": "2026-10-23/nora/nora-ceramics.jpg",
-      "text": "וקרמיקה בעבודת יד",
-      "dur": 3.0
-    },
-    {
-      "media": "2026-10-23/nora/nora-cups.jpg",
-      "text": "אבל בנורה היינו בוחרים",
-      "dur": 3.6
-    }
+    {"media": "2026-10-23/nora/nora-studio.jpg", "dur": 2.5},
+    {"media": "2026-10-23/nora/d-plates.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/d-typer.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/d-gold.jpg", "text": "צלחות של פעם", "dur": 2.0},
+    {"media": "2026-10-23/nora/d-pink.jpg", "text": "חוזרות לחיים", "dur": 2.0},
+    {"media": "2026-10-23/nora/d-blue.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/d-vases.jpg", "text": "קרמיקה בעבודת יד", "dur": 2.0},
+    {"media": "2026-10-23/nora/d-cups.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/d-crystal.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/nora-stands.jpg", "text": "אוצרות וינטג' ועתיקות", "dur": 2.0},
+    {"media": "2026-10-23/nora/d-shelf.jpg", "dur": 1.0},
+    {"media": "2026-10-23/nora/nora-workshop.jpg", "text": "שווה לקפוץ לשכנים", "dur": 2.5}
   ],
-  "end": "אוהבים אותך, נורה",
-  "place": "גלריה כפיים · קיבוץ שניר",
+  "end": "גלריה כפיים",
+  "place": "השכנים שלנו בקיבוץ שניר",
   "seed": 4,
   "music": "drive"
 }

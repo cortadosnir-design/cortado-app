@@ -26,9 +26,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent.parent                 # the social-media branch
 TK = HERE.parent                          # toolkit/
 W, H, FPS = 1080, 1920, 30
-END_DUR, XFADE = 2.8, 0.5                 # closing card, scene push
-DRIVE_BPM = 100                           # the intro is one bar of this, so the music drops as the first photo lands
-INTRO = 4 * 60 / DRIVE_BPM - 0.4          # scene 0 starts pushing in here and settles on the drop
+END_DUR, XFADE = 2.8, 0.4                 # closing card, scene push
+DRIVE_BPM = 120                           # the intro is one bar of this; scene durations in half-seconds land every cut on a beat
+INTRO = 4 * 60 / DRIVE_BPM - XFADE        # scene 0 starts pushing in here and settles on the drop
 BANNED = ["כשר", "חוויה", "מוזמנים", "מחכים לכם", "קסום", "מדהים"]
 CHROME = ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"]
 
@@ -58,8 +58,8 @@ def check_spec(s):
     if not s.get("hook") or words(s["hook"]) > 6:
         fail("hook missing or longer than 6 words")
     sc = s.get("scenes") or []
-    if not 3 <= len(sc) <= 6:
-        fail("need 3-6 scenes")
+    if not 3 <= len(sc) <= 12:
+        fail("need 3-12 scenes")
     for t in [s["hook"], s.get("end", "")] + [x.get("text", "") for x in sc]:
         voice_ok(t)
     for x in sc:
@@ -67,8 +67,8 @@ def check_spec(s):
             fail(f"scene text over 6 words: {x['text']!r}")
         media_ok(x["media"])
         x["dur"] = float(x.get("dur", 2.5))
-        if not 1.6 <= x["dur"] <= 6:
-            fail("scene duration must be 1.6-6s")
+        if not (1.6 if x.get("text") else 1.0) <= x["dur"] <= 6:  # quick cuts only without text: the owner wants text readable
+            fail("scene duration must be 1.6-6s (1.0-6s without text)")
     return sc
 
 
@@ -117,9 +117,10 @@ def compose(s, sc, total):
                 f'<div class="hook">{html.escape(s["hook"])}</div></div>') if i == 0 else ""
         parts.append(f'<section class="scene clip" id="s{i}" data-start="{start:.2f}" data-duration="{dur:.2f}" style="z-index:{i + 1}">'
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
-        a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.09,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
+        a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
         if push:
-            a += f'tl.fromTo("#s{i}",{{y:{H}}},{{y:0,duration:{XFADE},ease:"power3.inOut"}},{start:.2f});'
+            ax, frm = [("y", H), ("x", -W), ("x", W)][i % 3]  # up, from the left, from the right: keeps quick cuts lively
+            a += f'tl.fromTo("#s{i}",{{{ax}:{frm}}},{{{ax}:0,duration:{XFADE},ease:"power4.inOut"}},{start:.2f});'
         if i:
             a += f'tl.fromTo("#d{i - 1}",{{opacity:0}},{{opacity:0.45,duration:{XFADE},ease:"power2.in"}},{start:.2f});'
         land = start + (XFADE if push else 0)
@@ -278,7 +279,7 @@ def main():
     for i, x in enumerate(sc):
         push = bool(i or s.get("intro"))
         st = max(0.0, t - (XFADE if push else 0))
-        times.append(st + (XFADE if push else 0) + (1.8 if i == 0 else 1.0))
+        times.append(st + (XFADE if push else 0) + (min(1.8, x["dur"] - 0.3) if i == 0 else min(1.0, x["dur"] * 0.6)))
         t = st + x["dur"] + (XFADE if push else 0)
     times.append(total - 0.6)
     for k, tt in enumerate(times):
