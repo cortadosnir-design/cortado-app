@@ -31,11 +31,40 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("hashchange", openFromHash); openFromHash();
 
-// כניסה עדינה של קטעים בגלילה. ה-CSS מסתיר .rv רק תחת html.js, כך שבלי JavaScript הכל גלוי.
-if ("IntersectionObserver" in window){
-  document.documentElement.classList.add("js");
-  const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add("seen"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
-  document.querySelectorAll(".rv").forEach(el => io.observe(el));
+/* ===== תנועה: המנוע של scroll-craft (sc/scrollcraft.js) מפרסם --sc-p לכל קטע; הכוריאוגרפיה ב-CSS. ===== */
+if (window.ScrollCraft) window.ScrollCraft.mount(document.body);
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.
+const heroStage = document.querySelector(".hero-stage");
+if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matches){
+  let raf = 0, mx = 0, my = 0;
+  heroStage.addEventListener("pointermove", (e) => {
+    const r = heroStage.getBoundingClientRect();
+    mx = (e.clientX - r.left) / r.width - 0.5; my = (e.clientY - r.top) / r.height - 0.5;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; heroStage.style.setProperty("--mx", mx.toFixed(3)); heroStage.style.setProperty("--my", my.toFixed(3)); });
+  });
+}
+
+// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה כשהבא עולה עליו, והמנה בכרטיס מסתובבת קלות עם הגלילה.
+const cards = [...document.querySelectorAll(".sk")];
+if (cards.length && !still){
+  let raf = 0;
+  const step = () => {
+    raf = 0;
+    const vh = innerHeight;
+    cards.forEach((c, i) => {
+      const r = c.getBoundingClientRect();
+      c.style.setProperty("--sk-p", Math.min(1, Math.max(0, 1 - r.top / vh)).toFixed(3));
+      const next = cards[i + 1];
+      if (!next) return;
+      const cover = Math.min(1, Math.max(0, 1 - (next.getBoundingClientRect().top - r.top) / r.height));
+      c.style.transform = cover ? `scale(${(1 - cover * 0.06).toFixed(4)})` : "";
+      c.style.filter = cover ? `brightness(${(1 - cover * 0.25).toFixed(3)})` : "";
+    });
+  };
+  addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(step); }, { passive: true });
+  addEventListener("resize", step); step();
 }
 
 const top = document.getElementById("top");

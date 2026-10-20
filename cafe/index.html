@@ -21,6 +21,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="img/logo.png" type="image/png">
 <link rel="apple-touch-icon" href="img/logo.png">
+<link rel="stylesheet" href="sc/scrollcraft.css">
 <style>
 /* הגופנים מוגשים מהאתר עצמו (fonts/), לא מ-Google Fonts: בלי בקשה שחוסמת את הציור הראשון,
    ובלי להעביר את כתובת ה-IP של הגולש לצד שלישי. אותם קבצים ואותה חלוקה לטווחי תווים. */
@@ -64,40 +65,49 @@ p{margin:0;text-wrap:pretty}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 section[id]{scroll-margin-top:80px}
 
-/* ===== עיצוב 2026-10: מובייל קודם. רוב הגולשים בטלפון, לכן כל כלל נכתב קודם ל-390px ונפתח למחשב. ===== */
-:root{--r:22px;--r-sm:14px;--pill:999px;--shadow:0 1px 2px rgba(26,22,17,.05),0 12px 32px -12px rgba(26,22,17,.16);--sec:clamp(64px,10vw,150px)}
+/* ===== עיצוב 2026-10, גרסת גלילה: מובייל קודם. מנוע scroll-craft (sc/) מניע את ההתקדמות (--sc-p),
+   והכוריאוגרפיה כתובה כאן ובקובץ cafe.js. צבעים מהלוגו של סבתא. ===== */
+:root{
+  --apricot:#F2AF74;--apricot-soft:#F9E0C7;--rust:#7F381B;--rust-soft:#F4E2D8;--cream:#F6F2EB;
+  --r:24px;--r-sm:16px;--pill:999px;--sec:clamp(72px,12vw,160px);
+  --sc-canvas:#F6F2EB;--sc-surface:#FDFBF7;--sc-ink:#1A1611;--sc-ink-soft:#5E554B;--sc-accent:#7F381B;--sc-accent-ink:#F6F2EB;
+  --sc-font-display:var(--serif);--sc-font-text:var(--sans);
+}
+body{background:var(--sc-canvas);color:var(--ink);font:300 18px/1.7 var(--sans)}
+h1,h2{font-weight:700;letter-spacing:-.03em}
+.label{color:var(--rust);font-weight:600}
+:focus-visible{outline:2px solid var(--rust);outline-offset:4px;border-radius:6px}
 
 /* links & buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 26px;font:500 16px/1 var(--sans);letter-spacing:.01em;text-decoration:none;border-radius:var(--pill);transition:background .25s,color .25s,border-color .25s,transform .25s}
-.btn:active{transform:scale(.98)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 26px;font:600 16px/1 var(--sans);text-decoration:none;border-radius:var(--pill);transition:background .25s,color .25s,border-color .25s}
 .btn svg{width:18px;height:18px;flex:none}
-.btn-ink{background:var(--ink);color:var(--bone)}
-.btn-ink:hover{background:var(--board)}
-.btn-board{background:var(--board);color:var(--bone)}
-.btn-board:hover{background:var(--ink)}
-.btn-line{border:1px solid var(--ink);color:var(--ink)}
-.btn-line:hover{background:var(--ink);color:var(--bone)}
-.btn-bone{background:var(--bone);color:var(--ink)}
-.btn-bone:hover{background:var(--white)}
-.btn-line-bone{border:1px solid rgba(246,242,235,.55);color:var(--bone)}
-.btn-line-bone:hover{background:var(--bone);color:var(--ink)}
-.link{font-weight:500;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:2px;transition:opacity .2s}
+.btn-ink{background:var(--ink);color:var(--cream)}
+.btn-ink:hover{background:var(--rust)}
+.btn-glass{background:rgba(253,251,247,.7);color:var(--ink);border:1px solid rgba(26,22,17,.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.btn-glass:hover{background:var(--white)}
+.btn-line{border:1.5px solid var(--ink);color:var(--ink)}
+.btn-line:hover{background:var(--ink);color:var(--cream)}
+.btn-line-bone{border:1.5px solid rgba(246,242,235,.6);color:var(--cream)}
+.btn-line-bone:hover{background:var(--cream);color:var(--ink)}
+.btn-apricot{background:var(--apricot);color:var(--ink)}
+.btn-apricot:hover{background:var(--cream)}
+.link{font-weight:600;text-decoration:none;border-bottom:1.5px solid currentColor;padding-bottom:1px;transition:opacity .2s}
 .link:hover{opacity:.6}
 
-/* header */
-.top{position:sticky;top:0;z-index:40;padding-top:env(safe-area-inset-top,0px);background:rgba(246,242,235,.86);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border-bottom:1px solid transparent;transition:border-color .3s}
-.top.scrolled{border-color:var(--hair)}
-.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+/* header: שקוף מעל ההירו, קרם אחרי גלילה */
+.top{position:fixed;inset-inline:0;top:0;z-index:60;padding-top:env(safe-area-inset-top,0px);background:transparent;border-bottom:1px solid transparent;transition:background .35s,border-color .35s,backdrop-filter .35s}
+.top.scrolled{background:rgba(246,242,235,.88);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border-color:var(--hair)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:14px;height:64px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-.brand img{width:38px;height:38px;border-radius:50%}
-.brand b{font:400 21px/1 var(--serif);display:block}
+.brand img{width:40px;height:40px;border-radius:50%;box-shadow:0 2px 10px -2px rgba(26,22,17,.35)}
+.brand b{font:700 21px/1 var(--serif);letter-spacing:-.02em;display:block}
 .brand small{display:none;margin-top:4px}
-.nav{display:none;gap:34px;font-size:15px;font-weight:400}
+.nav{display:none;gap:32px;font-size:15px;font-weight:500}
 .nav a{text-decoration:none;position:relative;padding-block:6px}
-.nav a::after{content:"";position:absolute;inset-inline:0;bottom:0;height:1px;background:currentColor;transform:scaleX(0);transform-origin:right;transition:transform .3s ease}
+.nav a::after{content:"";position:absolute;inset-inline:0;bottom:0;height:1.5px;background:currentColor;transform:scaleX(0);transform-origin:right;transition:transform .3s ease}
 .nav a:hover::after{transform:scaleX(1)}
-.top-end{display:flex;align-items:center;gap:16px}
-.status{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:0 14px;border-radius:var(--pill);background:var(--white);border:1px solid var(--hair);font-size:14px;font-weight:500;color:var(--ink-soft);white-space:nowrap}
+.top-end{display:flex;align-items:center;gap:14px}
+.status{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:0 14px;border-radius:var(--pill);background:rgba(253,251,247,.85);border:1px solid var(--hair);font-size:14px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
 .status i{width:8px;height:8px;border-radius:50%;background:#B5ADA2;flex:none}
 .status.open{color:#25553A;background:#E6F0E8;border-color:#C9DDCE}
 .status.open i{background:#3E8A5A;box-shadow:0 0 0 4px rgba(62,138,90,.18);animation:pulse 2.4s ease-in-out infinite}
@@ -105,284 +115,283 @@ section[id]{scroll-margin-top:80px}
 .top .btn{display:none;min-height:42px;padding:0 20px;font-size:14px}
 @media (min-width:621px){.top .btn{display:inline-flex}.brand small{display:block}.top .wrap{height:72px}}
 @media (min-width:981px){.nav{display:flex}}
+section[id]{scroll-margin-top:72px}
 
-/* hero: בטלפון התמונה ממלאת את המסך והכותרת עליה; במחשב תמונה גדולה ומעוגלת לצד הטקסט */
-.hero{position:relative;isolation:isolate;min-height:min(calc(100svh - 64px - 88px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)),780px);display:flex;align-items:flex-end;color:var(--bone);overflow:hidden;background:#2A2620}
-.hero-grid{position:static;width:100%;padding-block:96px 28px}
-.hero-img{position:absolute;inset:0;z-index:-1;margin:0}
-.hero-img img{width:100%;height:100%;object-fit:cover;object-position:50% 72%}
-.hero-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(18,15,11,.9) 0%,rgba(18,15,11,.62) 38%,rgba(18,15,11,.12) 68%,rgba(18,15,11,0) 100%)}
-.hero-img figcaption{display:none}
-.hero .label{color:rgba(246,242,235,.85)}
-.hero h1{font-size:clamp(42px,11.5vw,104px);letter-spacing:-.025em;line-height:1.02;margin-top:14px;max-width:11ch}
-.hero .sub{font-size:clamp(17px,4.4vw,21px);line-height:1.55;color:rgba(246,242,235,.88);max-width:34ch;margin-top:16px}
-.hero .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
-.hero .actions .btn{flex:1 1 auto}
-.hero .btn-ink{background:var(--bone);color:var(--ink)}
-.hero .btn-ink:hover{background:var(--white)}
-.hero .btn-line{border-color:rgba(246,242,235,.6);color:var(--bone)}
-.hero .btn-line:hover{background:var(--bone);color:var(--ink)}
-@media (min-width:881px){
-  .hero{min-height:0;display:block;color:var(--ink);background:none;overflow:visible;padding-block:clamp(28px,4vw,56px) clamp(40px,5vw,72px)}
-  .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(40px,6vw,110px);align-items:center;padding-block:0}
-  .hero-img{position:relative;inset:auto;z-index:auto;aspect-ratio:4/5;border-radius:var(--r);overflow:hidden;background:#D8CFC2;box-shadow:var(--shadow)}
-  .hero-img::after{display:none}
-  .hero-img figcaption{display:block;position:absolute;bottom:18px;inset-inline-start:18px;background:rgba(26,22,17,.72);color:var(--bone);padding:10px 16px;border-radius:var(--pill);font-size:13px;letter-spacing:.03em;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-  .hero .label{color:var(--ink-soft)}
-  .hero h1{margin-top:24px}
-  .hero .sub{color:var(--ink-soft);margin-top:26px}
-  .hero .actions{margin-top:38px}
-  .hero .actions .btn{flex:0 0 auto}
-  .hero .btn-ink{background:var(--ink);color:var(--bone)}
-  .hero .btn-ink:hover{background:var(--board)}
-  .hero .btn-line{border-color:var(--ink);color:var(--ink)}
+/* ===== 1 · ההירו: שלוש שכבות מתמונה אחת. --fh הוא גובה המסגרת, וכל השכבות נמדדות ממנה ===== */
+.hero-stage{--fh:min(173vw,calc(100svh - 64px - 96px - 88px));background:radial-gradient(120% 70% at 50% 100%,#EFEDE6 0%,var(--cream) 70%)}
+.frame{position:absolute;bottom:88px;height:var(--fh);width:calc(var(--fh)*.75);left:calc(50vw - var(--fh)*.75*.46);pointer-events:none}
+.frame img{position:absolute;max-width:none;display:block}
+.f-back{z-index:1}
+.f-back img{inset:0;width:100%;height:100%;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);mask-composite:intersect;
+  transform-origin:50% 62%;scale:calc(1 - .07 * var(--sc-p,0));translate:calc(var(--mx,0) * -6px) calc(-3% * var(--sc-p,0) + var(--my,0) * -4px);filter:brightness(calc(1 - .12 * var(--sc-p,0)))}
+.f-front{z-index:3}
+.f-front img{left:12%;top:63.714%;width:68%;height:36.286%;transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,transparent 0,#000 14%);mask-image:linear-gradient(to top,transparent 0,#000 14%);scale:calc(1 + .24 * var(--sc-p,0));translate:calc(var(--mx,0) * 14px) calc(5% * var(--sc-p,0) + var(--my,0) * 8px);filter:drop-shadow(0 18px 22px rgba(26,22,17,.28))}
+.hero-top{position:absolute;z-index:4;top:calc(64px + env(safe-area-inset-top,0px) + 10px);inset-inline:var(--gutter) 112px}
+.hero-top .label{font-size:13px;letter-spacing:.08em}
+.hero-top .sub{margin-top:10px;font-size:clamp(16px,4.3vw,20px);line-height:1.5;color:var(--ink-soft);max-width:min(25ch,68vw)}
+.hero-h1{position:absolute;z-index:2;inset-inline:var(--gutter);bottom:calc(88px + var(--fh) * .363 - .22em);font:800 clamp(44px,13vw,118px)/.94 var(--serif);letter-spacing:-.04em;color:var(--cream);text-shadow:0 2px 22px rgba(18,15,11,.45);translate:0 calc(-120px * var(--sc-p,0))}
+.hero-h1 .ln{display:block}
+.hero-h1 .ln:first-child{color:var(--apricot)}
+.stamp{position:absolute;z-index:5;left:16px;top:calc(64px + env(safe-area-inset-top,0px) + 14px);width:84px;height:84px;border-radius:50%;background:var(--apricot);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;rotate:-9deg;box-shadow:0 8px 20px -6px rgba(0,0,0,.4);text-align:center}
+.stamp b{font:800 27px/1 var(--serif);letter-spacing:-.03em}
+.stamp i{font-style:normal;font-size:9px;letter-spacing:1px;color:var(--rust)}
+.stamp small{font-size:11px;font-weight:600}
+.hero-actions{display:none}
+@media (min-width:900px){
+  .hero-stage{--fh:calc(100svh - 96px)}
+  .frame{bottom:0;left:4vw}
+  .hero-top{top:auto;bottom:calc(var(--fh) * .64);inset-inline:auto var(--gutter);inset-inline-start:var(--gutter);width:min(46vw,620px)}
+  .hero-h1{inset-inline:auto;inset-inline-start:var(--gutter);right:var(--gutter);width:min(52vw,760px);bottom:auto;top:calc(100svh - var(--fh) * .6);color:var(--ink);text-shadow:none}
+  .hero-h1 .ln:first-child{color:var(--rust)}
+  .hero-actions{display:flex;gap:12px;position:absolute;z-index:4;right:var(--gutter);top:calc(100svh - var(--fh) * .6 + 2 * .94 * clamp(44px,13vw,118px) + 36px)}
+  .stamp{left:calc(4vw + var(--fh) * .03);top:calc(100svh - var(--fh) - 20px);width:112px;height:112px}
+  .stamp b{font-size:37px}.stamp i{font-size:11px}.stamp small{font-size:13px}
 }
+/* כניסה: הרקע מתיישב, הכוסות עולות, הכותרת נבנית שורה-שורה */
+.f-back img{animation:settle 1.6s cubic-bezier(.2,.7,.2,1) both}
+.f-front img{animation:cupsIn 1.3s .15s cubic-bezier(.2,.8,.2,1) both}
+.hero-h1 .ln{animation:lineUp .9s cubic-bezier(.2,.8,.2,1) both}
+.hero-h1 .ln:nth-child(2){animation-delay:.12s}
+.hero-top{animation:fadeIn .9s .2s both}
+.stamp{animation:stampIn .8s .7s cubic-bezier(.3,1.4,.4,1) both}
+@keyframes settle{from{transform:scale(1.07)}to{transform:none}}
+@keyframes cupsIn{from{transform:translateY(22%);opacity:0}to{transform:none;opacity:1}}
+@keyframes lineUp{from{transform:translateY(40%);opacity:0}to{transform:none;opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes stampIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 
-/* proof strip: הדירוג ושבת, מיד מתחת להירו */
-.proof{display:flex;flex-wrap:wrap;gap:10px;padding-block:20px 0}
-.proof span{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:var(--pill);background:var(--white);border:1px solid var(--hair);font-size:15px;color:var(--ink-soft)}
-.proof b{color:var(--ink);font-weight:600}
-.stars{letter-spacing:2px;color:#B8862F}
-@media (min-width:881px){.proof{padding-block:0}}
+/* proof */
+.proof{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:22px var(--gutter) 0}
+.proof span{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:var(--r-sm);background:var(--white);border:1px solid var(--hair);font-size:15px;color:var(--ink-soft)}
+.proof b{color:var(--ink);font-weight:700}
+.stars{letter-spacing:2px;color:var(--rust)}
 
-/* full bleed */
-.bleed{position:relative;height:clamp(380px,70vh,820px);overflow:hidden;background:#C9C3B4;margin:var(--sec) 0 0}
-.bleed img{width:100%;height:100%;object-fit:cover}
-.bleed .cap{position:absolute;inset-inline:0;bottom:0;padding:clamp(24px,4vw,56px) var(--gutter);background:linear-gradient(to top,rgba(20,17,13,.8) 0%,rgba(20,17,13,.5) 55%,transparent);color:var(--bone);display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap}
-.bleed .cap p{font:300 clamp(30px,3.6vw,54px)/1.1 var(--serif);max-width:18ch}
-.bleed .cap .label-en{color:rgba(246,242,235,.8)}
-@media (min-width:881px){.bleed{margin:0 var(--gutter);border-radius:var(--r)}}
+/* ===== 2 · המדשאה: חיתוך עיגול שנפתח ===== */
+.lawn{padding-top:clamp(40px,7vw,90px)}
+.lawn-fig{position:relative;margin:0;height:min(92svh,860px);overflow:hidden;background:#C9C3B4}
+.lawn-fig img{width:100%;height:100%;object-fit:cover}
+.lawn-fig figcaption{position:absolute;inset-inline:0;bottom:0;padding:clamp(28px,5vw,64px) var(--gutter);background:linear-gradient(to top,rgba(20,17,13,.82),rgba(20,17,13,.4) 60%,transparent);color:var(--cream);display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap}
+.lawn-fig figcaption p{font:800 clamp(40px,10.5vw,104px)/.95 var(--serif);letter-spacing:-.04em;max-width:11ch}
+.lawn-fig .label-en{color:rgba(246,242,235,.85)}
 
-/* intro statement */
+/* ===== 3 · מרחקים ===== */
 .statement{padding-block:var(--sec)}
-.statement-grid{display:grid;gap:14px}
-.statement h2{font-size:clamp(30px,4.2vw,64px);line-height:1.2;letter-spacing:-.01em}
-.statement h2 span{color:var(--ink-soft)}
-.facts{display:grid;gap:12px;margin-top:clamp(40px,6vw,90px)}
-.facts div{background:var(--white);border:1px solid var(--hair);border-radius:var(--r-sm);padding:22px 22px 20px;display:flex;align-items:baseline;gap:16px}
-.facts b{flex:none;font:300 clamp(34px,9vw,72px)/1 var(--serif);font-variant-numeric:tabular-nums;color:var(--board)}
-.facts span{color:var(--ink-soft);font-size:16px;line-height:1.45}
-@media (min-width:761px){.statement-grid{grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:clamp(24px,5vw,80px)}.facts{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.facts div{display:block;padding:30px 28px}.facts span{display:block;margin-top:14px}}
+.statement h2{margin-top:14px;font:700 clamp(32px,6.4vw,74px)/1.08 var(--serif);letter-spacing:-.03em;max-width:22ch}
+.statement h2 span{color:var(--ink-soft);font-weight:400}
+.facts{display:grid;gap:12px;margin-top:clamp(36px,6vw,80px)}
+.facts>div{display:flex;align-items:center;gap:18px;padding:22px 24px;border-radius:var(--r);background:var(--white);border:1px solid var(--hair)}
+.facts b{flex:none;font:800 clamp(46px,13vw,96px)/.85 var(--serif);letter-spacing:-.05em;color:var(--rust);font-variant-numeric:tabular-nums}
+.facts>div:nth-child(3) b{color:var(--board)}
+.facts>div>span{font-size:17px;line-height:1.4;font-weight:500;color:#3F382F}
+@media (min-width:761px){.facts{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.facts>div{display:block;padding:32px 28px}.facts>div>span{display:block;margin-top:16px}}
 
-/* offer: כרטיס קפה גדול ושני כרטיסים לצדו, ואחריהם גלריה שגוללת הצידה בטלפון */
-.offer{background:var(--white);padding-block:var(--sec)}
-.offer-head{display:flex;justify-content:space-between;align-items:end;gap:18px 32px;flex-wrap:wrap;margin-bottom:clamp(32px,5vw,72px)}
-.offer-head h2{font-size:clamp(40px,6vw,96px);letter-spacing:-.02em;margin-top:14px}
-.offer-head p{max-width:40ch;color:var(--ink-soft)}
-.cards{display:grid;gap:16px}
-.card{background:var(--bone);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
-.card figure{margin:0;aspect-ratio:4/3;overflow:hidden;background:#DDD4C6}
-.card figure img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s cubic-bezier(.2,.7,.2,1)}
-.card:hover figure img{transform:scale(1.03)}
-.card .in{padding:22px 22px 18px}
-.card h3{font-size:clamp(28px,2.8vw,40px)}
-.card p{color:var(--ink-soft);margin-top:8px;font-size:16px}
-.card ul{list-style:none;padding:0;margin:14px 0 0}
-.card li{padding:12px 0;border-top:1px solid var(--hair);display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:17px;font-weight:400}
-.card li em{font-style:normal;font-size:13px;font-weight:500;color:var(--board);background:var(--board-soft);padding:4px 10px;border-radius:var(--pill);white-space:nowrap}
-@media (min-width:861px){
-  .cards{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);grid-template-rows:auto auto;gap:24px}
-  .card.big{grid-row:span 2}
-  .card.big figure{aspect-ratio:auto;flex:1;min-height:420px}
-  .card:not(.big){flex-direction:row}
-  .card:not(.big) figure{aspect-ratio:auto;width:42%;flex:none}
-  .card:not(.big) .in{align-self:center;flex:1}
-  .card .in{padding:28px 30px 22px}
+/* ===== 4 · המזיגה (השיא) ===== */
+.pour-stage{display:grid;place-items:center;padding:calc(64px + 2svh) var(--gutter) 96px}
+.pour-copy{position:absolute;top:calc(70px + 3svh);inset-inline:var(--gutter);text-align:center}
+.pour-h{font:800 clamp(64px,19vw,170px)/.9 var(--serif);letter-spacing:-.05em;color:var(--rust)}
+.pour-sub{margin-top:10px;font:600 clamp(19px,5vw,28px)/1.3 var(--serif)}
+.glass-wrap{position:relative;width:min(62vw,40svh,380px);aspect-ratio:220/280;margin-top:8svh}
+.glass{width:100%;height:auto;overflow:visible}
+.glass-line{fill:rgba(255,255,255,.28);stroke:var(--ink);stroke-width:4;stroke-linejoin:round}
+.glass-line.thin{fill:none;stroke-width:2;opacity:.55}
+.half{stroke:var(--rust);stroke-width:2;stroke-dasharray:6 7;opacity:calc(min(1,max(0,(var(--sc-p,0) - .08) * 8)) - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
+/* מילוי: אספרסו עד חצי (p .12→.42), חלב מעליו (p .44→.70). ההתחלה ריקה בכוונה: השקט שלפני המזיגה */
+.liq{transform-box:view-box}
+.liq-esp{transform-origin:0 256px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .12) / .30)))}
+.liq-crema{transform-origin:0 0;translate:0 calc((1 - min(1,max(0,(var(--sc-p,0) - .12) / .30))) * 111px);opacity:calc(min(1,max(0,(var(--sc-p,0) - .12) * 20)))}
+.liq-milk{transform-origin:0 145px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .44) / .26)))}
+.foam{opacity:calc(min(1,max(0,(var(--sc-p,0) - .66) * 12)))}
+.stream{transform-box:fill-box;transform-origin:50% 0}
+.stream-esp{opacity:calc(min(1,max(0,(var(--sc-p,0) - .1) * 30)) - min(1,max(0,(var(--sc-p,0) - .42) * 30)))}
+.stream-milk{opacity:calc(min(1,max(0,(var(--sc-p,0) - .43) * 30)) - min(1,max(0,(var(--sc-p,0) - .7) * 30)))}
+.glass{opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(1 - .2 * min(1,max(0,(var(--sc-p,0) - .72) * 4)))}
+.pour-top{position:absolute;inset:6% 0 auto;width:100%;height:auto;max-width:none;filter:drop-shadow(0 22px 30px rgba(26,22,17,.3));opacity:calc(min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(.7 + .3 * min(1,max(0,(var(--sc-p,0) - .72) * 4)));rotate:calc(var(--sc-p,0) * 140deg)}
+.ratio{position:absolute;inset-inline:var(--gutter);bottom:calc(104px + 1svh);margin:0;display:flex;justify-content:center;gap:12px}
+.ratio>div{min-width:126px;padding:10px 16px;border-radius:var(--r-sm);background:rgba(253,251,247,.75);border:1px solid rgba(127,56,27,.18);text-align:center;opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
+.ratio dt{font-size:14px;font-weight:600;color:#4A433A}
+.ratio dd{margin:0;font:800 32px/1 var(--serif);color:var(--rust)}
+.r-milk dd{color:#8A6136}
+.savta{position:absolute;inset-inline:var(--gutter);bottom:calc(100px + 1svh);margin:0;padding:22px 22px 20px;background:var(--rust);color:var(--cream);border-radius:var(--r);text-align:center;font:700 clamp(22px,5.6vw,34px)/1.2 var(--serif);letter-spacing:-.02em}
+.savta .mark{width:56px;height:56px;border-radius:50%;margin:-50px auto 10px;box-shadow:0 0 0 3px var(--apricot-soft)}
+.savta cite{display:block;margin-top:10px;font:500 14px/1 var(--sans);font-style:normal;color:var(--apricot-soft)}
+@media (min-width:900px){
+  .pour-stage{grid-template-columns:1fr 1fr;padding-bottom:40px}
+  .pour-copy{position:static;grid-column:2;grid-row:1;text-align:start}
+  .glass-wrap{grid-column:1;grid-row:1/3;margin:0;width:min(32vw,58svh)}
+  .ratio{position:static;grid-column:2;justify-content:flex-start;margin-top:24px}
+  .savta{inset-inline:auto;right:var(--gutter);left:auto;bottom:12svh;width:min(42vw,560px);text-align:start}
+  .savta .mark{margin:0 0 12px}
 }
-.gallery{display:grid;grid-auto-flow:column;grid-auto-columns:82%;gap:12px;margin:20px calc(var(--gutter) * -1) 0;padding-inline:var(--gutter);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:var(--gutter);scrollbar-width:none;overscroll-behavior-x:contain}
-.gallery::-webkit-scrollbar{display:none}
-.gallery figure{margin:0;scroll-snap-align:start;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:#DDD4C6}
-.gallery img{width:100%;height:100%;object-fit:cover}
-@media (min-width:861px){.gallery{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-columns:auto;margin:24px 0 0;padding:0;overflow:visible;gap:24px}}
-.offer-note{margin-top:28px;font-size:15px;color:var(--ink-soft)}
 
-/* story */
+/* ===== הסיפור ===== */
 .story{padding-block:var(--sec)}
-.story-grid{display:grid;gap:36px;align-items:center}
-.story-img{aspect-ratio:4/3;overflow:hidden;background:#D6CDBF;border-radius:var(--r)}
+.story-grid{display:grid;gap:30px;align-items:center}
+.story-img{margin:0;aspect-ratio:4/3;overflow:hidden;border-radius:var(--r);background:#D6CDBF}
 .story-img img{width:100%;height:100%;object-fit:cover}
-.story h2{font-size:clamp(36px,4.6vw,72px);letter-spacing:-.015em;margin-top:14px}
-.story .body{margin-top:24px;display:flex;flex-direction:column;gap:16px;color:var(--ink-soft);max-width:48ch}
-.story blockquote{margin:32px 0 0;padding:24px;background:var(--white);border:1px solid var(--hair);border-radius:var(--r);font:300 clamp(23px,2.2vw,32px)/1.35 var(--serif);color:var(--ink)}
-.story cite{display:block;margin-top:14px;font:400 14px/1 var(--sans);font-style:normal;color:var(--ink-soft);letter-spacing:.04em}
-.story .mark{width:52px;height:52px;border-radius:50%;margin-bottom:12px}
-@media (min-width:861px){.story-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(32px,7vw,120px)}.story blockquote{padding:32px}}
+.story h2{margin-top:12px;font:700 clamp(38px,8vw,84px)/.98 var(--serif);letter-spacing:-.035em}
+.story .body{margin-top:18px;color:var(--ink-soft);max-width:48ch}
+@media (min-width:861px){.story-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(32px,7vw,120px)}}
 
-/* reviews: כרטיסים שגוללים הצידה בטלפון */
-.reviews{background:var(--ink);color:var(--bone);padding-block:var(--sec)}
-.reviews .label,.reviews .label-en{color:rgba(246,242,235,.75)}
-.rev-head{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap}
-.rev-head h2{font-size:clamp(38px,5.4vw,88px);letter-spacing:-.02em;margin-top:14px}
+/* ===== רצועת התפריט ===== */
+.marquee{background:var(--ink);color:var(--cream);overflow:hidden;white-space:nowrap;padding-block:16px}
+.marquee .track{display:inline-flex;gap:24px;align-items:center;animation:marq 38s linear infinite;font:700 clamp(24px,6.6vw,40px)/1 var(--serif);letter-spacing:-.02em;padding-inline-end:24px}
+.marquee .track span:nth-of-type(2n){color:var(--apricot)}
+.marquee .track i{width:9px;height:9px;border-radius:50%;background:var(--apricot);flex:none}
+@keyframes marq{to{transform:translateX(50%)}}
+
+/* ===== 5 · התפריט: כרטיסים נערמים ===== */
+.offer{padding-block:var(--sec) calc(var(--sec) * .6)}
+.offer-head h2{margin-top:12px;font:800 clamp(46px,11vw,120px)/.92 var(--serif);letter-spacing:-.045em}
+.offer-head p{margin-top:16px;max-width:44ch;color:var(--ink-soft)}
+.stack{display:grid;gap:18px;padding:clamp(32px,5vw,64px) var(--gutter) 0;max-width:var(--max);margin-inline:auto}
+.sk{position:sticky;top:calc(80px + var(--i,0) * 62px);min-height:max(380px,calc(100svh - 196px - var(--i,0) * 62px));border-radius:28px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;box-shadow:0 -10px 30px -12px rgba(26,22,17,.28);transform-origin:50% 0}
+.sk-1{--i:0;background:var(--rust);color:var(--cream)}
+.sk-2{--i:1;background:var(--apricot);color:var(--ink)}
+.sk-3{--i:2;background:var(--board);color:var(--cream)}
+.sk-4{--i:3;background:var(--apricot-soft);color:var(--ink)}
+.sk-txt{padding:12px 22px 0}
+.sk h3{font:800 clamp(34px,9vw,64px)/1.3 var(--serif);letter-spacing:-.04em}
+.sk p{margin-top:2px;font-size:16px;opacity:.9}
+.sk ul{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+.sk li{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:var(--pill);background:rgba(255,255,255,.16);font-size:16px;font-weight:500}
+.sk-2 li,.sk-4 li{background:rgba(255,255,255,.55)}
+.sk li em{font-style:normal;font-size:12px;font-weight:700;background:var(--cream);color:var(--ink);padding:3px 9px;border-radius:var(--pill)}
+.sk-2 li em,.sk-4 li em{background:var(--ink);color:var(--apricot)}
+.sk-art{position:relative;display:grid;place-items:center;padding:14px 20px 22px;min-height:0}
+.sk-art img{width:auto;max-width:74%;max-height:min(34svh,330px);object-fit:contain;filter:drop-shadow(0 26px 26px rgba(0,0,0,.32));rotate:calc(-6deg + var(--sk-p,0) * 12deg);scale:calc(.92 + var(--sk-p,0) * .12)}
+.sk-art .sk-art2{position:absolute;max-width:40%;max-height:18svh;inset-inline-start:8%;bottom:4%;rotate:calc(10deg - var(--sk-p,0) * 16deg)}
+@media (min-width:861px){.stack{max-width:1100px}.sk{top:calc(96px + var(--i,0) * 70px);min-height:max(420px,calc(100svh - 160px - var(--i,0) * 70px));grid-template-rows:auto 1fr}.sk-txt{padding:18px 40px 0}.sk-art img{max-height:min(40svh,380px)}}
+.offer-note{margin-top:28px;font-size:16px;color:var(--ink-soft)}
+
+/* ===== 6 · ביקורות ===== */
+.reviews{background:var(--ink);color:var(--cream);padding-block:var(--sec)}
+.reviews .label{color:var(--apricot)}
+.rev-head{display:flex;justify-content:space-between;align-items:end;gap:18px;flex-wrap:wrap}
+.rev-head h2{margin-top:12px;font:800 clamp(44px,10vw,110px)/.95 var(--serif);letter-spacing:-.04em}
 .score{display:flex;align-items:center;gap:16px}
-.score b{font:300 clamp(60px,8vw,120px)/.9 var(--serif)}
-.score span{font-size:15px;color:rgba(246,242,235,.78);line-height:1.5}
-.score .stars{color:#E3B65C;display:block;font-size:17px}
+.score b{font:800 clamp(96px,26vw,200px)/.8 var(--serif);letter-spacing:-.06em;color:var(--apricot);font-variant-numeric:tabular-nums}
+.score span{font-size:15px;color:rgba(246,242,235,.82);line-height:1.5}
+.score .stars{display:block;color:var(--apricot);font-size:20px}
 .rev-grid{display:grid;grid-auto-flow:column;grid-auto-columns:86%;gap:12px;margin:36px calc(var(--gutter) * -1) 0;padding-inline:var(--gutter);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:var(--gutter);scrollbar-width:none;overscroll-behavior-x:contain}
 .rev-grid::-webkit-scrollbar{display:none}
-.rev-grid figure{margin:0;scroll-snap-align:start;background:rgba(246,242,235,.07);border:1px solid rgba(246,242,235,.14);border-radius:var(--r);padding:26px 24px;display:flex;flex-direction:column;justify-content:space-between;gap:22px}
-.rev-grid figure::before{content:"★★★★★";letter-spacing:2px;color:#E3B65C;font-size:14px}
-.rev-grid blockquote{margin:0;font:300 clamp(21px,1.9vw,26px)/1.5 var(--serif);flex:1}
-.rev-grid figcaption{font-size:14px;color:rgba(246,242,235,.78);letter-spacing:.03em}
-.reviews .more{margin-top:36px;display:flex;gap:12px;flex-wrap:wrap}
-@media (min-width:861px){.rev-grid{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-columns:auto;margin:56px 0 0;padding:0;overflow:visible;gap:20px}.rev-grid figure{padding:32px 30px}}
+.rev-grid figure{margin:0;scroll-snap-align:start;background:rgba(246,242,235,.07);border:1px solid rgba(246,242,235,.14);border-radius:var(--r);padding:28px 24px;display:flex;flex-direction:column;justify-content:space-between;gap:22px}
+.rev-grid figure::before{content:"★★★★★";letter-spacing:2px;color:var(--apricot);font-size:15px}
+.rev-grid blockquote{margin:0;font:500 clamp(21px,5.2vw,27px)/1.45 var(--serif);flex:1}
+.rev-grid figcaption{font-size:14px;color:rgba(246,242,235,.8)}
+.reviews :focus-visible{outline-color:var(--apricot)}
+.fine-note{margin-top:28px;font-size:13px;line-height:1.6;color:rgba(246,242,235,.75);letter-spacing:.02em}
+.reviews .more{margin-top:28px}
+@media (min-width:861px){.rev-grid{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-columns:auto;margin:56px 0 0;padding:0;overflow:visible;gap:20px}}
 
-/* visit */
-.visit{padding-block:var(--sec)}
-.visit-grid{display:grid;gap:32px}
-.visit h2{font-size:clamp(40px,6vw,96px);letter-spacing:-.02em;margin-top:14px}
-.addr{margin-top:22px;font-size:19px;font-weight:400}
-.addr small{display:block;color:var(--ink-soft);font-size:16px;font-weight:300;margin-top:4px}
-.visit .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+/* ===== 7 · ביקור ===== */
+.visit{background:linear-gradient(#22332B,var(--board) 40%);color:var(--cream);padding-block:var(--sec);overflow:hidden}
+.visit .label{color:var(--apricot)}
+.visit-grid{display:grid;gap:30px}
+.visit-art{position:relative;min-height:300px;display:grid;place-items:end center}
+.moon{position:absolute;top:6%;inset-inline-start:12%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#FFE7C9,#F2AF74 60%,rgba(242,175,116,0) 72%);opacity:.9}
+.eve{position:relative;width:min(100%,640px);height:auto;max-width:none;filter:drop-shadow(0 30px 30px rgba(0,0,0,.45))}
+.visit h2{margin-top:12px;font:800 clamp(56px,14vw,140px)/.9 var(--serif);letter-spacing:-.045em}
+.addr{margin-top:20px;font-size:20px;font-weight:600}
+.addr small{display:block;color:rgba(246,242,235,.82);font-size:16px;font-weight:400;margin-top:6px}
+.visit .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
 .visit .actions .btn{flex:1 1 auto}
-.hours{width:100%;border-collapse:separate;border-spacing:0;margin-top:32px;font-variant-numeric:tabular-nums;background:var(--white);border:1px solid var(--hair);border-radius:var(--r);overflow:hidden}
-.hours th,.hours td{padding:15px 20px;border-top:1px solid var(--hair);font-size:17px;text-align:start;font-weight:300}
+.visit :focus-visible{outline-color:var(--apricot)}
+.hours{width:100%;border-collapse:separate;border-spacing:0;margin-top:30px;font-variant-numeric:tabular-nums;background:var(--cream);color:var(--ink);border-radius:var(--r);overflow:hidden}
+.hours th,.hours td{padding:15px 20px;border-top:1px solid var(--hair);font-size:17px;text-align:start;font-weight:500}
 .hours tr:first-child th,.hours tr:first-child td{border-top:0}
-.hours td{text-align:end;font-weight:500}
-.hours td.closed{color:var(--ink-soft);font-weight:300}
-.hours tr.today th,.hours tr.today td{font-weight:600;background:var(--board-soft);color:var(--board)}
-.hours tr.today th::before{content:"היום";display:inline-block;font:500 12px/1 var(--sans);background:var(--board);color:var(--bone);padding:5px 9px;border-radius:var(--pill);margin-inline-end:10px;vertical-align:2px}
-.hours-note{font-size:14px;color:var(--ink-soft);margin-top:14px}
-.visit-img{position:relative;overflow:hidden;background:#2A2620;min-height:320px;border-radius:var(--r);margin:0;order:-1}
-.visit-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-@media (min-width:861px){.visit-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,6vw,110px)}.visit-img{min-height:560px;order:0}.visit .actions .btn{flex:0 0 auto}}
+.hours td{text-align:end;font-weight:700}
+.hours td.closed{color:var(--ink-soft);font-weight:400}
+.hours tr.today th,.hours tr.today td{background:var(--apricot-soft)}
+.hours tr.today td.closed{color:#4A433A}
+.hours tr.today th::before{content:"היום";display:inline-block;font:700 12px/1 var(--sans);background:var(--rust);color:var(--cream);padding:5px 9px;border-radius:var(--pill);margin-inline-end:10px;vertical-align:2px}
+.hours-note{font-size:14px;color:rgba(246,242,235,.82);margin-top:14px}
+@media (min-width:861px){.visit-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,6vw,110px);align-items:center}.visit .actions .btn{flex:0 0 auto}.visit-art{min-height:520px}}
 
 /* faq */
-.faq{padding-bottom:var(--sec)}
+.faq{padding-block:var(--sec)}
 .faq-grid{display:grid;gap:22px}
-.faq h2{font-size:clamp(34px,4vw,56px)}
-.faq details{background:var(--white);border:1px solid var(--hair);border-radius:var(--r-sm);margin-top:10px;transition:border-color .25s}
+.faq h2{font:800 clamp(40px,9vw,88px)/.95 var(--serif);letter-spacing:-.04em}
+.faq details{background:var(--white);border:1px solid var(--hair);border-radius:var(--r-sm);margin-top:10px}
 .faq details[open]{border-color:#CFC6B8}
-.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;min-height:60px;font-size:18px;font-weight:400}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;min-height:60px;font-size:18px;font-weight:500}
 .faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:"";width:28px;height:28px;flex:none;border-radius:50%;background:var(--bone) linear-gradient(currentColor,currentColor) center/11px 1.5px no-repeat;box-shadow:inset 0 0 0 1px var(--hair);transition:transform .3s ease}
-.faq details:not([open]) summary::after{background-image:linear-gradient(currentColor,currentColor),linear-gradient(currentColor,currentColor);background-size:11px 1.5px,1.5px 11px;background-position:center;background-repeat:no-repeat}
+.faq summary::after{content:"";width:28px;height:28px;flex:none;border-radius:50%;background:var(--apricot-soft) linear-gradient(var(--rust),var(--rust)) center/11px 1.5px no-repeat;transition:transform .3s ease}
+.faq details:not([open]) summary::after{background-image:linear-gradient(var(--rust),var(--rust)),linear-gradient(var(--rust),var(--rust));background-size:11px 1.5px,1.5px 11px;background-position:center;background-repeat:no-repeat}
 .faq details[open] summary::after{transform:rotate(180deg)}
 .faq details p{padding:0 20px 20px;color:var(--ink-soft);max-width:58ch}
-.faq .brief{padding:22px;background:var(--board-soft);border-radius:var(--r);max-width:none}
-.faq .brief .label{margin-bottom:12px;color:var(--board)}
+.faq .brief{padding:22px;background:var(--apricot-soft);border-radius:var(--r);margin-bottom:8px}
+.faq .brief .label{margin-bottom:12px}
+.faq .brief p{color:#3F382F}
 .nb{white-space:nowrap}
 @media (min-width:861px){.faq-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}.faq .brief{padding:30px}}
 
-/* english: פסקה אחת לתיירים ולעוזרי AI ששואלים באנגלית. רק עובדות שכבר כתובות בעברית בדף. */
-.en{border-top:1px solid var(--hair);padding-block:clamp(56px,8vw,110px);text-align:left}
-.en-grid{display:grid;gap:20px}
-.en h2{font-size:clamp(30px,3.4vw,48px);line-height:1.12;margin-top:14px}
-.en .body{display:flex;flex-direction:column;gap:14px;color:var(--ink-soft);max-width:62ch}
-@media (min-width:861px){.en-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}}
-
 /* review ask */
 .ask{padding-block:0 clamp(56px,8vw,110px)}
-.ask .wrap>div:first-child{flex:1 1 320px}
-.ask .wrap{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
-.ask .wrap{background:var(--white);border:1px solid var(--hair);border-radius:var(--r);padding-block:clamp(28px,4vw,48px);max-width:calc(var(--max) - var(--gutter) * 2);margin-inline:var(--gutter)}
+.ask .wrap{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--apricot-soft);border-radius:var(--r);padding-block:clamp(28px,4vw,48px);max-width:calc(var(--max) - var(--gutter) * 2);margin-inline:var(--gutter)}
 @media (min-width:1321px){.ask .wrap{margin-inline:auto}}
-.ask h2{font-size:clamp(28px,3.6vw,52px)}
-.ask p{color:var(--ink-soft);margin-top:10px}
+.ask .wrap>div:first-child{flex:1 1 320px}
+.ask h2{font:800 clamp(32px,6vw,60px)/1 var(--serif);letter-spacing:-.035em}
+.ask p{color:#4A433A;margin-top:10px}
+
+/* english */
+.en{border-top:1px solid var(--hair);padding-block:clamp(56px,8vw,110px);text-align:left}
+.en-grid{display:grid;gap:20px}
+.en h2{font:700 clamp(30px,4vw,48px)/1.08 var(--serif);margin-top:14px}
+.en .body{display:flex;flex-direction:column;gap:14px;color:var(--ink-soft);max-width:62ch}
+@media (min-width:861px){.en-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}}
 
 /* legal */
 .legal{background:var(--white);border-top:1px solid var(--hair);padding-block:clamp(56px,8vw,110px)}
 .legal-grid{display:grid;gap:20px}
-.legal h2{font-size:clamp(30px,3.4vw,48px)}
+.legal h2{font:700 clamp(30px,4vw,48px)/1.05 var(--serif)}
 .legal .intro{color:var(--ink-soft);margin-top:14px;font-size:16px}
 .legal details{border-bottom:1px solid var(--hair)}
 .legal details:first-of-type{border-top:1px solid var(--ink)}
-.legal summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 0;min-height:56px;font-size:18px;font-weight:400}
+.legal summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 0;min-height:56px;font-size:18px;font-weight:500}
 .legal summary::-webkit-details-marker{display:none}
-.legal summary::after{content:"";width:12px;height:12px;flex:none;background:linear-gradient(currentColor,currentColor) center/100% 1px no-repeat,linear-gradient(currentColor,currentColor) center/1px 100% no-repeat;transition:transform .3s ease}
+.legal summary::after{content:"";width:12px;height:12px;flex:none;background:linear-gradient(currentColor,currentColor) center/100% 1.5px no-repeat,linear-gradient(currentColor,currentColor) center/1.5px 100% no-repeat;transition:transform .3s ease}
 .legal details[open] summary::after{transform:rotate(45deg)}
-.legal .doc{padding:0 0 30px;font-size:16px;max-width:68ch;color:var(--ink)}
-.legal .doc h3{font:500 16px/1.4 var(--sans);margin:22px 0 6px}
+.legal .doc{padding:0 0 30px;font-size:16px;max-width:68ch}
+.legal .doc h3{font:600 16px/1.4 var(--sans);margin:22px 0 6px}
 .legal .doc p,.legal .doc li{color:var(--ink-soft)}
 .legal .doc ul{margin:6px 0 0;padding-inline-start:20px}
-.legal .doc a{font-weight:500}
+.legal .doc a{font-weight:600}
 @media (min-width:861px){.legal-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}}
 
 /* footer */
-footer{background:var(--board);color:var(--bone);padding-block:clamp(56px,8vw,110px) calc(36px + env(safe-area-inset-bottom,0px))}
-.foot-grid{display:grid;gap:32px}
-.foot-mark{font:300 clamp(52px,7vw,110px)/.95 var(--serif);letter-spacing:-.02em}
-footer h3{font:500 12px/1 var(--sans);letter-spacing:.2em;color:rgba(246,242,235,.8);margin-bottom:10px}
+footer{background:var(--ink);color:var(--cream);padding-block:clamp(56px,8vw,110px) calc(36px + env(safe-area-inset-bottom,0px))}
+.foot-grid{display:grid;gap:30px}
+.foot-mark{font:800 clamp(72px,20vw,180px)/.85 var(--serif);letter-spacing:-.05em;color:var(--apricot)}
+footer h3{font:600 12px/1 var(--sans);letter-spacing:.2em;color:rgba(246,242,235,.8);margin-bottom:10px}
 footer ul{list-style:none;margin:0;padding:0}
-footer li a{display:flex;align-items:center;min-height:44px;text-decoration:none;font-weight:400}
-footer li a:hover{opacity:.65}
+footer li a{display:flex;align-items:center;min-height:44px;text-decoration:none;font-weight:500}
+footer li a:hover{color:var(--apricot)}
+footer :focus-visible{outline-color:var(--apricot)}
 .fine a{text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;min-height:32px}
 .fine{grid-column:1/-1;margin-top:24px;padding-top:22px;border-top:1px solid rgba(246,242,235,.2);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:rgba(246,242,235,.8)}
 @media (min-width:861px){.foot-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:40px}}
 
-/* mobile bar: פס כפתורים צף בתחתית הטלפון */
+/* mobile bar */
 .bar{display:none}
 @media (max-width:760px){
   body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
-  .bar{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:6px;position:fixed;inset-inline:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:50;padding:6px;border-radius:var(--pill);background:rgba(26,22,17,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 30px -8px rgba(0,0,0,.45)}
-  .bar a{display:flex;align-items:center;justify-content:center;gap:7px;min-height:52px;border-radius:var(--pill);color:var(--bone);text-decoration:none;font-size:15px;font-weight:500}
+  .bar{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:6px;position:fixed;inset-inline:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:70;padding:6px;border-radius:var(--pill);background:rgba(26,22,17,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 30px -8px rgba(0,0,0,.5)}
+  .bar a{display:flex;align-items:center;justify-content:center;gap:7px;min-height:52px;border-radius:var(--pill);color:var(--cream);text-decoration:none;font-size:15px;font-weight:600}
   .bar a:active{background:rgba(246,242,235,.12)}
-  .bar a.main{background:var(--board)}
+  .bar a.main{background:var(--apricot);color:var(--ink)}
   .bar svg{width:18px;height:18px}
 }
 
-/* motion: כניסה עדינה. בלי JS (או עם "צמצום תנועה") הכל גלוי מההתחלה */
-.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
-.rise.d1{animation-delay:.08s}.rise.d2{animation-delay:.16s}.rise.d3{animation-delay:.24s}
-@keyframes rise{from{opacity:.001;transform:translateY(14px)}to{opacity:1;transform:none}}
-.hero-img img{animation:settle 1.8s cubic-bezier(.2,.7,.2,1) both}
-@keyframes settle{from{transform:scale(1.06)}to{transform:scale(1)}}
-.js .rv{opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
-.js .rv.seen{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.js .rv{opacity:1;transform:none}}
-
-/* ===== אמצע: המבנה הנקי, עם הדגשות מהלוגו של סבתא (משמש וחלודה) ===== */
-:root{--apricot:#F2AF74;--apricot-soft:#F9E0C7;--rust:#7F381B;--rust-soft:#F4E2D8}
-h1,h2{font-weight:600;letter-spacing:-.025em}
-.btn-ink:hover{background:var(--rust)}
-.hero h1{font-weight:700;letter-spacing:-.03em}
-.hero h1 em{font-style:normal;color:var(--apricot)}
-.statement .label,.offer-head .label,.story .label,.visit .label,.faq .brief .label{color:var(--rust);font-weight:600}
-.stars{color:var(--rust)}
-
-/* חותמת 5.0 קטנה */
-.stamp{position:absolute;z-index:1;top:16px;inset-inline-end:16px;width:84px;height:84px;border-radius:50%;background:var(--apricot);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transform:rotate(-8deg);box-shadow:0 6px 18px -6px rgba(0,0,0,.35);text-align:center}
-.stamp b{font:700 28px/1 var(--serif);letter-spacing:-.03em}
-.stamp i{font-style:normal;font-size:9px;letter-spacing:1px;color:var(--rust)}
-.stamp small{font-size:11px;font-weight:600}
-@media (min-width:881px){
-  .hero h1 em{color:var(--rust)}
-  .stamp{top:-22px;inset-inline-end:auto;inset-inline-start:-22px;width:110px;height:110px}
-  .stamp b{font-size:38px}.stamp i{font-size:11px}.stamp small{font-size:13px}
+/* reduced motion: הכל במצב הסופי, בלי תנועה */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .f-back img,.f-front img,.hero-h1{scale:none!important;translate:none!important}
+  .liq-esp,.liq-milk{scale:1 1!important}.liq-crema{translate:none!important;opacity:1!important}.foam{opacity:1!important}
+  .stream{opacity:0!important}.glass{opacity:1!important;scale:none!important}.pour-top{display:none}
+  .half{opacity:1!important}.ratio>div{opacity:1!important}
+  .sk-art img{rotate:none!important;scale:none!important}
+  .marquee .track{animation:none}
 }
-
-/* רצועת תפריט רצה, רגועה */
-.marquee{background:var(--apricot);color:var(--ink);overflow:hidden;white-space:nowrap;padding-block:12px;margin-top:22px}
-.marquee .track{display:inline-flex;gap:22px;align-items:center;animation:marq 40s linear infinite;font:700 clamp(21px,5.4vw,30px)/1 var(--serif);letter-spacing:-.01em;padding-inline-end:22px}
-.marquee .track span:nth-of-type(2n){color:var(--rust)}
-.marquee .dot{width:7px;height:7px;border-radius:50%;background:var(--rust);flex:none}
-@keyframes marq{to{transform:translateX(50%)}}
-@media (min-width:881px){.marquee{margin-top:clamp(32px,4vw,56px)}}
-
-/* כרטיסים בגוונים עדינים */
-.facts div{border-color:transparent}
-.facts div:nth-child(1){background:var(--apricot-soft)}
-.facts div:nth-child(2){background:var(--rust-soft)}
-.facts div:nth-child(3){background:var(--board-soft)}
-.facts div:nth-child(-n+2) b{color:var(--rust)}
-.facts span,.card p,.story cite,.ask p{color:#4A433A}
-.card:nth-child(1){background:var(--rust-soft)}
-.card:nth-child(2){background:var(--apricot-soft)}
-.card:nth-child(3){background:var(--board-soft)}
-.card h3{font-weight:600}
-.card:nth-child(-n+2) li em{color:var(--rust);background:rgba(255,255,255,.65)}
-.story blockquote{background:var(--apricot-soft);border-color:transparent}
-.score b{color:var(--apricot)}
-.score .stars,.rev-grid figure::before{color:var(--apricot)}
-.hours tr.today th,.hours tr.today td{background:var(--apricot-soft);color:var(--ink)}
-.hours tr.today th::before{background:var(--rust)}
-.faq .brief{background:var(--apricot-soft)}
-.ask .wrap{background:var(--apricot-soft);border-color:transparent}
-.foot-mark{color:var(--apricot)}
-.bar a.main{background:var(--apricot);color:var(--ink)}
-.proof span{border-radius:var(--r-sm);padding:8px 14px}
-.marquee+.bleed{margin-top:0}
-@media (min-width:881px){.marquee+.bleed{margin:clamp(32px,4vw,56px) var(--gutter) 0}}
-@media (prefers-reduced-motion:reduce){.marquee .track{animation:none!important}}
 </style>
 <script type="application/ld+json">
 {
@@ -674,126 +683,147 @@ h1,h2{font-weight:600;letter-spacing:-.025em}
 
 <main id="main">
 
-<section class="hero" aria-labelledby="h1">
-  <div class="wrap hero-grid">
-    <div class="hero-text">
-      <p class="label rise">עגלת קפה משפחתית · קיבוץ שניר, הגליל העליון</p>
-      <h1 id="h1" class="rise d1">קפה <em>על הדשא,</em> בלב קיבוץ שניר.</h1>
-      <p class="sub rise d2">מדשאה בצל עצים ותיקים, גן שעשועים ממול, וקורטדו טוב. דקות מהחצבאני ומהבניאס.</p>
-      <div class="actions rise d3">
-        <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו אלינו בוויז</a>
-        <a class="btn btn-line" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">גוגל מפות</a>
-      </div>
+<!-- 1 · הגעה: סצנה בשכבות מתמונה אחת. העגלה נסוגה, הכוסות מתקרבות, הכותרת ביניהן. -->
+<section class="hero" id="hero" data-sc-act="pin" data-sc-span="1.8" data-sc-drift="#F6F2EB" aria-labelledby="h1">
+  <div data-sc-stage class="hero-stage">
+    <div class="frame f-back" aria-hidden="true"><img src="img/sc/hero-plate.webp" alt="" width="1050" height="1400" fetchpriority="high"></div>
+    <div class="hero-top">
+      <p class="label">עגלת קפה משפחתית · קיבוץ שניר, הגליל העליון</p>
+      <p class="sub">מדשאה בצל עצים ותיקים, גן שעשועים ממול, וקורטדו טוב. דקות מהחצבאני ומהבניאס.</p>
     </div>
-    <figure class="hero-img">
-      <span class="stamp" aria-hidden="true"><b>5.0</b><i>★★★★★</i><small>בגוגל</small></span>
-      <img src="img/hero.jpg" srcset="img/hero-800.jpg 800w, img/hero.jpg 1400w" sizes="(max-width:880px) 100vw, 50vw" alt="שתי כוסות קורטדו על שולחן, ועגלת הקפה השחורה עם הלוגו של סבתא ברקע" width="1400" height="1867" fetchpriority="high">
-      <figcaption>קורטדו. אספרסו וחלב חם, חצי-חצי.</figcaption>
-    </figure>
+    <h1 id="h1" class="hero-h1"><span class="ln">קפה על הדשא,</span> <span class="ln">בלב קיבוץ שניר.</span></h1>
+    <div class="frame f-front" aria-hidden="true"><img src="img/sc/hero-cups-solid.webp" alt="" width="714" height="508"></div>
+    <span class="stamp" aria-hidden="true"><b>5.0</b><i>★★★★★</i><small>בגוגל</small></span>
+    <div class="hero-actions">
+      <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו אלינו בוויז</a>
+      <a class="btn btn-glass" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">גוגל מפות</a>
+    </div>
   </div>
 </section>
 
-<div class="proof-wrap"><div class="wrap proof">
+<div class="proof" data-sc-in data-sc-stagger="80">
   <span><b>5.0</b> <span class="stars" aria-hidden="true">★★★★★</span> 80 ביקורות בגוגל <small>(אוקטובר 2026)</small></span>
   <span><b>פתוחים גם בשבת</b></span>
-</div></div>
+</div>
 
-<div class="marquee" aria-hidden="true"><div class="track"><span>קורטדו</span><i class="dot"></i><span>הפוך</span><i class="dot"></i><span>שייקים</span><i class="dot"></i><span>אסאי</span><i class="dot"></i><span>קישים</span><i class="dot"></i><span>כריכים</span><i class="dot"></i><span>מאפים</span><i class="dot"></i><span>מלבי קר</span><i class="dot"></i><span>קורטדו</span><i class="dot"></i><span>הפוך</span><i class="dot"></i><span>שייקים</span><i class="dot"></i><span>אסאי</span><i class="dot"></i><span>קישים</span><i class="dot"></i><span>כריכים</span><i class="dot"></i><span>מאפים</span><i class="dot"></i><span>מלבי קר</span><i class="dot"></i></div></div>
+<!-- 2 · נשימה: עיגול שנחתך מהדף ונפתח אל המדשאה -->
+<section class="lawn" data-sc-act="flow" aria-label="המדשאה">
+  <figure class="lawn-fig" data-sc-reveal="iris" data-sc-reveal-at="0.05 0.55">
+    <img src="img/lawn.jpg" srcset="img/lawn-1400.jpg 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
+    <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
+  </figure>
+</section>
 
-<figure class="bleed rv">
-  <img src="img/lawn.jpg" srcset="img/lawn-1400.jpg 1400w, img/lawn.jpg 2000w" sizes="max(100vw, 96vh)" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
-  <figcaption class="cap"><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
-</figure>
-
-<section class="statement" aria-labelledby="h-st">
+<!-- 3 · "זה בדרך שלי": מספרים אמיתיים בלבד -->
+<section class="statement" data-sc-act="flow" aria-labelledby="h-st">
   <div class="wrap">
-    <div class="statement-grid">
-      <p class="label">המקום</p>
-      <h2 id="h-st" class="rv">עצירה אחת בדרך לנחל, שהופכת לחצי יום. <span>ההורים יושבים בצל עם קפה, הילדים בגן השעשועים, והכלב מקבל מים.</span></h2>
-    </div>
-    <div class="facts rv" aria-label="זמני הגעה משוערים מהעגלה">
-      <div><b>כ־5 דק׳</b><span>ברגל לטנק הסורי</span></div>
-      <div><b>כ־8 דק׳</b><span>ברגל לכניסה למפל הבניאס והשביל התלוי</span></div>
-      <div><b>כ־10 דק׳</b><span>נסיעה לשמורת נחל שניר (החצבאני), כביש 99</span></div>
+    <p class="label">המקום</p>
+    <h2 id="h-st" data-sc-in>עצירה אחת בדרך לנחל, שהופכת לחצי יום. <span>ההורים יושבים בצל עם קפה, הילדים בגן השעשועים, והכלב מקבל מים.</span></h2>
+    <div class="facts" aria-label="זמני הגעה משוערים מהעגלה" data-sc-in data-sc-stagger="110">
+      <div><b>כ־<span data-sc-count="0 5" data-sc-count-ms="1100">5</span> דק׳</b><span>ברגל לטנק הסורי</span></div>
+      <div><b>כ־<span data-sc-count="0 8" data-sc-count-ms="1300">8</span> דק׳</b><span>ברגל לכניסה למפל הבניאס והשביל התלוי</span></div>
+      <div><b>כ־<span data-sc-count="0 10" data-sc-count-ms="1500">10</span> דק׳</b><span>נסיעה לשמורת נחל שניר (החצבאני), כביש 99</span></div>
     </div>
   </div>
 </section>
 
-<section class="offer" id="offer" aria-labelledby="h-offer">
-  <div class="wrap">
-    <div class="offer-head">
-      <div>
-        <p class="label">מה יש בעגלה</p>
-        <h2 id="h-offer">קפה, שייקים וויטרינה.</h2>
-      </div>
-      <p>הוויטרינה משתנה מיום ליום. העגלה חלבית, ויש גם אפשרויות טבעוניות ואפשרויות ללא גלוטן. לעסק אין תעודת כשרות.</p>
+<!-- 4 · השיא: הגלילה מוזגת קורטדו. חצי אספרסו, חצי חלב. ואז סבתא. -->
+<section class="pour" id="pour" data-sc-act="pin" data-sc-span="2.8" data-sc-drift="#F9E0C7" aria-labelledby="h-pour">
+  <div data-sc-stage class="pour-stage">
+    <div class="pour-copy">
+      <h2 id="h-pour" class="pour-h" data-sc-cue="0 0.66 0">קורטדו.</h2>
+      <p class="pour-sub" data-sc-cue="0.12 0.66">אספרסו וחלב חם, חצי-חצי.</p>
     </div>
-    <div class="cards">
-      <article class="card big rv">
-        <figure><img src="img/tray.jpg" loading="lazy" alt="מגש עם ארבע כוסות קפה עם ציורי לאטה וטארט שוקולד" width="1400" height="1867"></figure>
-        <div class="in">
-          <h3>קפה</h3>
-          <p>עם חלב רגיל או צמחי, לבחירתכם.</p>
-          <ul><li>קורטדו</li><li>הפוך ואספרסו</li><li>קפה קר ושוקו</li></ul>
-        </div>
-      </article>
-      <article class="card rv">
-        <figure><img src="img/acai.jpg" loading="lazy" alt="קערת אסאי עם גרנולה, קוקוס, צ׳יה ופרוסות תפוח" width="1200" height="1600"></figure>
-        <div class="in">
-          <h3>שייקים ומתוקים</h3>
-          <p>לימים החמים על הדשא.</p>
-          <ul><li>שייקי פירות <em>טבעוני</em></li><li>קערת אסאי <em>טבעוני</em></li><li>מלבי קר</li></ul>
-        </div>
-      </article>
-      <article class="card rv">
-        <figure><img src="img/quiche.jpg" loading="lazy" alt="קיש טרי במגש על נייר אפייה" width="1100" height="1467"></figure>
-        <div class="in">
-          <h3>מהוויטרינה</h3>
-          <p>משתנה מיום ליום.</p>
-          <ul><li>כריכים</li><li>קישים ופיצות</li><li>מאפים ועוגות <em>יש גם ללא גלוטן</em></li></ul>
-        </div>
-      </article>
+    <div class="glass-wrap" aria-hidden="true">
+      <svg class="glass" viewBox="0 0 220 280">
+        <defs>
+          <clipPath id="glass-in"><path d="M38 34 L182 34 L170 256 L50 256 Z"/></clipPath>
+          <linearGradient id="g-esp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2B170C"/><stop offset="1" stop-color="#5A3220"/></linearGradient>
+          <linearGradient id="g-milk" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#B98352"/><stop offset=".55" stop-color="#E2C49E"/><stop offset="1" stop-color="#F7EEDF"/></linearGradient>
+        </defs>
+        <rect class="stream stream-esp" x="104" y="-40" width="12" height="300" rx="6" fill="#3B2112"/>
+        <rect class="stream stream-milk" x="102" y="-40" width="16" height="300" rx="8" fill="#F4E9D8"/>
+        <g clip-path="url(#glass-in)">
+          <rect class="liq liq-esp" x="20" y="145" width="180" height="111" fill="url(#g-esp)"/>
+          <rect class="liq liq-crema" x="20" y="139" width="180" height="10" fill="#C98A4E"/>
+          <rect class="liq liq-milk" x="20" y="34" width="180" height="111" fill="url(#g-milk)"/>
+          <ellipse class="liq foam" cx="110" cy="38" rx="74" ry="8" fill="#FBF6EE"/>
+        </g>
+        <path class="glass-line" d="M34 26 L186 26 L172 262 L48 262 Z"/>
+        <path class="glass-line thin" d="M44 196 L176 196 M64 196 L60 262 M88 196 L86 262 M110 196 L110 262 M132 196 L134 262 M156 196 L160 262"/>
+        <path class="half" d="M14 145 L206 145"/>
+      </svg>
+      <img class="pour-top" src="img/sc/pour-top.webp" alt="" width="900" height="843" loading="lazy">
     </div>
-    <div class="gallery rv" role="group" aria-label="עוד מהעגלה" tabindex="0">
-      <figure><img src="img/sandwiches.jpg" loading="lazy" alt="שני כריכים על מגשים עם זיתים בצד" width="1200" height="903"></figure>
-      <figure><img src="img/latte.jpg" loading="lazy" alt="שתי כוסות קפה עם ציורי לאטה על שולחן עץ" width="1600" height="1205"></figure>
-    </div>
-    <p class="offer-note">מה יש בוויטרינה היום? <a class="link" href="https://wa.me/972543125466">שלחו וואטסאפ</a> ונענה.<br>יש לכם אלרגיה, רגישות או צליאק? שאלו אותנו לפני ההזמנה על הרכיבים ועל חשש למגע צולב.</p>
+    <dl class="ratio">
+      <div class="r-esp"><dt>אספרסו</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.12 0.42">50</span>%</dd></div>
+      <div class="r-milk"><dt>חלב חם</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.44 0.7">50</span>%</dd></div>
+    </dl>
+    <blockquote class="savta" data-sc-cue="0.72">
+      <img class="mark" src="img/logo.png" alt="" width="64" height="64">
+      <p>קורטדו היה המשקה של סבתא. עכשיו הוא גם שלכם.</p>
+      <cite>ניצן, שחר ועמית</cite>
+    </blockquote>
   </div>
 </section>
 
-<section class="story" id="story" aria-labelledby="h-story">
+<!-- הסיפור: תמונת הצוות נחשפת בחיתוך -->
+<section class="story" id="story" data-sc-act="flow" aria-labelledby="h-story">
   <div class="wrap story-grid">
-    <figure class="story-img rv" style="margin:0"><img src="img/team.jpg" loading="lazy" alt="הצוות ליד עגלת הקפה בקיבוץ שניר" width="1600" height="1200"></figure>
-    <div>
+    <figure class="story-img" data-sc-reveal="up" data-sc-reveal-at="0.08 0.45"><img src="img/team.jpg" loading="lazy" alt="הצוות ליד עגלת הקפה בקיבוץ שניר" width="1600" height="1200"></figure>
+    <div data-sc-in data-sc-stagger="90">
       <p class="label">הסיפור</p>
       <h2 id="h-story">אחרי שנתיים רחוק, חזרנו הביתה.</h2>
-      <div class="body">
-        <p>אחרי שנתיים של פינוי מהצפון, ניצן מלמן, שחר גילעד ועמית מרקס חזרו לשניר עם רצון אחד: להקים משהו קטן ומקומי, שמחבר בין אנשים. העגלה נפתחה ביולי 2025.</p>
-        <p>ההשראה הגיעה מסבתא, שהביאה איתה מארגנטינה את תרבות בתי הקפה ותמיד הזמינה את כולם לשבת לקפה. המשקה האהוב עליה היה קורטדו.</p>
-      </div>
-      <blockquote>
-        <img class="mark" src="img/logo.png" alt="" width="56" height="56">
-        קורטדו היה המשקה של סבתא. עכשיו הוא גם שלכם.
-        <cite>ניצן, שחר ועמית</cite>
-      </blockquote>
+      <p class="body">אחרי שנתיים של פינוי מהצפון, ניצן מלמן, שחר גילעד ועמית מרקס חזרו לשניר עם רצון אחד: להקים משהו קטן ומקומי, שמחבר בין אנשים. העגלה נפתחה ביולי 2025.</p>
+      <p class="body">ההשראה הגיעה מסבתא, שהביאה איתה מארגנטינה את תרבות בתי הקפה ותמיד הזמינה את כולם לשבת לקפה. המשקה האהוב עליה היה קורטדו.</p>
     </div>
   </div>
 </section>
 
-<section class="reviews" id="reviews" aria-labelledby="h-rev">
+<div class="marquee" aria-hidden="true"><div class="track"><span>קורטדו</span><i></i><span>הפוך</span><i></i><span>שייקים</span><i></i><span>אסאי</span><i></i><span>קישים</span><i></i><span>כריכים</span><i></i><span>מאפים</span><i></i><span>מלבי קר</span><i></i><span>קורטדו</span><i></i><span>הפוך</span><i></i><span>שייקים</span><i></i><span>אסאי</span><i></i><span>קישים</span><i></i><span>כריכים</span><i></i><span>מאפים</span><i></i><span>מלבי קר</span><i></i></div></div>
+
+<!-- 5 · תיאבון: כרטיסים שנערמים זה על זה בגלילה -->
+<section class="offer" id="offer" data-sc-act="flow" aria-labelledby="h-offer">
+  <div class="wrap offer-head" data-sc-in data-sc-stagger="90">
+    <p class="label">מה יש בעגלה</p>
+    <h2 id="h-offer">קפה, שייקים וויטרינה.</h2>
+    <p>הוויטרינה משתנה מיום ליום. העגלה חלבית, ויש גם אפשרויות טבעוניות ואפשרויות ללא גלוטן. לעסק אין תעודת כשרות.</p>
+  </div>
+  <div class="stack">
+    <article class="sk sk-1">
+      <div class="sk-txt"><h3>קפה</h3><p>עם חלב רגיל או צמחי, לבחירתכם.</p><ul><li>קורטדו</li><li>הפוך ואספרסו</li><li>קפה קר ושוקו</li></ul></div>
+      <div class="sk-art"><img src="img/sc/menu-cortado.webp" alt="כוס קורטדו עם ציור לאטה" width="547" height="665" loading="lazy"></div>
+    </article>
+    <article class="sk sk-2">
+      <div class="sk-txt"><h3>שייקים ומתוקים</h3><p>לימים החמים על הדשא.</p><ul><li>שייקי פירות <em>טבעוני</em></li><li>קערת אסאי <em>טבעוני</em></li><li>מלבי קר</li></ul></div>
+      <div class="sk-art"><img src="img/sc/menu-acai.webp" alt="קערת אסאי עם תותים, אוכמניות, בננה וגרנולה" width="649" height="638" loading="lazy"></div>
+    </article>
+    <article class="sk sk-3">
+      <div class="sk-txt"><h3>מהוויטרינה</h3><p>משתנה מיום ליום.</p><ul><li>כריכים</li><li>קישים ופיצות</li></ul></div>
+      <div class="sk-art"><img src="img/sc/menu-sandwich.webp" alt="כריך חתוך לשניים עם ירקות" width="898" height="900" loading="lazy"></div>
+    </article>
+    <article class="sk sk-4">
+      <div class="sk-txt"><h3>מאפים ועוגות</h3><p>מהוויטרינה, משתנה מיום ליום.</p><ul><li>מאפים ועוגות <em>יש גם ללא גלוטן</em></li></ul></div>
+      <div class="sk-art"><img src="img/sc/menu-pecan.webp" alt="טארט פקאן" width="867" height="900" loading="lazy"><img class="sk-art2" src="img/sc/menu-tart.webp" alt="טארט שוקולד" width="657" height="461" loading="lazy"></div>
+    </article>
+  </div>
+  <p class="wrap offer-note">מה יש בוויטרינה היום? <a class="link" href="https://wa.me/972543125466">שלחו וואטסאפ</a> ונענה.<br>יש לכם אלרגיה, רגישות או צליאק? שאלו אותנו לפני ההזמנה על הרכיבים ועל חשש למגע צולב.</p>
+</section>
+
+<!-- 6 · אמון: הקרקע מחשיכה, 5.0 נוחת -->
+<section class="reviews" id="reviews" data-sc-act="flow" aria-labelledby="h-rev">
   <div class="wrap">
     <div class="rev-head">
       <div>
         <p class="label">ביקורות בגוגל</p>
-        <h2 id="h-rev">מה כותבים<br>עלינו בגוגל.</h2>
+        <h2 id="h-rev" data-sc-in>מה כותבים<br>עלינו בגוגל.</h2>
       </div>
       <div class="score" aria-label="דירוג 5.0 מתוך 5">
-        <b>5.0</b>
+        <b data-sc-count="0.0 5.0" data-sc-count-ms="1600">5.0</b>
         <span><span class="stars" aria-hidden="true">★★★★★</span>מתוך 80 ביקורות בגוגל מפות<br>נכון לאוקטובר 2026</span>
       </div>
     </div>
-    <div class="rev-grid rv" role="group" aria-label="ציטוטים מביקורות" tabindex="0">
+    <div class="rev-grid" role="group" aria-label="ציטוטים מביקורות" tabindex="0" data-sc-in data-sc-stagger="120">
       <figure>
         <blockquote>״אם כבר הגעתם לאזור, שווה להיכנס. קפה מעולה, משקאות טעימים, כריכים וכל מה שתחפשו בעגלת קפה.״</blockquote>
         <figcaption>רועי · ממליץ מקומי בגוגל</figcaption>
@@ -807,22 +837,27 @@ h1,h2{font-weight:600;letter-spacing:-.025em}
         <figcaption>נורית · Google</figcaption>
       </figure>
     </div>
-    <p class="label" style="margin-top:40px;line-height:1.6">ציטוטים מתוך ביקורות ציבוריות בגוגל מפות, בקיצור קל ובלי שינוי תוכן. לא שילמנו ולא נתנו הטבה תמורת ביקורת.</p>
+    <p class="fine-note">ציטוטים מתוך ביקורות ציבוריות בגוגל מפות, בקיצור קל ובלי שינוי תוכן. לא שילמנו ולא נתנו הטבה תמורת ביקורת.</p>
     <div class="more">
       <a class="btn btn-line-bone" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">לכל הביקורות</a>
     </div>
   </div>
 </section>
 
-<section class="visit" id="visit" aria-labelledby="h-visit">
+<!-- 7 · מחויבות: העגלה בערב, השעות, ופעולה אחת -->
+<section class="visit" id="visit" data-sc-act="flow" aria-labelledby="h-visit">
   <div class="wrap visit-grid">
+    <div class="visit-art" aria-hidden="true">
+      <div class="moon"></div>
+      <img class="eve" src="img/sc/evening-cart.webp" alt="" width="697" height="476" loading="lazy" data-sc-parallax="-0.9">
+    </div>
     <div>
       <p class="label">שעות והגעה</p>
-      <h2 id="h-visit">בואו לבקר.</h2>
+      <h2 id="h-visit" data-sc-in>בואו לבקר.</h2>
       <p class="addr">דרך המפל, קיבוץ שניר<small>במרכז הקיבוץ, ליד המרכולית. מול המדשאה הגדולה. חניה בחינם, כולל חניה נגישה.</small></p>
       <div class="actions">
-        <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>פתחו בוויז</a>
-        <a class="btn btn-line" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">פתחו בגוגל מפות</a>
+        <a class="btn btn-apricot" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes" data-sc-magnet="0.25"><svg aria-hidden="true"><use href="#i-nav"/></svg>פתחו בוויז</a>
+        <a class="btn btn-line-bone" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">פתחו בגוגל מפות</a>
       </div>
       <table class="hours">
         <caption class="sr">שעות פתיחה לפי יום</caption>
@@ -838,7 +873,6 @@ h1,h2{font-weight:600;letter-spacing:-.025em}
       </table>
       <p class="hours-note" id="hours-note"><b>השעות לשבוע 18.10 – 24.10. </b>השעות מתעדכנות כאן כל שבוע ומשתנות לפי עונה ובחגים, ולכן הן והתווית "פתוח עכשיו" עשויות לא להיות מעודכנות. לפני נסיעה ארוכה כדאי לבדוק בגוגל מפות, באינסטגרם או בוואטסאפ.</p>
     </div>
-    <figure class="visit-img rv"><img src="img/evening.jpg" loading="lazy" alt="עגלת הקפה מוארת בשעת בין ערביים, מול המדשאה והשולחנות" width="1600" height="1204"></figure>
   </div>
 </section>
 
@@ -997,5 +1031,6 @@ h1,h2{font-weight:600;letter-spacing:-.025em}
   <a href="tel:+972543125466"><svg aria-hidden="true"><use href="#i-phone"/></svg>חייגו</a>
 </nav>
 
+<script src="sc/scrollcraft.js" defer></script>
 <script type="module" src="cafe.js"></script>
 </body></html>
