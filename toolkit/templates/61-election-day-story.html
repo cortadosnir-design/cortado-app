@@ -1,0 +1,126 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
+<style>
+/* Story 9:16, safe zone y 250–1670. Election day 27.10.2026 event post. Ballot-box joke with no party letters: the slip carries a cup, not a list. */
+.doodles{opacity:.55}
+.badge{top:30px}
+.kick{position:absolute;top:150px;right:70px;width:560px;text-align:right;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:36px;color:var(--aida-light)}
+.head{position:absolute;top:206px;right:66px;width:620px;text-align:right;color:var(--chalk);font-size:108px;line-height:.94}
+.head em{font-style:normal;color:var(--aida-light)}
+.when{position:absolute;top:422px;right:70px;width:560px;text-align:right;color:var(--chalk)}
+.when .d{font-weight:800;font-size:42px}
+.when .d .t{font-weight:900}
+.pill{display:inline-block;margin-top:14px;background:var(--foam);color:var(--cart);border-radius:999px;padding:6px 34px 10px;
+  font-weight:900;font-size:74px;line-height:1;box-shadow:0 14px 30px rgba(0,0,0,.3)}
+.when .s{margin-top:12px;font-weight:600;font-size:30px;opacity:.95}
+.box{position:absolute;left:30px;top:142px;width:410px;height:466px}
+.card{left:56px;right:56px;top:652px;height:470px;z-index:2}
+.hl{position:absolute;top:672px;left:92px;right:92px;z-index:3}
+.r{display:flex;align-items:center;gap:18px;height:60px}
+.r .c{width:54px;height:54px;border-radius:50%;background:var(--aida);flex:none;display:flex;align-items:center;justify-content:center}
+.r .c img{width:36px;height:36px}
+.r b{font-weight:800;font-size:36px;color:var(--cart)}
+.r b small{font-weight:700;font-size:30px;color:var(--aida-dark)}
+.sec{position:absolute;top:866px;left:92px;right:92px;z-index:3;border-top:1.5px solid rgba(20,20,23,.14);padding-top:14px}
+.sec h3{font-weight:800;font-size:28px;color:var(--board);margin-bottom:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;column-gap:26px;row-gap:6px}
+.grid div{display:flex;align-items:center;gap:12px;font-weight:500;font-size:27px;color:var(--espresso);white-space:nowrap}
+.grid div::before{content:"";width:13px;height:13px;border-radius:50%;background:var(--board);flex:none}
+.grid .w{grid-column:1/3}
+.grid .w b{color:var(--aida-dark);font-weight:700}
+.ribbon{top:1136px;font-size:42px}
+.socials{bottom:20px}
+.foot.r2{position:absolute;left:auto;text-align:right;right:44px;bottom:40px;color:var(--chalk);font-size:25px;opacity:.92}
+
+body{height:1920px}
+.badge{top:250px}
+.kick{top:384px;font-size:40px}
+.head{top:446px;font-size:118px}
+.when{top:690px}
+.when .d{font-size:44px}
+.pill{font-size:80px}
+.box{left:16px;top:380px;width:416px;height:474px}
+.card{top:930px;height:510px}
+.hl{top:956px}
+.r{height:68px}
+.r b{font-size:38px}
+.sec{top:1176px;padding-top:16px}
+.sec h3{font-size:31px;margin-bottom:10px}
+.grid{row-gap:10px}
+.grid div{font-size:30px}
+.ribbon{top:1458px;font-size:44px}
+.socials{left:64px;bottom:auto;top:1560px}
+.socials .q img{width:70px;height:70px}
+.foot.r2{right:64px;bottom:auto;top:1600px;font-size:27px}
+
+.fest{opacity:1}
+.r .c img{width:42px;height:42px}
+.hl .r:nth-child(2) .c{background:#C9687A}
+.hl .r:nth-child(3) .c{background:#3E8E93}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);row-gap:8px}
+.tile{text-align:center}
+.tile img{width:70px;height:70px;margin:0 auto 4px}
+.tile b{display:block;font-weight:700;font-size:23px;color:var(--cart);line-height:1.1;white-space:nowrap}
+.tile small{display:block;font-weight:500;font-size:20px;color:var(--aida-dark);line-height:1.2}
+.hl{top:666px}
+.r{height:58px}
+.sec{top:846px;padding-top:12px}
+
+.card{top:916px;height:540px}
+.hl{top:940px}
+.r{height:66px}
+.r b{font-size:37px}
+.sec{top:1140px;padding-top:14px}
+.tile img{width:82px;height:82px}
+.tile b{font-size:26px}
+.tile small{font-size:22px}
+.tiles{row-gap:12px}
+.ribbon{top:1466px}
+</style></head><body class="board-bg">
+<img class="doodles" src="../assets/art/doodles-story.svg" alt="">
+<img class="doodles fest" src="../assets/art/festive-story.svg" alt="">
+<div class="badge"><img src="../assets/logo.png" alt=""><span>cortado</span></div>
+<div class="kick">הצבעתם? עכשיו לדשא</div>
+<div class="head">בואו לבחור<br><em>בקורטדו</em></div>
+<div class="when">
+  <div class="d">שלישי · <span class="t">27.10</span> · יום הבחירות</div>
+  <div class="pill"><span class="t">15:00–19:00</span></div>
+  <div class="s">שבתון, והעגלה חוגגת על הדשא</div>
+</div>
+<svg class="box" viewBox="0 -110 440 500" xmlns="http://www.w3.org/2000/svg">
+  <defs><filter id="ch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter></defs>
+  <!-- the slip, going in -->
+  <g transform="rotate(-7 230 170)">
+    <rect x="128" y="-96" width="204" height="268" rx="6" fill="#F7F2DC"/>
+    <rect x="140" y="-84" width="180" height="244" rx="3" fill="none" stroke="#141417" stroke-opacity=".25" stroke-width="2"/>
+    <image href="../assets/art/icon-cup-board.svg" x="180" y="-80" width="100" height="100"/>
+    <text x="230" y="64" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="54" fill="#141417">קורטדו</text>
+    <text x="230" y="98" text-anchor="middle" font-family="Rubik" font-weight="600" font-size="22" fill="#A9592F">הדשא בשניר</text>
+    
+  </g>
+  <!-- the box, drawn in chalk; filled faces hide the bottom of the slip -->
+  <g filter="url(#ch)" stroke="#F4F1EA" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="40,186 330,186 392,130 102,130" fill="#5AA5A9"/>
+    <polygon points="146,166 286,166 302,150 162,150" fill="#141417" stroke-width="4"/>
+    <polygon points="330,186 392,130 392,326 330,384" fill="#2F7175"/>
+    <rect x="40" y="186" width="290" height="198" fill="#3E8E93"/>
+  </g>
+  <text x="185" y="300" text-anchor="middle" font-family="Rubik" font-weight="800" font-size="78" fill="#F4F1EA" filter="url(#ch)">קלפי</text>
+  <text x="185" y="348" text-anchor="middle" font-family="Playpen Sans Hebrew" font-weight="600" font-size="28" fill="#F2AF75">של הדשא</text>
+  <!-- motion lines -->
+  <g filter="url(#ch)" stroke="#F4F1EA" stroke-width="4" stroke-linecap="round" fill="none" opacity=".8">
+    <path d="M100 -60 L72 -74"/><path d="M96 -20 L62 -24"/><path d="M104 22 L74 34"/>
+    <path d="M362 -50 L392 -66"/><path d="M366 -8 L400 -10"/>
+  </g>
+</svg>
+<div class="card"></div>
+<div class="hl">
+  <div class="r"><span class="c"><img src="../assets/art/line-dance.svg" alt=""></span><b>מופע והרקדת ברייקדאנס לילדים <small>· מ-<span class="t">16:30</span></small></b></div>
+  <div class="r"><span class="c"><img src="../assets/art/line-sport.svg" alt=""></span><b>עמדות משחק ספורטיביות לכל המשפחה</b></div>
+  <div class="r"><span class="c"><img src="../assets/art/line-swing.svg" alt=""></span><b>גן שעשועים ודשא פתוח, צמוד לעגלה</b></div>
+</div>
+<div class="sec"><div class="tiles"><div class="tile"><img src="../assets/art/line-cinnabon.svg" alt=""><b>סינבונים</b><small>של ללוש</small></div><div class="tile"><img src="../assets/art/line-jewelry.svg" alt=""><b>תכשיטים</b><small>של סיקרט</small></div><div class="tile"><img src="../assets/art/line-icecream.svg" alt=""><b>גלידה טבעונית</b><small>ilo</small></div><div class="tile"><img src="../assets/art/line-beer.svg" alt=""><b>בירה מהחבית</b><small>בירליך</small></div><div class="tile"><img src="../assets/art/line-malabi.svg" alt=""><b>מלבי</b><small>של מלביהו</small></div><div class="tile"><img src="../assets/art/line-cotton.svg" alt=""><b>צמר גפן מתוק</b><small>ופופקורן</small></div><div class="tile"><img src="../assets/art/line-pizza.svg" alt=""><b>פיצות, קפה ומאפים</b><small>מהעגלה</small></div><div class="tile"><img src="../assets/art/line-more.svg" alt=""><b>ועוד הפתעות</b><small>על הדשא</small></div></div></div>
+<div class="ribbon">נתראה בעגלה</div>
+<div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
+<div class="foot r2">קיבוץ שניר · על הדשא ליד המרכולית</div>
+</body></html>
