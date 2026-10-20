@@ -31,6 +31,13 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("hashchange", openFromHash); openFromHash();
 
+// כניסה עדינה של קטעים בגלילה. ה-CSS מסתיר .rv רק תחת html.js, כך שבלי JavaScript הכל גלוי.
+if ("IntersectionObserver" in window){
+  document.documentElement.classList.add("js");
+  const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add("seen"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".rv").forEach(el => io.observe(el));
+}
+
 const top = document.getElementById("top");
 const onScroll = () => top.classList.toggle("scrolled", window.scrollY > 8);
 window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
