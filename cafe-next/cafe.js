@@ -191,13 +191,7 @@ const hoursOn = (t, plus) => {
   const w = byWeek[weekKey(t, plus)] || (legacy ? hours : null);
   return (w && w[(t.d + plus) % 7]) || [];
 };
-// אותו מצב גם בכפתור שבמסך הראשון (.hero-open), בגדול
 function renderStatus(){
-  setStatus();
-  const hero = document.querySelector(".hero-open"), src = document.getElementById("status");
-  if (hero && src){ hero.querySelector("span").textContent = src.querySelector("span").textContent; hero.classList.toggle("open", src.classList.contains("open")); }
-}
-function setStatus(){
   const t = now();
   // "היום" מסומן רק כשהטבלה היא של השבוע הנוכחי. בטבלה של השבוע הבא, שבת היא שבת הבאה.
   tbody.querySelectorAll("tr").forEach(tr => tr.classList.toggle("today", !tableIsNext && +tr.dataset.d === t.d));
