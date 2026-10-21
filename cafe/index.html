@@ -394,6 +394,17 @@ footer :focus-visible{outline-color:var(--apricot)}
 }
 
 
+
+/* מוזיקה: רק בלחיצה, אף פעם לא לבד */
+.sound{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;border:1px solid var(--hair);background:rgba(253,251,247,.85);color:var(--ink);cursor:pointer;padding:0;transition:background .25s,color .25s}
+.sound .note{width:20px;height:20px}
+.sound .eq{display:none;gap:3px;align-items:flex-end;height:16px}
+.sound .eq i{width:3px;height:100%;border-radius:2px;background:currentColor;animation:eq .9s ease-in-out infinite;transform-origin:50% 100%}
+.sound .eq i:nth-child(2){animation-delay:-.3s}.sound .eq i:nth-child(3){animation-delay:-.6s}
+@keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.sound[aria-pressed="true"]{background:var(--apricot);border-color:var(--apricot)}
+.sound[aria-pressed="true"] .note{display:none}
+.sound[aria-pressed="true"] .eq{display:flex}
 /* ===== חיים: אדים, נורות, קערה מסתובבת, כריך שנפתח, עגלה שנדלקת ===== */
 .f-back .plate{position:absolute;inset:0;transform-origin:50% 62%;scale:calc(1 - .07 * var(--sc-p,0));translate:calc(var(--mx,0) * -6px) calc(-3% * var(--sc-p,0) + var(--my,0) * -4px)}
 .f-back .plate img{scale:none;translate:none}
@@ -739,6 +750,7 @@ footer :focus-visible{outline-color:var(--apricot)}
       <a href="#visit">שעות והגעה</a>
     </nav>
     <div class="top-end">
+      <button class="sound" type="button" aria-pressed="false" aria-label="מוזיקה של העגלה"><svg class="note" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
       <span class="status" id="status" role="status" aria-live="polite"><i></i><span>שעות פתיחה</span></span>
       <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו</a>
     </div>
@@ -1021,7 +1033,7 @@ footer :focus-visible{outline-color:var(--apricot)}
           <li>ניגודיות צבעים של 4.5:1 לפחות בטקסט רגיל.</li>
           <li>הגדרת שפה וכיוון עברית, ותמיכה בהגדרת "הפחתת תנועה" של מערכת ההפעלה.</li>
           <li>התאמה למסכים קטנים ולהגדלת טקסט.</li>
-          <li>באתר אין טפסים, אין וידאו ואין אודיו.</li>
+          <li>באתר אין טפסים ואין וידאו. מוזיקת הרקע מתנגנת רק אחרי לחיצה על כפתור המוזיקה בראש העמוד, ואפשר לעצור אותה באותו כפתור בכל רגע.</li>
         </ul>
         <h3>איך בדקנו</h3>
         <p>בדיקה אוטומטית בכלי axe-core ובדיקה ידנית בדפדפן כרום, במחשב וברוחב של טלפון. ייתכן שנשארו רכיבים שאינם נגישים במלואם. אם נתקלתם בבעיה, נשמח לדעת ולתקן.</p>

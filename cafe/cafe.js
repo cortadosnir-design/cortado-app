@@ -50,6 +50,29 @@ if (hero){
   heroStep();
 }
 
+// מוזיקה: רק אחרי לחיצה, אף פעם לא לבד. הקובץ נטען רק בלחיצה הראשונה, נכנס בהדרגה, ונעצר כשעוזבים את הלשונית.
+// המוזיקה נוצרה ב-toolkit/reel/music.py (ענף social-media): בלי רישיון לבדוק ובלי עלות.
+const soundBtn = document.querySelector(".sound");
+if (soundBtn){
+  let audio = null, fadeT = 0;
+  const fade = (to, done) => {
+    clearInterval(fadeT);
+    fadeT = setInterval(() => {
+      const v = audio.volume + (to > audio.volume ? 0.04 : -0.06);
+      if ((to > audio.volume && v >= to) || (to <= audio.volume && v <= to)){ audio.volume = to; clearInterval(fadeT); if (done) done(); }
+      else audio.volume = Math.min(1, Math.max(0, v));
+    }, 60);
+  };
+  const stop = () => { if (!audio || audio.paused) return; soundBtn.setAttribute("aria-pressed", "false"); fade(0, () => audio.pause()); };
+  soundBtn.addEventListener("click", () => {
+    if (!audio){ audio = new Audio("sc/cafe-music.mp3"); audio.loop = true; audio.volume = 0; }
+    if (audio.paused || soundBtn.getAttribute("aria-pressed") === "false"){
+      audio.play().then(() => { soundBtn.setAttribute("aria-pressed", "true"); fade(0.55); }).catch(() => {});
+    } else stop();
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+}
+
 // ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.
 if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matches){
   let raf = 0, mx = 0, my = 0;
