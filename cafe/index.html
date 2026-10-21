@@ -118,8 +118,8 @@ h1,h2{font-weight:700;letter-spacing:-.03em}
 section[id]{scroll-margin-top:72px}
 
 /* ===== 1 · ההירו: שלוש שכבות מתמונה אחת. --fh הוא גובה המסגרת, וכל השכבות נמדדות ממנה ===== */
-.hero-stage{--fh:min(173vw,calc(100svh - 64px - 96px - 88px));background:radial-gradient(120% 70% at 50% 100%,#EFEDE6 0%,var(--cream) 70%)}
-.frame{position:absolute;bottom:88px;height:var(--fh);width:calc(var(--fh)*.75);left:calc(50vw - var(--fh)*.75*.46);pointer-events:none}
+.hero-stage{--hh:max(520px,calc(100svh - 150px));--fh:min(173vw,calc(var(--hh) - 64px - 96px));position:relative;height:var(--hh);overflow:hidden;background:radial-gradient(120% 70% at 50% 100%,#EFEDE6 0%,var(--cream) 70%)}
+.frame{position:absolute;bottom:0;height:var(--fh);width:calc(var(--fh)*.75);left:calc(50vw - var(--fh)*.75*.46);pointer-events:none}
 .frame img{position:absolute;max-width:none;display:block}
 .f-back{z-index:1}
 .f-back img{inset:0;width:100%;height:100%;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);mask-composite:intersect;
@@ -129,7 +129,7 @@ section[id]{scroll-margin-top:72px}
 .hero-top{position:absolute;z-index:4;top:calc(64px + env(safe-area-inset-top,0px) + 10px);inset-inline:var(--gutter) 112px}
 .hero-top .label{font-size:13px;letter-spacing:.08em}
 .hero-top .sub{margin-top:10px;font-size:clamp(16px,4.3vw,20px);line-height:1.5;color:var(--ink-soft);max-width:min(25ch,68vw)}
-.hero-h1{position:absolute;z-index:2;inset-inline:var(--gutter);bottom:calc(88px + var(--fh) * .363 - .22em);font:800 clamp(44px,13vw,118px)/.94 var(--serif);letter-spacing:-.04em;color:var(--cream);text-shadow:0 2px 22px rgba(18,15,11,.45);translate:0 calc(-120px * var(--sc-p,0))}
+.hero-h1{position:absolute;z-index:2;inset-inline:var(--gutter);bottom:calc(var(--fh) * .363 - .22em);font:800 clamp(44px,13vw,118px)/.94 var(--serif);letter-spacing:-.04em;color:var(--cream);text-shadow:0 2px 22px rgba(18,15,11,.45);translate:0 calc(-120px * var(--sc-p,0))}
 .hero-h1 .ln{display:block}
 .hero-h1 .ln:first-child{color:var(--apricot)}
 .stamp{position:absolute;z-index:5;left:16px;top:calc(64px + env(safe-area-inset-top,0px) + 14px);width:84px;height:84px;border-radius:50%;background:var(--apricot);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;rotate:-9deg;box-shadow:0 8px 20px -6px rgba(0,0,0,.4);text-align:center}
@@ -138,13 +138,13 @@ section[id]{scroll-margin-top:72px}
 .stamp small{font-size:11px;font-weight:600}
 .hero-actions{display:none}
 @media (min-width:900px){
-  .hero-stage{--fh:calc(100svh - 96px)}
+  .hero-stage{--hh:calc(100svh - 110px);--fh:calc(var(--hh) - 96px)}
   .frame{bottom:0;left:4vw}
   .hero-top{top:auto;bottom:calc(var(--fh) * .64);inset-inline:auto var(--gutter);inset-inline-start:var(--gutter);width:min(46vw,620px)}
-  .hero-h1{inset-inline:auto;inset-inline-start:var(--gutter);right:var(--gutter);width:min(52vw,760px);bottom:auto;top:calc(100svh - var(--fh) * .6);color:var(--ink);text-shadow:none}
+  .hero-h1{inset-inline:auto;inset-inline-start:var(--gutter);right:var(--gutter);width:min(52vw,760px);bottom:auto;top:calc(var(--hh) - var(--fh) * .6);color:var(--ink);text-shadow:none}
   .hero-h1 .ln:first-child{color:var(--rust)}
-  .hero-actions{display:flex;gap:12px;position:absolute;z-index:4;right:var(--gutter);top:calc(100svh - var(--fh) * .6 + 2 * .94 * clamp(44px,13vw,118px) + 36px)}
-  .stamp{left:calc(4vw + var(--fh) * .03);top:calc(100svh - var(--fh) - 20px);width:112px;height:112px}
+  .hero-actions{display:flex;gap:12px;position:absolute;z-index:4;right:var(--gutter);top:calc(var(--hh) - var(--fh) * .6 + 2 * .94 * clamp(44px,13vw,118px) + 36px)}
+  .stamp{left:calc(4vw + var(--fh) * .03);top:calc(var(--hh) - var(--fh) - 20px);width:112px;height:112px}
   .stamp b{font-size:37px}.stamp i{font-size:11px}.stamp small{font-size:13px}
 }
 /* כניסה: הרקע מתיישב, הכוסות עולות, הכותרת נבנית שורה-שורה */
@@ -160,15 +160,21 @@ section[id]{scroll-margin-top:72px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes stampIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 
+/* "גללו": רמז לגלילה. נעלם אחרי הגלילה הראשונה, ולחיצה עליו מגלגלת למדשאה */
+.scroll-cue{position:absolute;z-index:6;left:50%;bottom:12px;translate:-50% 0;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 18px 0 14px;border-radius:var(--pill);background:rgba(26,22,17,.86);color:var(--cream);font-size:15px;font-weight:600;text-decoration:none;box-shadow:0 8px 20px -8px rgba(0,0,0,.5);transition:opacity .35s,translate .35s}
+.scroll-cue svg{width:20px;height:20px;animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateY(-2px)}50%{transform:translateY(4px)}}
+.hero.moved .scroll-cue{opacity:0;translate:-50% 12px;pointer-events:none}
+
 /* proof */
-.proof{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:22px var(--gutter) 0}
+.proof{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:26px var(--gutter) 0}
 .proof span{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:var(--r-sm);background:var(--white);border:1px solid var(--hair);font-size:15px;color:var(--ink-soft)}
 .proof b{color:var(--ink);font-weight:700}
 .stars{letter-spacing:2px;color:var(--rust)}
 
 /* ===== 2 · המדשאה: חיתוך עיגול שנפתח ===== */
-.lawn{padding-top:clamp(40px,7vw,90px)}
-.lawn-fig{position:relative;margin:0;height:min(92svh,860px);overflow:hidden;background:#C9C3B4}
+.lawn{padding-top:12px}
+.lawn-fig{--lp:min(1,max(0,var(--sc-p,1) * 2.4));position:relative;margin:0;height:min(92svh,860px);overflow:hidden;background:#C9C3B4;clip-path:inset(0 calc(var(--gutter) * (1 - var(--lp))) round calc(32px * (1 - var(--lp))))}
 .lawn-fig img{width:100%;height:100%;object-fit:cover}
 .lawn-fig figcaption{position:absolute;inset-inline:0;bottom:0;padding:clamp(28px,5vw,64px) var(--gutter);background:linear-gradient(to top,rgba(20,17,13,.82),rgba(20,17,13,.4) 60%,transparent);color:var(--cream);display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap}
 .lawn-fig figcaption p{font:800 clamp(40px,10.5vw,104px)/.95 var(--serif);letter-spacing:-.04em;max-width:11ch}
@@ -392,6 +398,7 @@ footer :focus-visible{outline-color:var(--apricot)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .f-back img,.f-front img,.hero-h1{scale:none!important;translate:none!important}
   .liq-esp,.liq-milk{scale:1 1!important}.liq-crema{translate:none!important;opacity:1!important}.foam{opacity:1!important}
+  .lawn-fig{clip-path:none}
   .stream{opacity:0!important}.glass{opacity:1!important;scale:none!important}.pour-top{display:none}
   .half{opacity:1!important}.ratio>div{opacity:1!important}
   .sk-art img{rotate:none!important;scale:none!important}
@@ -712,8 +719,8 @@ footer :focus-visible{outline-color:var(--apricot)}
 <main id="main">
 
 <!-- 1 · הגעה: סצנה בשכבות מתמונה אחת. העגלה נסוגה, הכוסות מתקרבות, הכותרת ביניהן. -->
-<section class="hero" id="hero" data-sc-act="pin" data-sc-span="1.8" data-sc-drift="#F6F2EB" aria-labelledby="h1">
-  <div data-sc-stage class="hero-stage">
+<section class="hero" id="hero" aria-labelledby="h1">
+  <div class="hero-stage">
     <div class="frame f-back" aria-hidden="true"><img src="img/sc/hero-plate.webp" alt="" width="1050" height="1400" fetchpriority="high"></div>
     <div class="hero-top">
       <p class="label">עגלת קפה משפחתית · קיבוץ שניר, הגליל העליון</p>
@@ -726,21 +733,22 @@ footer :focus-visible{outline-color:var(--apricot)}
       <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו אלינו בוויז</a>
       <a class="btn btn-glass" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">גוגל מפות</a>
     </div>
+    <a class="scroll-cue" href="#lawn"><span>גללו</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
+</section>
+
+<!-- 2 · נשימה: עיגול שנחתך מהדף ונפתח אל המדשאה -->
+<section class="lawn" id="lawn" data-sc-act="flow" aria-label="המדשאה">
+  <figure class="lawn-fig">
+    <img src="img/lawn.jpg" srcset="img/lawn-1400.jpg 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
+    <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
+  </figure>
 </section>
 
 <div class="proof" data-sc-in data-sc-stagger="80">
   <span><b>5.0</b> <span class="stars" aria-hidden="true">★★★★★</span> 80 ביקורות בגוגל <small>(אוקטובר 2026)</small></span>
   <span><b>פתוחים גם בשבת</b></span>
 </div>
-
-<!-- 2 · נשימה: עיגול שנחתך מהדף ונפתח אל המדשאה -->
-<section class="lawn" data-sc-act="flow" aria-label="המדשאה">
-  <figure class="lawn-fig" data-sc-reveal="iris" data-sc-reveal-at="0.05 0.55">
-    <img src="img/lawn.jpg" srcset="img/lawn-1400.jpg 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
-    <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
-  </figure>
-</section>
 
 <!-- 3 · "זה בדרך שלי": מספרים אמיתיים בלבד -->
 <section class="statement" data-sc-act="flow" aria-labelledby="h-st">

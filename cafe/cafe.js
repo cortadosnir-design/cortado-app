@@ -35,8 +35,22 @@ window.addEventListener("hashchange", openFromHash); openFromHash();
 if (window.ScrollCraft) window.ScrollCraft.mount(document.body);
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.
+// ההירו לא נעוץ: הדף זז מהנגיעה הראשונה (הנעיצה גרמה להרגשה שאין למטה עוד דף), והשכבות מקבלות
+// את ההתקדמות מהגלילה עצמה. "גללו" נעלם אחרי הגלילה הראשונה.
+const hero = document.getElementById("hero");
 const heroStage = document.querySelector(".hero-stage");
+if (hero){
+  let raf = 0;
+  const heroStep = () => {
+    raf = 0;
+    if (!still) hero.style.setProperty("--sc-p", Math.min(1, Math.max(0, scrollY / (heroStage.offsetHeight * 0.85))).toFixed(4));
+    hero.classList.toggle("moved", scrollY > 30);
+  };
+  addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(heroStep); }, { passive: true });
+  heroStep();
+}
+
+// ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.
 if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matches){
   let raf = 0, mx = 0, my = 0;
   heroStage.addEventListener("pointermove", (e) => {
