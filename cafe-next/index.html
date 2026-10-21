@@ -468,52 +468,70 @@ footer :focus-visible{outline-color:var(--apricot)}
 .faq .more-q>summary{color:var(--rust);font-weight:700}
 /* המוזיקה עברה לתחתית הדף */
 .foot-sound{display:flex;align-items:center;gap:12px;min-height:52px;font-weight:500}
-/* ===== צבעים רכים (21.10.2026, "כבד ולא נעים בעיניים"): רקע בהיר לכל אורך הדף, בלי קטעים שחורים או ירוקים כהים.
-   הכתום-חלודה מהלוגו נשאר רק כצבע הדגשה. דיו רכה יותר מהשחור, והחלודה בהירה בגוון אחד ===== */
-:root{--ink:#2B251E;--rust:#8E4524;--sand:#F2ECE3;--sage:#E8EEE6}
-/* כרטיסי התפריט: גוונים בהירים במקום חלודה, שחור וירוק כהה */
-.sk{box-shadow:0 -10px 30px -16px rgba(43,37,30,.18)}
-.sk-1{background:#F4E4DA;color:var(--ink)}
-.sk-hot{background:#EFE7DC;color:var(--ink)}
-.sk-2{background:#FBE8D5;color:var(--ink)}
-.sk-3{background:#E3EBE2;color:var(--ink)}
-.sk-4{background:var(--white);color:var(--ink);border:1px solid var(--hair)}
-.sk li,.sk-2 li,.sk-4 li{background:rgba(255,255,255,.75)}
-.sk li em,.sk-2 li em,.sk-4 li em{background:var(--rust);color:var(--white)}
-.sk-art img{filter:drop-shadow(0 20px 22px rgba(43,37,30,.2))}
+/* ===== שפת צבע (21.10.2026, אחרי מחקר): הצבעים נגזרים מהמקום ומהלוגו, לא רק מהמשמש.
+   חלוקה 60-30-10: רקע בהיר ניטרלי לרוב הדף, משטח שני בהיר לקטעים ולכרטיסים, והמשמש של הלוגו רק לכפתורים.
+   צבע ההדגשה בטקסט (--rust, שם היסטורי) הוא צבע המותג של הכיוון. שלושה כיוונים לבחירה: data-pal על <html> ===== */
+:root,[data-pal="pine"]{
+  --bone:#FAF8F3;--cream:#FAF8F3;--white:#FFFFFF;--tint:#EDF1EA;--tint2:#F4F1EA;
+  --ink:#1E2620;--ink-soft:#5B645C;--hair:#DFE3DA;
+  --rust:#3D5A46;--board:#3D5A46;--apricot:#F2AF75;--apricot-soft:#FCEAD8;--rust-soft:#EDF1EA;
+  --c1:#EDF1EA;--c2:#FFFFFF;--c3:#F4F1EA;--c4:#E3EBE4;--c5:#FFFFFF;
+  --sc-canvas:#FAF8F3;--sc-ink:#1E2620;--sc-accent:#3D5A46}
+[data-pal="stone"]{
+  --bone:#F8F7F4;--cream:#F8F7F4;--white:#FFFFFF;--tint:#EFEEEA;--tint2:#EFEEEA;
+  --ink:#232220;--ink-soft:#64615B;--hair:#E2E0DA;
+  --rust:#5C2918;--board:#4A5A4E;--apricot:#F2AF75;--apricot-soft:#FBEBDB;--rust-soft:#EFEEEA;
+  --c1:#FFFFFF;--c2:#EFEEEA;--c3:#FFFFFF;--c4:#EFEEEA;--c5:#FFFFFF;
+  --sc-canvas:#F8F7F4;--sc-ink:#232220;--sc-accent:#5C2918}
+[data-pal="milk"]{
+  --bone:#FBF8F3;--cream:#FBF8F3;--white:#FFFFFF;--tint:#F3ECE2;--tint2:#F3ECE2;
+  --ink:#2E241D;--ink-soft:#6B5E52;--hair:#E8DFD3;
+  --rust:#7A4A2E;--board:#5B6B57;--apricot:#F2AF75;--apricot-soft:#FBE9D6;--rust-soft:#F3ECE2;
+  --c1:#F3ECE2;--c2:#FFFFFF;--c3:#F3ECE2;--c4:#FFFFFF;--c5:#F3ECE2;
+  --sc-canvas:#FBF8F3;--sc-ink:#2E241D;--sc-accent:#7A4A2E}
+body{background:var(--bone)}
+.hero-stage{background:var(--bone)}
+/* כרטיסי התפריט: משטחים בהירים לסירוגין, בלי משמש או צבע כהה כרקע */
+.sk{box-shadow:0 -8px 28px -16px rgba(30,38,32,.2);border:1px solid var(--hair);color:var(--ink)}
+.sk-1{background:var(--c1)}.sk-hot{background:var(--c2)}.sk-2{background:var(--c3)}.sk-3{background:var(--c4)}.sk-4{background:var(--c5)}
+.sk-1,.sk-hot,.sk-2,.sk-3,.sk-4{color:var(--ink)}
+.sk li,.sk-2 li,.sk-4 li{background:var(--bone);border:1px solid var(--hair)}
+.sk li em,.sk-2 li em,.sk-4 li em{background:var(--rust);color:#fff}
+.sk-art img{filter:drop-shadow(0 18px 20px rgba(30,38,32,.18))}
 .sk-hotgrid svg{stroke:var(--ink)}
 .sk-hotgrid figcaption{color:var(--rust)}
-.sk-hotgrid .hs path,.hot-cup .steam{stroke:rgba(43,37,30,.3)}
+.sk-hotgrid .hs path,.hot-cup .steam{stroke:rgba(30,38,32,.28)}
 .hot-cup{stroke:var(--rust)}
-/* "קורטדו היה המשקה של סבתא": כרטיס לבן במקום קופסה חלודה */
-.savta{background:var(--white);color:var(--ink);border:1px solid var(--hair);box-shadow:0 14px 30px -18px rgba(43,37,30,.3)}
+.savta{background:var(--white);color:var(--ink);border:1px solid var(--hair);box-shadow:0 14px 30px -18px rgba(30,38,32,.28)}
 .savta cite{color:var(--rust)}
-/* ביקורות: חול בהיר במקום שחור */
-.reviews{background:var(--sand);color:var(--ink)}
+.savta .mark{box-shadow:0 0 0 3px var(--white)}
+.ratio>div{background:var(--white);border-color:var(--hair)}
+/* ביקורות ושעות: המשטח השני, בהיר */
+.reviews{background:var(--tint);color:var(--ink)}
 .reviews .label,.score b,.score .stars,.rev-grid figure::before{color:var(--rust)}
 .score span,.rev-grid figcaption,.fine-note{color:var(--ink-soft)}
 .rev-grid figure{background:var(--white);border-color:var(--hair)}
-/* שעות והגעה: מרווה בהירה במקום ירוק כהה */
-.visit{background:var(--sage);color:var(--ink)}
-.visit .label{color:var(--board)}
+.visit{background:var(--tint2);color:var(--ink)}
+.visit .label{color:var(--rust)}
 .addr small,.hours-note{color:var(--ink-soft)}
 .hours{background:var(--white)}
-.eve{filter:drop-shadow(0 22px 24px rgba(43,37,30,.22))}
-/* כפתורי מסגרת שנבנו לרקע כהה */
+.eve{filter:drop-shadow(0 22px 24px rgba(30,38,32,.2))}
+.star{display:none}  /* כוכבי הלילה נבנו לרקע הכהה */
 .btn-line-bone{border-color:var(--ink);color:var(--ink)}
 .btn-line-bone:hover{background:var(--ink);color:var(--white)}
-/* תחתית הדף: חול בהיר במקום שחור */
-footer{background:var(--sand);color:var(--ink)}
+.btn-ink:hover{background:var(--rust)}
+/* שאלות ותחתית */
+.faq summary::after{background-color:var(--tint)}
+footer{background:var(--tint);color:var(--ink)}
 .foot-mark{color:var(--rust)}
 footer h3,.fine{color:var(--ink-soft)}
 footer li a:hover{color:var(--rust)}
 .fine{border-top-color:var(--hair)}
 .reviews :focus-visible,footer :focus-visible,.visit :focus-visible{outline-color:var(--ink)}
-/* הסרגל התחתון בטלפון: לבן ושקוף-למחצה במקום שחור */
 @media (max-width:760px){
-  .bar{background:rgba(253,251,247,.94);border:1px solid var(--hair);box-shadow:0 10px 30px -12px rgba(43,37,30,.3)}
+  .bar{background:rgba(255,255,255,.94);border:1px solid var(--hair);box-shadow:0 10px 30px -12px rgba(30,38,32,.28)}
   .bar a{color:var(--ink)}
-  .bar a:active{background:rgba(43,37,30,.06)}
+  .bar a:active{background:rgba(30,38,32,.06)}
   .bar :focus-visible{outline-color:var(--ink)}
 }
 </style>
