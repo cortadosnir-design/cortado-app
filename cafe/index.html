@@ -200,20 +200,20 @@ section[id]{scroll-margin-top:72px}
 .glass{width:100%;height:auto;overflow:visible}
 .glass-line{fill:rgba(255,255,255,.28);stroke:var(--ink);stroke-width:4;stroke-linejoin:round}
 .glass-line.thin{fill:none;stroke-width:2;opacity:.55}
-.half{stroke:var(--rust);stroke-width:2;stroke-dasharray:6 7;opacity:calc(min(1,max(0,(var(--sc-p,0) - .08) * 8)) - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
+.half{stroke:var(--rust);stroke-width:2;stroke-dasharray:6 7;opacity:calc(min(1,max(0,(var(--sc-p,0) - .08) * 8)) - min(1,max(0,(var(--sc-p,0) - .72) * 8)))}
 /* מילוי: אספרסו עד חצי (p .12→.42), חלב מעליו (p .44→.70). ההתחלה ריקה בכוונה: השקט שלפני המזיגה */
 .liq{transform-box:view-box}
 .liq-esp{transform-origin:0 185px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .12) / .30)))}
 .liq-crema{transform-origin:0 0;translate:0 calc((1 - min(1,max(0,(var(--sc-p,0) - .12) / .30))) * 66px);opacity:calc(min(1,max(0,(var(--sc-p,0) - .12) * 20)) - min(1,max(0,(var(--sc-p,0) - .46) * 8)))}
 .liq-mix{transform-origin:0 185px;scale:1 calc(.5 + .5 * min(1,max(0,(var(--sc-p,0) - .44) / .26)));opacity:calc(min(1,max(0,(var(--sc-p,0) - .44) * 6)))}
-.liq-top{opacity:calc(min(1,max(0,(var(--sc-p,0) - .66) * 12)))}
+.liq-top{opacity:calc(min(1,max(0,(var(--sc-p,0) - .64) * 12)))}
 .stream{transform-box:fill-box;transform-origin:50% 0}
 .stream-esp{opacity:calc(min(1,max(0,(var(--sc-p,0) - .1) * 30)) - min(1,max(0,(var(--sc-p,0) - .42) * 30)))}
 .stream-milk{opacity:calc(min(1,max(0,(var(--sc-p,0) - .43) * 30)) - min(1,max(0,(var(--sc-p,0) - .7) * 30)))}
-.glass{opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(1 - .2 * min(1,max(0,(var(--sc-p,0) - .72) * 4)))}
-.pour-top{position:absolute;left:50%;top:6%;translate:-50% 0;width:auto;height:92%;max-width:none;filter:drop-shadow(0 22px 30px rgba(26,22,17,.3));opacity:calc(min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(.7 + .3 * min(1,max(0,(var(--sc-p,0) - .72) * 4)));rotate:0deg}
+.glass{opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .82) * 7)));scale:calc(1 - .2 * min(1,max(0,(var(--sc-p,0) - .82) * 5)))}
+.pour-top{position:absolute;left:50%;top:6%;translate:-50% 0;width:auto;height:92%;max-width:none;filter:drop-shadow(0 22px 30px rgba(26,22,17,.3));opacity:calc(min(1,max(0,(var(--sc-p,0) - .82) * 7)));scale:calc(.7 + .3 * min(1,max(0,(var(--sc-p,0) - .82) * 5)));rotate:0deg}
 .ratio{position:absolute;inset-inline:var(--gutter);bottom:calc(104px + 1svh);margin:0;display:flex;justify-content:center;gap:12px}
-.ratio>div{min-width:126px;padding:10px 16px;border-radius:var(--r-sm);background:rgba(253,251,247,.75);border:1px solid rgba(127,56,27,.18);text-align:center;opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
+.ratio>div{min-width:126px;padding:10px 16px;border-radius:var(--r-sm);background:rgba(253,251,247,.75);border:1px solid rgba(127,56,27,.18);text-align:center;opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .8) * 8)))}
 .ratio dt{font-size:14px;font-weight:600;color:#4A433A}
 .ratio dd{margin:0;font:800 32px/1 var(--serif);color:var(--rust)}
 .r-milk dd{color:#8A6136}
@@ -523,7 +523,7 @@ footer :focus-visible{outline-color:var(--apricot)}
      {
       "@type": "MenuItem",
       "name": "קורטדו",
-      "description": "אספרסו וחלב חם, חצי-חצי."
+      "description": "אספרסו וחלב חם, חצי-חצי, עם פס דק של קצף חלב."
      },
      {
       "@type": "MenuItem",
@@ -808,8 +808,8 @@ footer :focus-visible{outline-color:var(--apricot)}
 <section class="pour" id="pour" data-sc-act="pin" data-sc-span="2.8" data-sc-drift="#F9E0C7" aria-labelledby="h-pour">
   <div data-sc-stage class="pour-stage">
     <div class="pour-copy">
-      <h2 id="h-pour" class="pour-h" data-sc-cue="0 0.66 0">קורטדו.</h2>
-      <p class="pour-sub" data-sc-cue="0.12 0.66">אספרסו וחלב חם, חצי-חצי.</p>
+      <h2 id="h-pour" class="pour-h" data-sc-cue="0 0.8 0">קורטדו.</h2>
+      <p class="pour-sub" data-sc-cue="0.12 0.8">אספרסו וחלב חם חצי-חצי, ופס דק של קצף חלב.</p>
     </div>
     <div class="glass-wrap" aria-hidden="true">
       <svg class="glass" viewBox="0 0 220 230">
@@ -824,7 +824,7 @@ footer :focus-visible{outline-color:var(--apricot)}
           <rect class="liq liq-esp" x="30" y="119" width="160" height="66" fill="url(#g-esp)"/>
           <rect class="liq liq-crema" x="30" y="115" width="160" height="6" fill="#B8763E"/>
           <rect class="liq liq-mix" x="30" y="53" width="160" height="132" fill="url(#g-mix)"/>
-          <rect class="liq liq-top" x="30" y="52" width="160" height="4" fill="#E6CFAE"/>
+          <rect class="liq liq-top" x="30" y="49" width="160" height="7" fill="#F6EEE2"/><rect class="liq liq-top" x="30" y="55.5" width="160" height="1.2" fill="#D3B288"/>
         </g>
         <path class="glass-line" d="M36 40 L184 40 L176 202 L44 202 Z"/>
         <path class="glass-line thin" d="M47 185 L173 185 M41 128 L179 128 M57 128 L55 202 M74 128 L73 202 M92 128 L91 202 M110 128 L110 202 M128 128 L129 202 M146 128 L147 202 M163 128 L165 202"/>
@@ -836,7 +836,7 @@ footer :focus-visible{outline-color:var(--apricot)}
       <div class="r-esp"><dt>אספרסו</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.12 0.42">50</span>%</dd></div>
       <div class="r-milk"><dt>חלב חם</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.44 0.7">50</span>%</dd></div>
     </dl>
-    <blockquote class="savta" data-sc-cue="0.72">
+    <blockquote class="savta" data-sc-cue="0.84">
       <img class="mark" src="img/logo.png" alt="" width="64" height="64">
       <p>קורטדו היה המשקה של סבתא. עכשיו הוא גם שלכם.</p>
       <cite>ניצן, שחר ועמית</cite>
