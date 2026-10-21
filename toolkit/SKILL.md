@@ -209,7 +209,7 @@ It refuses texts with hours, prices, hashtags or the banned words; masters the s
 checks size (<38MB for the bot), length, and that all three QRs scan on the encoded closing frame;
 writes `reel.mp4`, `cover.jpg` and `sheet.jpg` (one settled still per scene). Look at `sheet.jpg`
 before it goes anywhere. Each reel has one motion rule, `"motion"` in the spec (21.10.2026, owner
-approved): `chalk` (dissolves + a chalk line drawing under the text, for story reels), `kinetic`
+approved): `chalk` (dissolves + a chalk line drawing under the hook and the last caption only, its colour picked by the seed, for story reels), `kinetic`
 (punch-in cuts, words landing one by one, for reels with a beat) or `push` (default). Which one, and
 the rest of the per-reel decisions: `instagram/reel-brief.md`. Music comes from `reel/music.py` (generated, seeded, no license); a real
 licensed track dropped into `assets/music/*.mp3` is used instead. Render takes ~2–3 minutes.

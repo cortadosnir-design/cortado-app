@@ -108,27 +108,33 @@ CHALK_LINE = ('<svg class="ul" viewBox="0 0 600 40" preserveAspectRatio="none">'
               '<path d="M12 26 C140 12 260 34 380 20 S540 14 588 24" pathLength="1"/></svg>')
 
 
-def text_html(t, motion):
+# the chalk line takes a different colour each reel (owner, 21.10.2026: vary it), picked by the seed
+CHALK_COLORS = ["#CB7E4D", "#F2AF75", "#E7A3AE", "#F4F1EA", "#9FD3C7", "#F2D06B"]
+
+
+def text_html(t, motion, line=False):
     # kinetic: one span per word so each can land on its own; chalk: a line that draws under the text
     if motion == "kinetic":
         return "".join(f'<span class="w">{html.escape(w)}</span> ' for w in t.split())
-    return html.escape(t) + (CHALK_LINE if motion == "chalk" else "")
+    return html.escape(t) + (CHALK_LINE if line else "")
 
 
-def text_in(sel, at, motion, big=False):
+def text_in(sel, at, motion, big=False, line=False):
     if motion == "kinetic":  # the card snaps open, then the words drop in one by one
         return (f'tl.fromTo("{sel}",{{opacity:0,scaleX:0.4}},{{opacity:1,scaleX:1,duration:0.22,ease:"power3.out"}},{at:.2f});'
                 f'tl.fromTo("{sel} .w",{{opacity:0,y:{70 if big else 45},scale:0.55}},{{opacity:1,y:0,scale:1,'
                 f'duration:0.32,stagger:{0.2 if big else 0.13},ease:"back.out(2.4)"}},{at + 0.12:.2f});')
     if motion == "chalk":
-        return (f'tl.fromTo("{sel}",{{opacity:0,y:20}},{{opacity:1,y:0,duration:0.6,ease:"sine.out"}},{at:.2f});'
-                f'tl.fromTo("{sel} .ul path",{{strokeDashoffset:1}},{{strokeDashoffset:0,duration:0.7,ease:"power2.inOut"}},{at + 0.35:.2f});')
+        return (f'tl.fromTo("{sel}",{{opacity:0,y:20}},{{opacity:1,y:0,duration:0.6,ease:"sine.out"}},{at:.2f});' + (
+                f'tl.fromTo("{sel} .ul path",{{strokeDashoffset:1}},{{strokeDashoffset:0,duration:0.7,ease:"power2.inOut"}},{at + 0.35:.2f});' if line else ""))
     return (f'tl.fromTo("{sel}",{{opacity:0,y:{70 if big else 40}}},{{opacity:1,y:0,duration:{0.6 if big else 0.45},'
             f'ease:"{"back.out(1.4)" if big else "power3.out"}"}},{at:.2f});')
 
 
 def compose(s, sc, total):
     intro, motion = bool(s.get("intro")), s.get("motion", "push")
+    # chalk: the line draws only under the hook and the last caption (the emotional beat), not under everything
+    last = max((i for i, x in enumerate(sc) if x.get("text")), default=-1) if motion == "chalk" else -1
     t, parts, anims = (INTRO + XFADE, [intro_html()], [intro_anim()]) if intro else (0.0, [], [])
     for i, x in enumerate(sc):
         push = bool(i or intro)
@@ -141,9 +147,9 @@ def compose(s, sc, total):
                      f'data-media-start="{float(x.get("from", 0)):.2f}"></video>')
         else:
             media = f'<img class="media" src="{src}" alt="">'
-        cap = f'<div class="chip" id="c{i}">{text_html(x["text"], motion)}</div>' if x.get("text") else ""
+        cap = f'<div class="chip" id="c{i}">{text_html(x["text"], motion, i == last)}</div>' if x.get("text") else ""
         hook = (f'<div class="hookwrap" id="hook"><div class="badge"><img src="assets/logo.png" alt=""><span>cortado</span></div>'
-                f'<div class="hook">{text_html(s["hook"], motion)}</div></div>') if i == 0 else ""
+                f'<div class="hook">{text_html(s["hook"], motion, motion == "chalk")}</div></div>') if i == 0 else ""
         parts.append(f'<section class="scene clip" id="s{i}" data-start="{start:.2f}" data-duration="{dur:.2f}" style="z-index:{i + 1}">'
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
         a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
@@ -159,9 +165,9 @@ def compose(s, sc, total):
         land = start + (XFADE if push else 0)
         if i == 0:
             a += f'tl.fromTo("#hook .badge",{{opacity:0,y:-30}},{{opacity:1,y:0,duration:0.5,ease:"power3.out"}},{land + 0.1:.2f});'
-            a += text_in("#hook .hook", land + 0.25, motion, big=True)
+            a += text_in("#hook .hook", land + 0.25, motion, big=True, line=motion == "chalk")
         if x.get("text"):
-            a += text_in(f"#c{i}", land + (1.2 if i == 0 else 0.15), motion)
+            a += text_in(f"#c{i}", land + (1.2 if i == 0 else 0.15), motion, line=i == last)
         anims.append(a)
         t = start + dur - XFADE
     es = t - XFADE
@@ -184,7 +190,7 @@ def compose(s, sc, total):
 <style>
 @font-face{{font-family:Rubik;src:url(assets/Rubik-VF.ttf);font-weight:300 900}}
 @font-face{{font-family:"Playpen Sans Hebrew";src:url(assets/PlaypenSansHebrew-VF.ttf);font-weight:100 800}}
-:root{{--board:#34494A;--cart:#141417;--foam:#F7F2DC;--chalk:#F4F1EA;--aida:#CB7E4D}}
+:root{{--board:#34494A;--cart:#141417;--foam:#F7F2DC;--chalk:#F4F1EA;--aida:#CB7E4D;--line:{CHALK_COLORS[int(s.get("seed", 1)) % len(CHALK_COLORS)]}}}
 *{{margin:0;padding:0;box-sizing:border-box}}
 html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-family:Rubik}}
 #root{{position:relative;width:100%;height:100%;overflow:hidden}}
@@ -203,7 +209,7 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .hook{{position:relative}}
 .w{{display:inline-block}}
 .ul{{position:absolute;left:10%;width:80%;bottom:-34px;height:38px;overflow:visible}}
-.ul path{{fill:none;stroke:var(--aida);stroke-width:11;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}}
+.ul path{{fill:none;stroke:var(--line);stroke-width:11;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}}
 .dim{{position:absolute;inset:0;background:#000;opacity:0;z-index:5}}
 .end{{background:var(--board)}}
 .doodles{{position:absolute;inset:0;width:100%;height:100%;opacity:.55}}
