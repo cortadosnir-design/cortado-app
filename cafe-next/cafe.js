@@ -110,7 +110,7 @@ if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matc
   });
 }
 
-// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה כשהבא עולה עליו, והמנה בכרטיס מסתובבת קלות עם הגלילה.
+// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה קצת כשהבא עולה עליו (מעט: על כרטיסים בהירים הכהיה נראית אפורה), והמנה בכרטיס מסתובבת קלות עם הגלילה.
 const cards = [...document.querySelectorAll(".sk")];
 if (cards.length && !still){
   let raf = 0;
@@ -124,7 +124,7 @@ if (cards.length && !still){
       if (!next) return;
       const cover = Math.min(1, Math.max(0, 1 - (next.getBoundingClientRect().top - r.top) / r.height));
       c.style.transform = cover ? `scale(${(1 - cover * 0.06).toFixed(4)})` : "";
-      c.style.filter = cover ? `brightness(${(1 - cover * 0.25).toFixed(3)})` : "";
+      c.style.filter = cover ? `brightness(${(1 - cover * 0.07).toFixed(3)})` : "";
     });
   };
   addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(step); }, { passive: true });

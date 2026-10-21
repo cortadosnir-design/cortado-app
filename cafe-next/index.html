@@ -468,6 +468,54 @@ footer :focus-visible{outline-color:var(--apricot)}
 .faq .more-q>summary{color:var(--rust);font-weight:700}
 /* המוזיקה עברה לתחתית הדף */
 .foot-sound{display:flex;align-items:center;gap:12px;min-height:52px;font-weight:500}
+/* ===== צבעים רכים (21.10.2026, "כבד ולא נעים בעיניים"): רקע בהיר לכל אורך הדף, בלי קטעים שחורים או ירוקים כהים.
+   הכתום-חלודה מהלוגו נשאר רק כצבע הדגשה. דיו רכה יותר מהשחור, והחלודה בהירה בגוון אחד ===== */
+:root{--ink:#2B251E;--rust:#8E4524;--sand:#F2ECE3;--sage:#E8EEE6}
+/* כרטיסי התפריט: גוונים בהירים במקום חלודה, שחור וירוק כהה */
+.sk{box-shadow:0 -10px 30px -16px rgba(43,37,30,.18)}
+.sk-1{background:#F4E4DA;color:var(--ink)}
+.sk-hot{background:#EFE7DC;color:var(--ink)}
+.sk-2{background:#FBE8D5;color:var(--ink)}
+.sk-3{background:#E3EBE2;color:var(--ink)}
+.sk-4{background:var(--white);color:var(--ink);border:1px solid var(--hair)}
+.sk li,.sk-2 li,.sk-4 li{background:rgba(255,255,255,.75)}
+.sk li em,.sk-2 li em,.sk-4 li em{background:var(--rust);color:var(--white)}
+.sk-art img{filter:drop-shadow(0 20px 22px rgba(43,37,30,.2))}
+.sk-hotgrid svg{stroke:var(--ink)}
+.sk-hotgrid figcaption{color:var(--rust)}
+.sk-hotgrid .hs path,.hot-cup .steam{stroke:rgba(43,37,30,.3)}
+.hot-cup{stroke:var(--rust)}
+/* "קורטדו היה המשקה של סבתא": כרטיס לבן במקום קופסה חלודה */
+.savta{background:var(--white);color:var(--ink);border:1px solid var(--hair);box-shadow:0 14px 30px -18px rgba(43,37,30,.3)}
+.savta cite{color:var(--rust)}
+/* ביקורות: חול בהיר במקום שחור */
+.reviews{background:var(--sand);color:var(--ink)}
+.reviews .label,.score b,.score .stars,.rev-grid figure::before{color:var(--rust)}
+.score span,.rev-grid figcaption,.fine-note{color:var(--ink-soft)}
+.rev-grid figure{background:var(--white);border-color:var(--hair)}
+/* שעות והגעה: מרווה בהירה במקום ירוק כהה */
+.visit{background:var(--sage);color:var(--ink)}
+.visit .label{color:var(--board)}
+.addr small,.hours-note{color:var(--ink-soft)}
+.hours{background:var(--white)}
+.eve{filter:drop-shadow(0 22px 24px rgba(43,37,30,.22))}
+/* כפתורי מסגרת שנבנו לרקע כהה */
+.btn-line-bone{border-color:var(--ink);color:var(--ink)}
+.btn-line-bone:hover{background:var(--ink);color:var(--white)}
+/* תחתית הדף: חול בהיר במקום שחור */
+footer{background:var(--sand);color:var(--ink)}
+.foot-mark{color:var(--rust)}
+footer h3,.fine{color:var(--ink-soft)}
+footer li a:hover{color:var(--rust)}
+.fine{border-top-color:var(--hair)}
+.reviews :focus-visible,footer :focus-visible,.visit :focus-visible{outline-color:var(--ink)}
+/* הסרגל התחתון בטלפון: לבן ושקוף-למחצה במקום שחור */
+@media (max-width:760px){
+  .bar{background:rgba(253,251,247,.94);border:1px solid var(--hair);box-shadow:0 10px 30px -12px rgba(43,37,30,.3)}
+  .bar a{color:var(--ink)}
+  .bar a:active{background:rgba(43,37,30,.06)}
+  .bar :focus-visible{outline-color:var(--ink)}
+}
 </style>
 <script type="application/ld+json">
 {
@@ -828,7 +876,7 @@ footer :focus-visible{outline-color:var(--apricot)}
 </section>
 
 <!-- 4 · השיא: הגלילה מוזגת קורטדו. חצי אספרסו, חצי חלב. ואז סבתא. -->
-<section class="pour" id="pour" data-sc-act="pin" data-sc-span="1.9" data-sc-drift="#F9E0C7" aria-labelledby="h-pour">
+<section class="pour" id="pour" data-sc-act="pin" data-sc-span="1.9" aria-labelledby="h-pour">
   <div data-sc-stage class="pour-stage">
     <div class="pour-copy">
       <h2 id="h-pour" class="pour-h" data-sc-cue="0 0.8 0">קורטדו.</h2>
