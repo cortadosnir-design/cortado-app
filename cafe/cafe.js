@@ -50,11 +50,14 @@ if (hero){
   heroStep();
 }
 
-// מוזיקה: רק אחרי לחיצה, אף פעם לא לבד. הקובץ נטען רק בלחיצה הראשונה, נכנס בהדרגה, ונעצר כשעוזבים את הלשונית.
-// המוזיקה נוצרה ב-toolkit/reel/music.py (ענף social-media): בלי רישיון לבדוק ובלי עלות.
+// מוזיקה: מתחילה לבד. דפדפנים לא מרשים צליל לפני שהמבקר נגע בדף, אז מנסים מיד, ואם נחסם — בנגיעה הראשונה בכל מקום.
+// מי שעצר בכפתור — היא לא חוזרת לבד. נכנסת בהדרגה ונעצרת כשעוזבים את הלשונית.
+// המוזיקה היא סנטור מסונתז בקוד, בלי דגימות: אין רישיון לבדוק ואין עלות.
 const soundBtn = document.querySelector(".sound");
 if (soundBtn){
-  let audio = null, fadeT = 0;
+  const audio = new Audio("sc/cafe-music.mp3");
+  audio.loop = true; audio.volume = 0;
+  let fadeT = 0, off = false;
   const fade = (to, done) => {
     clearInterval(fadeT);
     fadeT = setInterval(() => {
@@ -63,14 +66,23 @@ if (soundBtn){
       else audio.volume = Math.min(1, Math.max(0, v));
     }, 60);
   };
-  const stop = () => { if (!audio || audio.paused) return; soundBtn.setAttribute("aria-pressed", "false"); fade(0, () => audio.pause()); };
+  const kicks = ["pointerup", "touchend", "click", "keydown"];
+  const kick = e => { if (!soundBtn.contains(e.target)) start(); };
+  const start = () => {
+    if (off || !audio.paused) return;
+    audio.play().then(() => {
+      soundBtn.setAttribute("aria-pressed", "true"); fade(0.55);
+      kicks.forEach(t => removeEventListener(t, kick, true));
+    }).catch(() => {});
+  };
+  const pause = () => { if (!audio.paused) fade(0, () => audio.pause()); };
+  kicks.forEach(t => addEventListener(t, kick, { capture: true, passive: true }));
+  start();
   soundBtn.addEventListener("click", () => {
-    if (!audio){ audio = new Audio("sc/cafe-music.mp3"); audio.loop = true; audio.volume = 0; }
-    if (audio.paused || soundBtn.getAttribute("aria-pressed") === "false"){
-      audio.play().then(() => { soundBtn.setAttribute("aria-pressed", "true"); fade(0.55); }).catch(() => {});
-    } else stop();
+    off = soundBtn.getAttribute("aria-pressed") === "true";
+    if (off){ soundBtn.setAttribute("aria-pressed", "false"); pause(); } else start();
   });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); else start(); });
 }
 
 // ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.

@@ -283,6 +283,7 @@ section[id]{scroll-margin-top:72px}
 .sk-art{position:relative;display:grid;place-items:center;padding:14px 20px 22px;min-height:0}
 .sk-art img{width:auto;max-width:74%;max-height:min(34svh,330px);object-fit:contain;filter:drop-shadow(0 26px 26px rgba(0,0,0,.32));rotate:calc(-6deg + var(--sk-p,0) * 12deg);scale:calc(.92 + var(--sk-p,0) * .12)}
 .sk-art .sk-art2{position:absolute;max-width:40%;max-height:18svh;inset-inline-start:8%;bottom:4%;rotate:calc(10deg - var(--sk-p,0) * 16deg)}
+@media (max-height:700px) and (max-width:860px){.sk{top:calc(72px + var(--i,0) * 44px);min-height:max(290px,calc(100svh - 168px - var(--i,0) * 44px))}.sk h3{font-size:clamp(30px,8vw,48px)}.sk-art img{max-height:22svh}.sk-duo .sk-art2{max-height:15svh}.sk-hotgrid svg{width:min(100%,90px)}}
 @media (min-width:861px){.stack{max-width:1100px}.sk{top:calc(96px + var(--i,0) * 70px);min-height:max(420px,calc(100svh - 160px - var(--i,0) * 70px));grid-template-rows:auto 1fr}.sk-txt{padding:18px 40px 0}.sk-art img{max-height:min(40svh,380px)}}
 .offer-note{margin-top:28px;font-size:16px;color:var(--ink-soft)}
 
@@ -432,10 +433,8 @@ footer :focus-visible{outline-color:var(--apricot)}
 .sk-coffee .steam{left:22%;width:56%;bottom:68%;height:34%}
 .sk-coffee img{rotate:calc(var(--sk-p,0) * 70deg)}
 .sk-spin img{rotate:calc(var(--sk-p,0) * 110deg);scale:calc(.9 + var(--sk-p,0) * .14)}
-.sk-split{display:flex;justify-content:center;align-items:center;gap:0}
-.sk-split img{max-width:44%;max-height:min(34svh,330px);rotate:none;scale:none}
-.sk-split .half-a{translate:calc(var(--sk-p,0) * 26px) 0;rotate:calc(var(--sk-p,0) * 7deg)}
-.sk-split .half-b{translate:calc(var(--sk-p,0) * -26px) 0;rotate:calc(var(--sk-p,0) * -7deg)}
+.sk-duo>img:first-child{max-width:64%;translate:12% 0}
+.sk-duo .sk-art2{inset-inline-start:auto;inset-inline-end:7%;bottom:4%;max-width:44%;max-height:19svh;translate:calc((1 - var(--sk-p,0)) * -36px) 0;rotate:calc(-24deg + var(--sk-p,0) * 30deg)}
 .sk-4 .sk-art2{translate:calc((1 - var(--sk-p,0)) * -60px) 0}
 .visit{--lit:min(1,max(0,var(--sc-p,1) * 2.6 - .3))}
 .eve{filter:brightness(calc(.38 + .62 * var(--lit))) saturate(calc(.6 + .4 * var(--lit))) drop-shadow(0 30px 30px rgba(0,0,0,.45));z-index:1}
@@ -443,7 +442,7 @@ footer :focus-visible{outline-color:var(--apricot)}
 .moon{translate:0 calc((1 - var(--lit)) * 60px)}
 .star{position:absolute;left:var(--x);top:var(--y);width:4px;height:4px;border-radius:50%;background:#FFF3DE;box-shadow:0 0 6px #FFE3B8;opacity:calc(var(--lit) * .9);animation:twinkle 2.8s ease-in-out infinite;animation-delay:var(--d,0s)}
 @keyframes twinkle{50%{transform:scale(.4)}}
-@media (prefers-reduced-motion:reduce){.f-back .plate,.f-front .cups{scale:none!important;translate:none!important}.sk-split img,.sk-coffee img,.sk-spin img,.sk-4 .sk-art2{rotate:none!important;translate:none!important;scale:none!important}.visit{--lit:1}}
+@media (prefers-reduced-motion:reduce){.f-back .plate,.f-front .cups{scale:none!important;translate:none!important}.sk-duo img,.sk-coffee img,.sk-spin img,.sk-4 .sk-art2{rotate:none!important;translate:none!important;scale:none!important}.visit{--lit:1}}
 
 /* reduced motion: הכל במצב הסופי, בלי תנועה */
 @media (prefers-reduced-motion:reduce){
@@ -605,8 +604,8 @@ footer :focus-visible{outline-color:var(--apricot)}
    },
    {
     "@type": "MenuSection",
-    "name": "מהוויטרינה",
-    "description": "משתנה מיום ליום.",
+    "name": "כריכים ופיצות",
+    "description": "משתנים מיום ליום.",
     "hasMenuItem": [
      {
       "@type": "MenuItem",
@@ -615,7 +614,14 @@ footer :focus-visible{outline-color:var(--apricot)}
      {
       "@type": "MenuItem",
       "name": "פיצות"
-     },
+     }
+    ]
+   },
+   {
+    "@type": "MenuSection",
+    "name": "מהוויטרינה",
+    "description": "משתנה מיום ליום.",
+    "hasMenuItem": [
      {
       "@type": "MenuItem",
       "name": "מאפים ועוגות",
@@ -875,7 +881,7 @@ footer :focus-visible{outline-color:var(--apricot)}
 <section class="offer" id="offer" data-sc-act="flow" aria-labelledby="h-offer">
   <div class="wrap offer-head" data-sc-in data-sc-stagger="90">
     <p class="label">מה יש בעגלה</p>
-    <h2 id="h-offer">קפה, שייקים וויטרינה.</h2>
+    <h2 id="h-offer">קפה, שייקים, כריכים ומאפים.</h2>
     <p>הוויטרינה משתנה מיום ליום. העגלה חלבית, ויש גם אפשרויות טבעוניות ואפשרויות ללא גלוטן. לעסק אין תעודת כשרות. המאפים כשרים.</p>
   </div>
   <div class="stack">
@@ -892,8 +898,8 @@ footer :focus-visible{outline-color:var(--apricot)}
       <div class="sk-art sk-spin"><img src="img/sc/menu-acai.webp" alt="קערת אסאי עם תותים, אוכמניות, בננה וגרנולה" width="649" height="638" loading="lazy"></div>
     </article>
     <article class="sk sk-3">
-      <div class="sk-txt"><h3>מהוויטרינה</h3><p>משתנה מיום ליום.</p><ul><li>כריכים</li><li>פיצות</li></ul></div>
-      <div class="sk-art sk-split" role="img" aria-label="כריך חתוך לשניים עם ירקות"><img class="half-a" src="img/sc/sandwich-a.webp" alt="" width="336" height="640" loading="lazy"><img class="half-b" src="img/sc/sandwich-b.webp" alt="" width="303" height="640" loading="lazy"></div>
+      <div class="sk-txt"><h3>כריכים ופיצות</h3><p>טריים, ומשתנים מיום ליום.</p><ul><li>כריכים</li><li>פיצות</li></ul></div>
+      <div class="sk-art sk-duo"><img src="img/sc/menu-sandwich.webp" alt="כריך עם סלק, נבטים ואגוזים" width="648" height="660" loading="lazy"><img class="sk-art2" src="img/sc/menu-pizza.webp" alt="פיצה מרגריטה עם בזיליקום" width="700" height="583" loading="lazy"></div>
     </article>
     <article class="sk sk-4">
       <div class="sk-txt"><h3>מאפים ועוגות</h3><p>מהוויטרינה, משתנה מיום ליום.</p><ul><li>מאפים ועוגות <em>יש גם ללא גלוטן</em></li></ul></div>
@@ -1045,7 +1051,7 @@ footer :focus-visible{outline-color:var(--apricot)}
           <li>ניגודיות צבעים של 4.5:1 לפחות בטקסט רגיל.</li>
           <li>הגדרת שפה וכיוון עברית, ותמיכה בהגדרת "הפחתת תנועה" של מערכת ההפעלה.</li>
           <li>התאמה למסכים קטנים ולהגדלת טקסט.</li>
-          <li>באתר אין טפסים ואין וידאו. מוזיקת הרקע מתנגנת רק אחרי לחיצה על כפתור המוזיקה בראש העמוד, ואפשר לעצור אותה באותו כפתור בכל רגע.</li>
+          <li>באתר אין טפסים ואין וידאו. מוזיקת רקע שקטה מתחילה עם הנגיעה הראשונה בדף. כפתור המוזיקה בראש העמוד עוצר אותה בכל רגע, והיא לא חוזרת עד שלוחצים עליו שוב.</li>
         </ul>
         <h3>איך בדקנו</h3>
         <p>בדיקה אוטומטית בכלי axe-core ובדיקה ידנית בדפדפן כרום, במחשב וברוחב של טלפון. ייתכן שנשארו רכיבים שאינם נגישים במלואם. אם נתקלתם בבעיה, נשמח לדעת ולתקן.</p>
