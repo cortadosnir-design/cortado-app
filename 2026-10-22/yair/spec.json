@@ -1,0 +1,35 @@
+{
+  "hook": "יאיר ברקוביץ', משלנו מהקיבוץ",
+  "motion": "kinetic",
+  "music": "drive",
+  "scenes": [
+    {
+      "media": "toolkit/assets/photos/hero.jpg",
+      "text": "",
+      "dur": 2.5
+    },
+    {
+      "media": "2026-10-22/yair/games-a.jpg",
+      "text": "כדורגל שולחן, הוקי וכדורסל",
+      "dur": 2.5
+    },
+    {
+      "media": "2026-10-22/yair/games-b.jpg",
+      "text": "קורנהול, ג'נגה וארבע בשורה",
+      "dur": 2.5
+    },
+    {
+      "media": "2026-10-22/yair/full.jpg",
+      "text": "לימי הולדת ולאירועים",
+      "dur": 3.0
+    },
+    {
+      "media": "toolkit/assets/photos/lawn.jpg",
+      "text": "משחקים, מתחרים, נהנים ביחד",
+      "dur": 3.5
+    }
+  ],
+  "end": "להזמנות 050-7235545",
+  "place": "ספורט עם יאיר · קיבוץ שניר",
+  "seed": 22
+}
