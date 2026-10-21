@@ -203,15 +203,15 @@ section[id]{scroll-margin-top:72px}
 .half{stroke:var(--rust);stroke-width:2;stroke-dasharray:6 7;opacity:calc(min(1,max(0,(var(--sc-p,0) - .08) * 8)) - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
 /* מילוי: אספרסו עד חצי (p .12→.42), חלב מעליו (p .44→.70). ההתחלה ריקה בכוונה: השקט שלפני המזיגה */
 .liq{transform-box:view-box}
-.liq-esp{transform-origin:0 256px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .12) / .30)))}
-.liq-crema{transform-origin:0 0;translate:0 calc((1 - min(1,max(0,(var(--sc-p,0) - .12) / .30))) * 111px);opacity:calc(min(1,max(0,(var(--sc-p,0) - .12) * 20)))}
-.liq-milk{transform-origin:0 145px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .44) / .26)))}
-.foam{opacity:calc(min(1,max(0,(var(--sc-p,0) - .66) * 12)))}
+.liq-esp{transform-origin:0 185px;scale:1 calc(min(1,max(0,(var(--sc-p,0) - .12) / .30)))}
+.liq-crema{transform-origin:0 0;translate:0 calc((1 - min(1,max(0,(var(--sc-p,0) - .12) / .30))) * 66px);opacity:calc(min(1,max(0,(var(--sc-p,0) - .12) * 20)) - min(1,max(0,(var(--sc-p,0) - .46) * 8)))}
+.liq-mix{transform-origin:0 185px;scale:1 calc(.5 + .5 * min(1,max(0,(var(--sc-p,0) - .44) / .26)));opacity:calc(min(1,max(0,(var(--sc-p,0) - .44) * 6)))}
+.liq-top{opacity:calc(min(1,max(0,(var(--sc-p,0) - .66) * 12)))}
 .stream{transform-box:fill-box;transform-origin:50% 0}
 .stream-esp{opacity:calc(min(1,max(0,(var(--sc-p,0) - .1) * 30)) - min(1,max(0,(var(--sc-p,0) - .42) * 30)))}
 .stream-milk{opacity:calc(min(1,max(0,(var(--sc-p,0) - .43) * 30)) - min(1,max(0,(var(--sc-p,0) - .7) * 30)))}
 .glass{opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(1 - .2 * min(1,max(0,(var(--sc-p,0) - .72) * 4)))}
-.pour-top{position:absolute;inset:6% 0 auto;width:100%;height:auto;max-width:none;filter:drop-shadow(0 22px 30px rgba(26,22,17,.3));opacity:calc(min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(.7 + .3 * min(1,max(0,(var(--sc-p,0) - .72) * 4)));rotate:calc(var(--sc-p,0) * 140deg)}
+.pour-top{position:absolute;left:50%;top:6%;translate:-50% 0;width:auto;height:92%;max-width:none;filter:drop-shadow(0 22px 30px rgba(26,22,17,.3));opacity:calc(min(1,max(0,(var(--sc-p,0) - .72) * 6)));scale:calc(.7 + .3 * min(1,max(0,(var(--sc-p,0) - .72) * 4)));rotate:0deg}
 .ratio{position:absolute;inset-inline:var(--gutter);bottom:calc(104px + 1svh);margin:0;display:flex;justify-content:center;gap:12px}
 .ratio>div{min-width:126px;padding:10px 16px;border-radius:var(--r-sm);background:rgba(253,251,247,.75);border:1px solid rgba(127,56,27,.18);text-align:center;opacity:calc(1 - min(1,max(0,(var(--sc-p,0) - .7) * 8)))}
 .ratio dt{font-size:14px;font-weight:600;color:#4A433A}
@@ -397,7 +397,7 @@ footer :focus-visible{outline-color:var(--apricot)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
   .f-back img,.f-front img,.hero-h1{scale:none!important;translate:none!important}
-  .liq-esp,.liq-milk{scale:1 1!important}.liq-crema{translate:none!important;opacity:1!important}.foam{opacity:1!important}
+  .liq-esp{scale:1 1!important}.liq-mix{scale:1 1!important;opacity:1!important}.liq-crema{opacity:0!important}.liq-top{opacity:1!important}
   .lawn-fig{clip-path:none}
   .stream{opacity:0!important}.glass{opacity:1!important;scale:none!important}.pour-top{display:none}
   .half{opacity:1!important}.ratio>div{opacity:1!important}
@@ -771,25 +771,25 @@ footer :focus-visible{outline-color:var(--apricot)}
       <p class="pour-sub" data-sc-cue="0.12 0.66">אספרסו וחלב חם, חצי-חצי.</p>
     </div>
     <div class="glass-wrap" aria-hidden="true">
-      <svg class="glass" viewBox="0 0 220 280">
+      <svg class="glass" viewBox="0 0 220 230">
         <defs>
-          <clipPath id="glass-in"><path d="M38 34 L182 34 L170 256 L50 256 Z"/></clipPath>
-          <linearGradient id="g-esp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2B170C"/><stop offset="1" stop-color="#5A3220"/></linearGradient>
-          <linearGradient id="g-milk" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#B98352"/><stop offset=".55" stop-color="#E2C49E"/><stop offset="1" stop-color="#F7EEDF"/></linearGradient>
+          <clipPath id="glass-in"><path d="M42 47 L178 47 L171 185 L49 185 Z"/></clipPath>
+          <linearGradient id="g-esp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2B170C"/><stop offset="1" stop-color="#4E2B18"/></linearGradient>
+          <linearGradient id="g-mix" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7A4A26"/><stop offset=".55" stop-color="#A9713F"/><stop offset="1" stop-color="#C69462"/></linearGradient>
         </defs>
-        <rect class="stream stream-esp" x="104" y="-40" width="12" height="300" rx="6" fill="#3B2112"/>
-        <rect class="stream stream-milk" x="102" y="-40" width="16" height="300" rx="8" fill="#F4E9D8"/>
+        <rect class="stream stream-esp" x="105" y="-60" width="10" height="245" rx="5" fill="#3B2112"/>
+        <rect class="stream stream-milk" x="103" y="-60" width="14" height="245" rx="7" fill="#F2E8D8"/>
         <g clip-path="url(#glass-in)">
-          <rect class="liq liq-esp" x="20" y="145" width="180" height="111" fill="url(#g-esp)"/>
-          <rect class="liq liq-crema" x="20" y="139" width="180" height="10" fill="#C98A4E"/>
-          <rect class="liq liq-milk" x="20" y="34" width="180" height="111" fill="url(#g-milk)"/>
-          <ellipse class="liq foam" cx="110" cy="38" rx="74" ry="8" fill="#FBF6EE"/>
+          <rect class="liq liq-esp" x="30" y="119" width="160" height="66" fill="url(#g-esp)"/>
+          <rect class="liq liq-crema" x="30" y="115" width="160" height="6" fill="#B8763E"/>
+          <rect class="liq liq-mix" x="30" y="53" width="160" height="132" fill="url(#g-mix)"/>
+          <rect class="liq liq-top" x="30" y="52" width="160" height="4" fill="#E6CFAE"/>
         </g>
-        <path class="glass-line" d="M34 26 L186 26 L172 262 L48 262 Z"/>
-        <path class="glass-line thin" d="M44 196 L176 196 M64 196 L60 262 M88 196 L86 262 M110 196 L110 262 M132 196 L134 262 M156 196 L160 262"/>
-        <path class="half" d="M14 145 L206 145"/>
+        <path class="glass-line" d="M36 40 L184 40 L176 202 L44 202 Z"/>
+        <path class="glass-line thin" d="M47 185 L173 185 M41 128 L179 128 M57 128 L55 202 M74 128 L73 202 M92 128 L91 202 M110 128 L110 202 M128 128 L129 202 M146 128 L147 202 M163 128 L165 202"/>
+        <path class="half" d="M18 119 L202 119"/>
       </svg>
-      <img class="pour-top" src="img/sc/pour-top.webp" alt="" width="900" height="843" loading="lazy">
+      <img class="pour-top" src="img/sc/menu-cortado.webp" alt="" width="547" height="665" loading="lazy">
     </div>
     <dl class="ratio">
       <div class="r-esp"><dt>אספרסו</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.12 0.42">50</span>%</dd></div>
@@ -828,7 +828,7 @@ footer :focus-visible{outline-color:var(--apricot)}
   <div class="stack">
     <article class="sk sk-1">
       <div class="sk-txt"><h3>קפה</h3><p>עם חלב רגיל או צמחי, לבחירתכם.</p><ul><li>קורטדו</li><li>הפוך ואספרסו</li><li>אמריקנו</li><li>מקיאטו</li><li>אפוגאטו</li><li>קפה קר</li></ul></div>
-      <div class="sk-art"><img src="img/sc/menu-cortado.webp" alt="כוס קורטדו עם ציור לאטה" width="547" height="665" loading="lazy"></div>
+      <div class="sk-art"><img src="img/sc/menu-coffee.webp" alt="כוס קפה עם ציור לאטה, מלמעלה" width="892" height="900" loading="lazy"></div>
     </article>
     <article class="sk sk-hot">
       <div class="sk-txt"><h3>שתייה חמה</h3><p>לחורף שבפתח.</p><ul><li>סחלב</li><li>סיידר חם</li><li>שוקו</li><li>תה בטעמים שונים</li></ul></div>
