@@ -256,6 +256,18 @@ section[id]{scroll-margin-top:72px}
 .sk-2{--i:2;background:var(--apricot);color:var(--ink)}
 .sk-3{--i:3;background:var(--board);color:var(--cream)}
 .sk-4{--i:4;background:var(--apricot-soft);color:var(--ink)}
+.sk-hotgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;align-content:center;padding:6px 18px 18px}
+.sk-hotgrid figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:2px}
+.sk-hotgrid svg{width:min(100%,128px);height:auto;overflow:visible;fill:none;stroke:var(--cream);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;translate:0 calc((1 - var(--sk-p,0)) * 14px)}
+.sk-hotgrid figure:nth-child(2) svg{transition-delay:.05s;translate:0 calc((1 - var(--sk-p,0)) * 22px)}
+.sk-hotgrid figure:nth-child(3) svg{translate:0 calc((1 - var(--sk-p,0)) * 18px)}
+.sk-hotgrid figure:nth-child(4) svg{translate:0 calc((1 - var(--sk-p,0)) * 26px)}
+.sk-hotgrid figcaption{font:600 15px/1.2 var(--sans);color:var(--apricot)}
+.sk-hotgrid .hs path{stroke:rgba(255,255,255,.85);stroke-width:2.2;stroke-dasharray:14 40;filter:blur(.8px);animation:rise 3s ease-in-out infinite}
+.sk-hotgrid .hs .w2{animation-delay:-1.5s}
+.sk-hotgrid figure:nth-child(2) .hs path{animation-delay:-.7s}.sk-hotgrid figure:nth-child(3) .hs path{animation-delay:-1.1s}.sk-hotgrid figure:nth-child(4) .hs path{animation-delay:-2.2s}
+@media (min-width:861px){.sk-hotgrid{grid-template-columns:repeat(4,minmax(0,1fr))}.sk-hotgrid svg{width:min(100%,170px)}}
+@media (prefers-reduced-motion:reduce){.sk-hotgrid svg{translate:none!important}}
 .hot-cup{width:min(56%,260px);height:auto;max-width:none;stroke:var(--apricot);overflow:visible;rotate:calc(-4deg + var(--sk-p,0) * 8deg)}
 .hot-cup .steam{stroke:var(--cream);stroke-dasharray:30;animation:steam 2.6s ease-in-out infinite}
 .hot-cup .s2{animation-delay:-1.3s}
@@ -873,7 +885,7 @@ footer :focus-visible{outline-color:var(--apricot)}
     </article>
     <article class="sk sk-hot">
       <div class="sk-txt"><h3>שתייה חמה</h3><p>לחורף שבפתח.</p><ul><li>סחלב</li><li>סיידר חם</li><li>שוקו</li><li>תה בטעמים שונים</li></ul></div>
-      <div class="sk-art" aria-hidden="true"><svg class="hot-cup" viewBox="0 0 100 100"><g fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path class="steam" d="M36 30C30 22 42 18 36 8"/><path class="steam s2" d="M52 30C46 22 58 18 52 8"/><path d="M20 40H72V58C72 74 62 82 46 82C30 82 20 74 20 58Z"/><path d="M72 46C87 46 87 64 72 64"/><path d="M8 88C22 94 70 94 84 88"/></g></svg></div>
+      <div class="sk-art sk-hotgrid"><figure><svg viewBox="0 0 100 100" aria-hidden="true"><g class="hs"><path d="M38 22C34 15 42 11 38 4"/><path class="w2" d="M52 22C48 15 56 11 52 4"/></g><path class="liq" d="M22 40H72V56C72 70 63 78 47 78C31 78 22 70 22 56Z" fill="#EFE2CC"/><ellipse cx="47" cy="40" rx="25" ry="4.5" fill="#F7EEDF"/><g fill="#B5743A" stroke="none"><circle cx="40" cy="39" r="1.3"/><circle cx="47" cy="41" r="1.1"/><circle cx="54" cy="39.5" r="1.3"/><circle cx="44" cy="37.6" r="1"/><circle cx="51" cy="42" r="1"/></g><g stroke="#FFFFFF" stroke-width="1.6"><path d="M36 41l3-1.2"/><path d="M56 41.5l3 .8"/></g><path d="M22 40H72V56C72 70 63 78 47 78C31 78 22 70 22 56Z"/><path d="M72 46C86 46 86 64 72 64"/><path d="M12 85C26 91 68 91 82 85"/></svg><figcaption>סחלב</figcaption></figure><figure><svg viewBox="0 0 100 100" aria-hidden="true"><g class="hs"><path d="M38 22C34 15 42 11 38 4"/><path class="w2" d="M52 22C48 15 56 11 52 4"/></g><path class="liq" d="M28 36H66V76C66 80 63 82 60 82H34C31 82 28 80 28 76Z" fill="#C9822F" fill-opacity=".75"/><circle cx="47" cy="42" r="8" fill="#F3E3B8"/><circle cx="47" cy="42" r="8" fill="none"/><path d="M47 34V50M40 42H54" stroke-width="1.2"/><path d="M58 20L40 52" stroke="#9A5A2B" stroke-width="4.5"/><path d="M28 30H66V76C66 80 63 82 60 82H34C31 82 28 80 28 76Z"/><path d="M66 42C80 42 80 66 66 66"/></svg><figcaption>סיידר חם</figcaption></figure><figure><svg viewBox="0 0 100 100" aria-hidden="true"><g class="hs"><path d="M38 22C34 15 42 11 38 4"/><path class="w2" d="M52 22C48 15 56 11 52 4"/></g><path class="liq" d="M26 40H70V70C70 77 65 82 58 82H38C31 82 26 77 26 70Z" fill="#5E3520"/><rect x="34" y="31" width="10" height="10" rx="2.5" fill="#FBF6EE" transform="rotate(-12 39 36)"/><rect x="47" y="32" width="10" height="10" rx="2.5" fill="#FBF6EE" transform="rotate(10 52 37)"/><path d="M26 36H70V70C70 77 65 82 58 82H38C31 82 26 77 26 70Z"/><path d="M70 46C84 46 84 66 70 66"/></svg><figcaption>שוקו</figcaption></figure><figure><svg viewBox="0 0 100 100" aria-hidden="true"><g class="hs"><path d="M38 22C34 15 42 11 38 4"/><path class="w2" d="M52 22C48 15 56 11 52 4"/></g><path class="liq" d="M32 40H64L61 82H35Z" fill="#B85A2A" fill-opacity=".7"/><path d="M58 22V46" stroke-width="1.5"/><rect x="53" y="44" width="10" height="13" rx="2" fill="#F3E3B8"/><path d="M36 46C30 40 30 33 38 32C40 38 40 42 36 46Z" fill="#7FAF6E" stroke="#5E8C50"/><path d="M30 30H66L62 84H34Z"/><path d="M33 72H63" stroke-width="1.6" opacity=".6"/></svg><figcaption>תה בטעמים</figcaption></figure></div>
     </article>
     <article class="sk sk-2">
       <div class="sk-txt"><h3>שייקים ומתוקים</h3><p>לימים החמים על הדשא.</p><ul><li>שייקי פירות <em>טבעוני</em></li><li>קערת אסאי <em>טבעוני</em></li></ul></div>
