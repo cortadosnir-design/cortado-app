@@ -1,0 +1,293 @@
+// דף הנחיתה הציבורי: פרטים קטנים בדפדפן, ושעות הפתיחה מלוח המשמרות.
+//
+// עומד בפני עצמו בכוונה — בלי core.js ובלי ה-SDK של Firebase (300KB).
+// המסמך public/hours פתוח לקריאה לכולם, ולכן GET אחד ל-REST של Firestore
+// מספיק: ~1KB, בלי ספריות.
+//
+// שעות קבועות שנכתבו פעם ב-HTML התיישנו והוצגו כאילו הן של השבוע. היום ה-HTML מחזיק רק
+// שעות מתוארכות: .github/scripts/bake-hours.mjs אופה לתוכו את השבוע הנוכחי, בשביל מי שקורא
+// את הדף בלי JavaScript (מנועי חיפוש, עוזרי AI). כאן, בדפדפן, הן נשארות על המסך רק אם הן
+// של השבוע הזה, ו"פתוח עכשיו" לא מחושב מהן אף פעם. אם הרשת נופלת, ההערה שמתחת לטבלה
+// מפנה לגוגל מפות ולוואטסאפ.
+import { firebaseConfig } from "../config.js";
+
+const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+
+/* ===== פרטים קטנים ===== */
+// קישור למידע משפטי (#privacy וכד') פותח את ה-<details> במקום לגלול לכותרת סגורה.
+function openFromHash(){
+  const id = location.hash.slice(1); if (!id) return;
+  const el = document.getElementById(id);
+  if (el && el.tagName === "DETAILS"){
+    el.open = true;
+    const s = el.querySelector("summary");
+    setTimeout(() => { el.scrollIntoView(); if (s) s.focus({ preventScroll: true }); }, 0);
+  }
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="#"]'); if (!a) return;
+  const el = document.getElementById(a.getAttribute("href").slice(1));
+  if (el && el.tagName === "DETAILS") el.open = true;
+});
+window.addEventListener("hashchange", openFromHash); openFromHash();
+
+/* ===== תנועה: המנוע של scroll-craft (sc/scrollcraft.js) מפרסם --sc-p לכל קטע; הכוריאוגרפיה ב-CSS. ===== */
+if (window.ScrollCraft) window.ScrollCraft.mount(document.body);
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// גלילה חלקה (Lenis) בגלגלת ובמשטח מגע במחשב. בטלפון הגלילה נשארת של המערכת (syncTouch כבוי),
+// ומי שביקש פחות תנועה מקבל גלילה רגילה (respectReducedMotion). המנוע קורא את scrollY כרגיל, ולכן עובד איתו.
+// anchors: קישורי # ממשיכים לעבוד, ו-scroll-margin-top של הקטעים נשמר.
+if (window.Lenis) new window.Lenis({ autoRaf: true, anchors: true });
+
+// ההירו ב-GSAP: הכותרת עולה מילה-מילה מתוך מסכה, ותמונת העגלה מתקרבת לאט מאוד כל הזמן.
+// motion-flag.js הסתיר את הכותרת לפני הציור; כאן היא נחשפת. בלי GSAP: CSS מציג אותה אחרי 1.6 שניות.
+const h1 = document.querySelector(".hero-h1");
+if (h1 && window.gsap && window.SplitText && document.documentElement.classList.contains("gs-h1")){
+  const { gsap, SplitText } = window;
+  gsap.registerPlugin(SplitText);
+  // מילים ולא אותיות: פיצול עברית לאותיות שובר ניקוד וריווח
+  const splits = [...h1.querySelectorAll(".ln")].map(ln => new SplitText(ln, { type: "words", mask: "words" }));
+  h1.classList.add("gs-on");
+  // בסוף מחזירים את הטקסט המקורי: המסכות חותכות את הצל של הכותרת ואת האותיות היורדות (ק, ך)
+  gsap.from(splits.flatMap(s => s.words), { yPercent: 110, duration: 1, ease: "expo.out", stagger: 0.07, delay: 0.15,
+    onComplete: () => splits.forEach(s => s.revert()) });
+  gsap.to(".f-back .plate", { scale: 1.045, duration: 14, ease: "sine.inOut", yoyo: true, repeat: -1 });
+} else if (h1) h1.classList.add("gs-on");
+
+// ההירו לא נעוץ: הדף זז מהנגיעה הראשונה (הנעיצה גרמה להרגשה שאין למטה עוד דף), והשכבות מקבלות
+// את ההתקדמות מהגלילה עצמה. "גללו" נעלם אחרי הגלילה הראשונה.
+const hero = document.getElementById("hero");
+const heroStage = document.querySelector(".hero-stage");
+if (hero){
+  let raf = 0;
+  const heroStep = () => {
+    raf = 0;
+    if (!still) hero.style.setProperty("--sc-p", Math.min(1, Math.max(0, scrollY / (heroStage.offsetHeight * 0.85))).toFixed(4));
+    hero.classList.toggle("moved", scrollY > 30);
+  };
+  addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(heroStep); }, { passive: true });
+  heroStep();
+}
+
+// מוזיקה: רק כשלוחצים על הכפתור (21.10.2026). קודם היא התחילה בנגיעה הראשונה, ובטלפון זו הגלילה הראשונה,
+// אז מי שפתח את הדף ברכב או ליד אנשים קיבל צליל בלי שביקש. הקובץ (750KB) נטען רק בלחיצה.
+// נכנסת בהדרגה, נעצרת כשעוזבים את הלשונית וחוזרת כשחוזרים, אם הייתה דלוקה.
+// המוזיקה היא גיטרה ופכפוך מים מסונתזים בקוד, בלי דגימות: אין רישיון לבדוק ואין עלות. הקובץ עצמו שקט, כי באייפון אין שליטה בעוצמה.
+const soundBtn = document.querySelector(".sound");
+if (soundBtn){
+  let audio = null;
+  let fadeT = 0, off = true;
+  const fade = (to, done) => {
+    clearInterval(fadeT);
+    fadeT = setInterval(() => {
+      const v = audio.volume + (to > audio.volume ? 0.04 : -0.06);
+      if ((to > audio.volume && v >= to) || (to <= audio.volume && v <= to)){ audio.volume = to; clearInterval(fadeT); if (done) done(); }
+      else audio.volume = Math.min(1, Math.max(0, v));
+    }, 60);
+  };
+  const start = () => {
+    if (off) return;
+    if (!audio){ audio = new Audio("sc/cafe-music.mp3"); audio.loop = true; audio.volume = 0; }
+    if (!audio.paused) return;
+    audio.play().then(() => { soundBtn.setAttribute("aria-pressed", "true"); fade(0.35); }).catch(() => {});
+  };
+  const pause = () => { if (audio && !audio.paused) fade(0, () => audio.pause()); };
+  soundBtn.addEventListener("click", () => {
+    off = soundBtn.getAttribute("aria-pressed") === "true";
+    if (off){ soundBtn.setAttribute("aria-pressed", "false"); pause(); } else start();
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); else start(); });
+}
+
+// ההירו מגיב לעכבר במחשב בלבד: השכבות זזות בכיוונים הפוכים, וזה מה שנותן עומק.
+if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matches){
+  let raf = 0, mx = 0, my = 0;
+  heroStage.addEventListener("pointermove", (e) => {
+    const r = heroStage.getBoundingClientRect();
+    mx = (e.clientX - r.left) / r.width - 0.5; my = (e.clientY - r.top) / r.height - 0.5;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; heroStage.style.setProperty("--mx", mx.toFixed(3)); heroStage.style.setProperty("--my", my.toFixed(3)); });
+  });
+}
+
+// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה כשהבא עולה עליו, והמנה בכרטיס מסתובבת קלות עם הגלילה.
+const cards = [...document.querySelectorAll(".sk")];
+if (cards.length && !still){
+  let raf = 0;
+  const step = () => {
+    raf = 0;
+    const vh = innerHeight;
+    cards.forEach((c, i) => {
+      const r = c.getBoundingClientRect();
+      c.style.setProperty("--sk-p", Math.min(1, Math.max(0, 1 - r.top / vh)).toFixed(3));
+      const next = cards[i + 1];
+      if (!next) return;
+      const cover = Math.min(1, Math.max(0, 1 - (next.getBoundingClientRect().top - r.top) / r.height));
+      c.style.transform = cover ? `scale(${(1 - cover * 0.06).toFixed(4)})` : "";
+      c.style.filter = cover ? `brightness(${(1 - cover * 0.25).toFixed(3)})` : "";
+    });
+  };
+  addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(step); }, { passive: true });
+  addEventListener("resize", step); step();
+}
+
+const top = document.getElementById("top");
+const onScroll = () => top.classList.toggle("scrolled", window.scrollY > 8);
+window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+/* ===== שעות ===== */
+const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + (m || 0); };
+const fmt = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+// "09:00–12:00, 16:00–19:00" → [[540,720],[960,1140]]. מקבל גם " · " וגם מקף רגיל.
+export function parseDay(line){
+  return String(line || "").split(/[,·]/).map(x => x.trim()).filter(Boolean)
+    .map(r => r.split(/[–-]/).map(x => x.trim()))
+    .filter(p => p.length === 2 && p.every(x => /^\d{1,2}:\d{2}$/.test(x)))
+    .map(([a, b]) => [toMin(a), toMin(b)]).filter(([a, b]) => b > a);
+}
+
+// השעות שהדף מחשב מהן מגיעות רק מ-public/hours. מה שאפוי בתאים הוא טקסט לקריאה, לא נתון.
+const tbody = document.getElementById("hours");
+let hours = DAYS.map(() => []);
+
+function renderTable(){
+  tbody.replaceChildren();
+  hours.forEach((ranges, i) => {
+    const tr = document.createElement("tr"); tr.dataset.d = i;
+    const th = document.createElement("th"); th.scope = "row"; th.textContent = DAYS[i];
+    const td = document.createElement("td");
+    if (ranges.length){ td.dir = "ltr"; td.textContent = ranges.map(([a, b]) => fmt(a) + "–" + fmt(b)).join(" · "); }
+    else { td.className = "closed"; td.textContent = "סגור"; }
+    tr.append(th, td); tbody.append(tr);
+  });
+}
+
+// "פתוח עכשיו · עד 12:00" / "נפתח היום ב־16:00" / "נפתח מחר ב־09:00" — לפי שעון ישראל,
+// גם למי שגולש מחו"ל.
+function now(){
+  try {
+    const o = {};
+    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", weekday: "short", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+      .formatToParts(new Date()).forEach(x => o[x.type] = x.value);
+    return { d: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(o.weekday), m: (+o.hour) * 60 + (+o.minute), y: +o.year, mo: +o.month, day: +o.day };
+  } catch { const n = new Date(); return { d: n.getDay(), m: n.getHours() * 60 + n.getMinutes(), y: n.getFullYear(), mo: n.getMonth() + 1, day: n.getDate() }; }
+}
+/* השעות לפי תאריך, לא רק לפי יום בשבוע. public/hours מחזיק את השבוע
+   הנוכחי ואת הבא בשדה weeks (מפתח = יום ראשון של השבוע). בלי זה, שיגור
+   של השבוע הבא ביום חמישי הציג ביום שישי את שעות השישי של השבוע הבא,
+   וסגירה מוקדמת של היום לא הייתה משנה את "פתוח עכשיו". */
+let byWeek = {};
+let tableIsNext = false;
+// מסמך ישן בלי תאריכים (בלי weeks ובלי from): אין ממה לדעת לאיזה שבוע השעות שייכות, ולכן הן משמשות לכל יום.
+// במסמך מתוארך, יום ששבוע שלו לא פורסם הוא "לא ידוע", ולא מקבל שעות של שבוע אחר.
+let legacy = true;
+const p2 = (n) => String(n).padStart(2, "0");
+function weekKey(t, plus){
+  const x = new Date(Date.UTC(t.y, t.mo - 1, t.day + plus));
+  x.setUTCDate(x.getUTCDate() - x.getUTCDay());
+  return `${x.getUTCFullYear()}-${p2(x.getUTCMonth() + 1)}-${p2(x.getUTCDate())}`;
+}
+const hoursOn = (t, plus) => {
+  const w = byWeek[weekKey(t, plus)] || (legacy ? hours : null);
+  return (w && w[(t.d + plus) % 7]) || [];
+};
+// אותו מצב גם בכפתור שבמסך הראשון (.hero-open), בגדול
+function renderStatus(){
+  setStatus();
+  const hero = document.querySelector(".hero-open"), src = document.getElementById("status");
+  if (hero && src){ hero.querySelector("span").textContent = src.querySelector("span").textContent; hero.classList.toggle("open", src.classList.contains("open")); }
+}
+function setStatus(){
+  const t = now();
+  // "היום" מסומן רק כשהטבלה היא של השבוע הנוכחי. בטבלה של השבוע הבא, שבת היא שבת הבאה.
+  tbody.querySelectorAll("tr").forEach(tr => tr.classList.toggle("today", !tableIsNext && +tr.dataset.d === t.d));
+  const el = document.getElementById("status"), label = el.querySelector("span");
+  el.classList.remove("open");
+  const todays = hoursOn(t, 0);
+  const open = todays.find(([a, b]) => t.m >= a && t.m < b);
+  if (open){ el.classList.add("open"); label.textContent = "פתוח עכשיו · עד " + fmt(open[1]); return; }
+  const later = todays.find(([a]) => a > t.m);
+  if (later){ label.textContent = "נפתח היום ב־" + fmt(later[0]); return; }
+  for (let i = 1; i <= 7; i++){
+    const h = hoursOn(t, i), d = (t.d + i) % 7;
+    if (h.length){ label.textContent = "נפתח " + (i === 1 ? "מחר" : "ביום " + DAYS[d]) + " ב־" + fmt(h[0][0]); return; }
+  }
+  label.textContent = "שעות פתיחה";
+}
+// שעות אפויות של שבוע שעבר (האפייה נתקעה, או דף שנשמר במטמון): מוחקים את התאים, את התווית
+// ואת השעות שב-JSON-LD, כדי ששעות ישנות לא יעמדו על המסך כאילו הן של השבוע.
+if (tbody.dataset.week && tbody.dataset.week !== weekKey(now(), 0)){
+  tbody.querySelectorAll("td").forEach(td => { td.textContent = ""; td.className = ""; td.dir = "ltr"; });
+  delete tbody.dataset.week;
+  const stale = document.querySelector("#hours-note b"); if (stale) stale.remove();
+  try {
+    const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+    delete ld.openingHoursSpecification; el.textContent = JSON.stringify(ld);
+  } catch {}
+}
+renderStatus();
+
+// הנתונים המובנים (JSON-LD) מקבלים את השעות שבטבלה, במקום מה שנאפה ל-HTML.
+// כשהשבוע ידוע, השעות מתוארכות אליו, כך ששעות של שבוע שעבר לא נשארות בתוקף אצל מי ששמר את הדף.
+const EN_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function syncLd(from, through){
+  try {
+    const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+    ld.openingHoursSpecification = hours.flatMap((ranges, i) => ranges.map(([a, b]) => ({
+      "@type": "OpeningHoursSpecification", dayOfWeek: EN_DAYS[i], opens: fmt(a), closes: fmt(b),
+      ...(from && { validFrom: from, validThrough: through }) })));
+    el.textContent = JSON.stringify(ld);
+  } catch {}
+}
+
+// public/hours: { days: [7 מחרוזות], range: "20.9 – 26.9", weeks: { "2026-09-20": [7 מחרוזות], … } }
+const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/public/hours?key=${firebaseConfig.apiKey}`;
+const strs = (arr) => Array.isArray(arr) && arr.length === 7 ? arr.map(v => parseDay(v.stringValue || "")) : null;
+fetch(url).then(r => r.ok ? r.json() : null).then(d => {
+  const fields = d && d.fields; if (!fields) return;
+  const top = strs(fields.days && fields.days.arrayValue && fields.days.arrayValue.values);
+  const wm = fields.weeks && fields.weeks.mapValue && fields.weeks.mapValue.fields;
+  byWeek = {};
+  legacy = !wm && !fields.from;
+  for (const [k, v] of Object.entries(wm || {})){
+    const w = strs(v.arrayValue && v.arrayValue.values);
+    if (w) byWeek[k] = w;
+  }
+  // הטבלה: השבוע שבו אנחנו נמצאים, אם פורסם; אחרת מה שבשדה days.
+  // אחרי שעת הסגירה האחרונה של השבוע, אם השבוע הבא כבר פורסם, מציגים אותו: מי שנכנס במוצאי שבת
+  // רוצה לדעת מתי פתוח מחר. בלי זה לו"ז שפורסם בשבת "לא הופיע" עד חצות.
+  const t = now(), nextKey = weekKey(t, 7);
+  let key = weekKey(t, 0);
+  const left = byWeek[key] && byWeek[key].some((ranges, d) => d > t.d ? ranges.length : d === t.d && ranges.some(([, end]) => end > t.m));
+  tableIsNext = !!(byWeek[key] && byWeek[nextKey] && !left);
+  if (tableIsNext) key = nextKey;
+  let range = fields.range && fields.range.stringValue, through;
+  if (byWeek[key]){
+    hours = byWeek[key];
+    const [y, m, dd] = key.split("-").map(Number), a = new Date(Date.UTC(y, m - 1, dd)), b = new Date(Date.UTC(y, m - 1, dd + 6));
+    range = `${a.getUTCDate()}.${a.getUTCMonth() + 1} – ${b.getUTCDate()}.${b.getUTCMonth() + 1}`;
+    through = b.toISOString().slice(0, 10);
+  } else if (top && legacy) hours = top;
+  else {
+    // השבוע הזה לא פורסם: לא מציגים שעות של שבוע אחר כאילו הן של עכשיו, ו"פתוח עכשיו" לא מחושב מהן.
+    // גם מה שנאפה ל-HTML יורד: הנתון החי גובר על האפייה, שרצה רק פעם בשעה.
+    tbody.querySelectorAll("td").forEach(td => { td.textContent = ""; td.className = ""; td.dir = "ltr"; });
+    delete tbody.dataset.week;
+    try {
+      const el = document.querySelector('script[type="application/ld+json"]'), ld = JSON.parse(el.textContent);
+      delete ld.openingHoursSpecification; el.textContent = JSON.stringify(ld);
+    } catch {}
+    renderStatus();
+    const note = document.getElementById("hours-note");
+    if (note){ const b = note.querySelector("b") || note.insertBefore(document.createElement("b"), note.firstChild); b.textContent = "השעות לשבוע הזה עוד לא פורסמו. "; }
+    return;
+  }
+  renderTable(); renderStatus(); syncLd(through && key, through);
+  const note = document.getElementById("hours-note");
+  if (range && note){
+    // התווית האפויה מוחלפת, לא מוכפלת: אחרי שעת הסגירה האחרונה הטבלה כבר של השבוע הבא.
+    const b = note.querySelector("b") || note.insertBefore(document.createElement("b"), note.firstChild);
+    b.textContent = "השעות לשבוע " + range + ". ";
+  }
+}).catch(() => {});
+setInterval(renderStatus, 60000);
