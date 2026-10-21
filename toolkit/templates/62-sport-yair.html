@@ -1,62 +1,30 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1350">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
-<!-- A kibbutz neighbor's business (21.10.2026: Yair, "ספורט עם יאיר", game stations for birthdays and events).
-     Same family as 58-shkenim-kapayim: present the business, chalk line drawings of his six games on a foam card. -->
+<!-- A kibbutz neighbor's business (21.10.2026: Yair, "ספורט עם יאיר"). Owner: his own flyer goes in, as is,
+     framed in the chalkboard style like 58-shkenim-kapayim. -->
 <style>
 .frame{position:absolute;inset:28px;border:2px solid rgba(244,241,234,.22);border-radius:40px}
 .badge{top:56px}
-.k{position:absolute;top:186px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:28px;color:var(--aida-light);font-weight:700;font-size:44px}
+.k{position:absolute;top:184px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:28px;color:var(--aida-light);font-weight:700;font-size:44px}
 .k i{display:block;width:80px;height:3px;background:var(--aida-light);opacity:.8}
-.h{position:absolute;top:252px;left:0;right:0;text-align:center;font-weight:900;font-size:156px;line-height:1;color:var(--chalk);letter-spacing:-2px;
+.h{position:absolute;top:246px;left:0;right:0;text-align:center;font-weight:900;font-size:120px;line-height:1;color:var(--chalk);letter-spacing:-2px;
   text-shadow:0 8px 0 rgba(0,0,0,.18)}
-.sub{position:absolute;top:430px;left:0;right:0;text-align:center;color:var(--chalk);font-weight:500;font-size:40px;opacity:.95}
-.card.games{left:84px;right:84px;top:520px;height:490px;transform:rotate(-1deg)}
-.grid{position:absolute;inset:34px 40px 28px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px 20px}
-.g{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
-.g svg{width:150px;height:150px}
-.g span{font-weight:700;font-size:31px;color:var(--cart);white-space:nowrap}
-.sticker{left:34px;top:400px;width:172px;height:172px;font-size:30px;transform:rotate(-12deg);background:var(--aida);color:var(--foam);border-color:var(--foam);
+.fl{position:absolute;left:50%;top:394px;width:690px;height:757px;margin-left:-357px;border:12px solid var(--foam);border-radius:30px;overflow:hidden;
+  background:#fff;transform:rotate(1.5deg);box-shadow:0 22px 50px rgba(0,0,0,.4)}
+.fl img{display:block;width:100%;height:100%;object-fit:cover}
+.sticker{left:76px;top:362px;width:172px;height:172px;font-size:30px;transform:rotate(-12deg);background:var(--aida);color:var(--foam);border-color:var(--foam);
   box-shadow:0 12px 26px rgba(0,0,0,.35)}
-.ribbon{top:1062px;font-size:38px;padding:12px 48px 18px}
-.ribbon b{font-family:Rubik;font-weight:800;letter-spacing:1px;direction:ltr;unicode-bidi:isolate}
-svg .s{fill:none;stroke:#34494A;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
-svg .a{fill:#CB7E4D;stroke:#34494A;stroke-width:3}
-svg .p{fill:#E7A3AE;stroke:#34494A;stroke-width:3}
 </style></head><body class="board-bg">
 <img class="doodles" src="../assets/art/doodles-post.svg" alt="">
 <div class="frame"></div>
 <div class="badge"><img src="../assets/logo.png" alt=""><span>cortado</span></div>
 <div class="k"><i></i><span>משלנו, מקיבוץ שניר</span><i></i></div>
 <div class="h">ספורט עם יאיר</div>
-<img class="heart" src="../assets/art/icon-heart-pink.svg" style="right:70px;top:256px;width:74px;height:74px;transform:rotate(14deg)" alt="">
-<img class="heart" src="../assets/art/icon-spark-pink.svg" style="left:76px;top:262px;width:58px;height:58px" alt="">
-<div class="sub">עמדות משחק לימי הולדת ולאירועים</div>
-<div class="card games"><div class="grid">
-  <!-- foosball, top view -->
-  <div class="g"><svg viewBox="0 0 100 100"><rect class="s" x="18" y="22" width="64" height="56" rx="4"/><path class="s" d="M50 22v56M18 44h-6v12h6M82 44h6v12h-6"/>
-    <path class="s" d="M30 12v76M44 12v76M56 12v76M70 12v76"/><circle class="a" cx="30" cy="38" r="4"/><circle class="a" cx="30" cy="62" r="4"/><circle class="p" cx="44" cy="50" r="4"/>
-    <circle class="a" cx="56" cy="34" r="4"/><circle class="a" cx="56" cy="66" r="4"/><circle class="p" cx="70" cy="50" r="4"/></svg><span>כדורגל שולחן</span></div>
-  <!-- air hockey -->
-  <div class="g"><svg viewBox="0 0 100 100"><rect class="s" x="14" y="26" width="72" height="48" rx="10"/><path class="s" d="M50 26v48"/><circle class="s" cx="50" cy="50" r="9"/>
-    <path class="s" d="M14 42h5v16h-5M86 42h-5v16h5"/><circle class="a" cx="32" cy="50" r="6"/><circle class="s" cx="32" cy="50" r="2"/><ellipse class="p" cx="64" cy="44" rx="4.5" ry="4.5"/></svg><span>הוקי אוויר</span></div>
-  <!-- basketball -->
-  <div class="g"><svg viewBox="0 0 100 100"><rect class="s" x="24" y="10" width="52" height="34" rx="3"/><rect class="s" x="40" y="24" width="20" height="14"/>
-    <ellipse class="s" cx="50" cy="46" rx="13" ry="4"/><path class="s" d="M37 46l5 18M63 46l-5 18M44 47l2 17M56 47l-2 17M41 56h18"/>
-    <circle class="a" cx="74" cy="72" r="13"/><path class="s" d="M61 72h26M74 59v26M64 63c5 4 5 14 0 18M84 63c-5 4-5 14 0 18"/></svg><span>כדורסל</span></div>
-  <!-- cornhole -->
-  <div class="g"><svg viewBox="0 0 100 100"><path class="s" d="M30 82l14-60h22l14 60z"/><ellipse class="s" cx="55" cy="36" rx="7" ry="5"/><path class="s" d="M36 82v6M74 82v6"/>
-    <rect class="a" x="44" y="58" width="13" height="11" rx="3" transform="rotate(-14 50 63)"/><rect class="p" x="14" y="72" width="13" height="11" rx="3" transform="rotate(10 20 77)"/></svg><span>קורנהול</span></div>
-  <!-- giant jenga -->
-  <div class="g"><svg viewBox="0 0 100 100"><path class="s" d="M32 88h36M32 76h36M32 64h36M32 52h36M32 40h36M32 28h36M32 16h36M32 16v72M68 16v72"/>
-    <path class="s" d="M44 76v12M56 76v12M44 52v12M56 52v12M44 28v12M56 28v12"/><rect class="a" x="70" y="80" width="18" height="8" rx="1.5"/></svg><span>ג'נגה ענקית</span></div>
-  <!-- connect four -->
-  <div class="g"><svg viewBox="0 0 100 100"><rect class="s" x="16" y="18" width="68" height="58" rx="4"/><path class="s" d="M16 76l-6 12M84 76l6 12"/>
-    <g class="s"><circle cx="27" cy="30" r="4.5"/><circle cx="43" cy="30" r="4.5"/><circle cx="57" cy="30" r="4.5"/><circle cx="73" cy="30" r="4.5"/>
-    <circle cx="27" cy="47" r="4.5"/><circle cx="73" cy="47" r="4.5"/><circle cx="43" cy="64" r="4.5"/></g>
-    <circle class="a" cx="43" cy="47" r="4.5"/><circle class="p" cx="57" cy="47" r="4.5"/><circle class="a" cx="27" cy="64" r="4.5"/><circle class="p" cx="57" cy="64" r="4.5"/><circle class="a" cx="73" cy="64" r="4.5"/></svg><span>ארבע בשורה</span></div>
-</div></div>
+<img class="heart" src="../assets/art/icon-heart-pink.svg" style="right:70px;top:240px;width:70px;height:70px;transform:rotate(14deg)" alt="">
+<img class="heart" src="../assets/art/icon-spark-pink.svg" style="left:76px;top:250px;width:56px;height:56px" alt="">
+<div class="fl"><img src="../../2026-10-22/yair-flyer.jpg" alt="הפלייר של ספורט עם יאיר"></div>
 <div class="sticker">יאיר<br>מהקיבוץ</div>
-<div class="ribbon">להזמנות בוואטסאפ · <b>050-7235545</b></div>
+<img class="heart" src="../assets/art/icon-heart-pink.svg" style="right:84px;top:1080px;width:66px;height:66px;transform:rotate(-10deg);z-index:3" alt="">
 <div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
 <div class="foot r">קיבוץ שניר · על הדשא ליד המרכולית</div>
 </body></html>
