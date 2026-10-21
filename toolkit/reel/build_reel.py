@@ -15,7 +15,11 @@ spec.json:
   "seed": 7,                                     // picks the music; any integer
   "intro": true,                                 // optional: chalkboard opening, grandma Aida's logo draws in, music drops on the first photo
   "place": "גלריה כפיים · קיבוץ שניר",           // optional: the line under the closing ribbon
-  "music": "drive"                               // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet
+  "music": "drive",                              // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet
+  "motion": "push"                               // optional, one motion rule per reel (instagram/reel-brief.md):
+                                                 //   "push" (default) = scenes push in, text pops up
+                                                 //   "kinetic" = punch-in cuts, every word lands on its own
+                                                 //   "chalk" = soft dissolves, a chalk line draws under the text
 }
 Paths are relative to the social-media branch root. Writes <out>/reel.mp4, cover.jpg, sheet.jpg.
 Exits non-zero, with the reason, when anything is off: nothing half-made is left as reel.mp4.
@@ -57,6 +61,8 @@ def check_spec(s):
     words = lambda t: len(t.split())
     if not s.get("hook") or words(s["hook"]) > 6:
         fail("hook missing or longer than 6 words")
+    if s.get("motion", "push") not in ("push", "kinetic", "chalk"):
+        fail("motion must be push, kinetic or chalk")
     sc = s.get("scenes") or []
     if not 3 <= len(sc) <= 12:
         fail("need 3-12 scenes")
@@ -98,8 +104,31 @@ def intro_anim():
             f'tl.fromTo("#dI",{{opacity:0}},{{opacity:0.45,duration:{XFADE},ease:"power2.in"}},{INTRO:.2f});')
 
 
+CHALK_LINE = ('<svg class="ul" viewBox="0 0 600 40" preserveAspectRatio="none">'
+              '<path d="M12 26 C140 12 260 34 380 20 S540 14 588 24" pathLength="1"/></svg>')
+
+
+def text_html(t, motion):
+    # kinetic: one span per word so each can land on its own; chalk: a line that draws under the text
+    if motion == "kinetic":
+        return "".join(f'<span class="w">{html.escape(w)}</span> ' for w in t.split())
+    return html.escape(t) + (CHALK_LINE if motion == "chalk" else "")
+
+
+def text_in(sel, at, motion, big=False):
+    if motion == "kinetic":  # the card snaps open, then the words drop in one by one
+        return (f'tl.fromTo("{sel}",{{opacity:0,scaleX:0.4}},{{opacity:1,scaleX:1,duration:0.22,ease:"power3.out"}},{at:.2f});'
+                f'tl.fromTo("{sel} .w",{{opacity:0,y:{70 if big else 45},scale:0.55}},{{opacity:1,y:0,scale:1,'
+                f'duration:0.32,stagger:{0.2 if big else 0.13},ease:"back.out(2.4)"}},{at + 0.12:.2f});')
+    if motion == "chalk":
+        return (f'tl.fromTo("{sel}",{{opacity:0,y:20}},{{opacity:1,y:0,duration:0.6,ease:"sine.out"}},{at:.2f});'
+                f'tl.fromTo("{sel} .ul path",{{strokeDashoffset:1}},{{strokeDashoffset:0,duration:0.7,ease:"power2.inOut"}},{at + 0.35:.2f});')
+    return (f'tl.fromTo("{sel}",{{opacity:0,y:{70 if big else 40}}},{{opacity:1,y:0,duration:{0.6 if big else 0.45},'
+            f'ease:"{"back.out(1.4)" if big else "power3.out"}"}},{at:.2f});')
+
+
 def compose(s, sc, total):
-    intro = bool(s.get("intro"))
+    intro, motion = bool(s.get("intro")), s.get("motion", "push")
     t, parts, anims = (INTRO + XFADE, [intro_html()], [intro_anim()]) if intro else (0.0, [], [])
     for i, x in enumerate(sc):
         push = bool(i or intro)
@@ -112,13 +141,17 @@ def compose(s, sc, total):
                      f'data-media-start="{float(x.get("from", 0)):.2f}"></video>')
         else:
             media = f'<img class="media" src="{src}" alt="">'
-        cap = f'<div class="chip" id="c{i}">{html.escape(x["text"])}</div>' if x.get("text") else ""
+        cap = f'<div class="chip" id="c{i}">{text_html(x["text"], motion)}</div>' if x.get("text") else ""
         hook = (f'<div class="hookwrap" id="hook"><div class="badge"><img src="assets/logo.png" alt=""><span>cortado</span></div>'
-                f'<div class="hook">{html.escape(s["hook"])}</div></div>') if i == 0 else ""
+                f'<div class="hook">{text_html(s["hook"], motion)}</div></div>') if i == 0 else ""
         parts.append(f'<section class="scene clip" id="s{i}" data-start="{start:.2f}" data-duration="{dur:.2f}" style="z-index:{i + 1}">'
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
         a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
-        if push:
+        if push and motion == "kinetic":  # a punch-in cut on the beat
+            a += f'tl.fromTo("#s{i}",{{scale:1.35,opacity:0}},{{scale:1,opacity:1,duration:{XFADE},ease:"expo.out"}},{start:.2f});'
+        elif push and motion == "chalk":  # a slow dissolve
+            a += f'tl.fromTo("#s{i}",{{opacity:0}},{{opacity:1,duration:{XFADE},ease:"sine.inOut"}},{start:.2f});'
+        elif push:
             ax, frm = [("y", H), ("x", -W), ("x", W)][i % 3]  # up, from the left, from the right: keeps quick cuts lively
             a += f'tl.fromTo("#s{i}",{{{ax}:{frm}}},{{{ax}:0,duration:{XFADE},ease:"power4.inOut"}},{start:.2f});'
         if i:
@@ -126,10 +159,9 @@ def compose(s, sc, total):
         land = start + (XFADE if push else 0)
         if i == 0:
             a += f'tl.fromTo("#hook .badge",{{opacity:0,y:-30}},{{opacity:1,y:0,duration:0.5,ease:"power3.out"}},{land + 0.1:.2f});'
-            a += f'tl.fromTo("#hook .hook",{{opacity:0,y:70}},{{opacity:1,y:0,duration:0.6,ease:"back.out(1.4)"}},{land + 0.25:.2f});'
+            a += text_in("#hook .hook", land + 0.25, motion, big=True)
         if x.get("text"):
-            cs = land + (1.2 if i == 0 else 0.15)
-            a += f'tl.fromTo("#c{i}",{{opacity:0,y:40}},{{opacity:1,y:0,duration:0.45,ease:"power3.out"}},{cs:.2f});'
+            a += text_in(f"#c{i}", land + (1.2 if i == 0 else 0.15), motion)
         anims.append(a)
         t = start + dur - XFADE
     es = t - XFADE
@@ -168,6 +200,10 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
   letter-spacing:-1px;text-align:center;text-wrap:balance;box-shadow:0 22px 50px rgba(0,0,0,.35)}}
 .chip{{position:absolute;right:116px;left:64px;top:1290px;margin:auto;width:fit-content;max-width:900px;background:var(--foam);color:var(--cart);
   border-radius:999px;padding:18px 44px 22px;font-weight:800;font-size:64px;line-height:1.05;text-align:center;text-wrap:balance;box-shadow:0 14px 34px rgba(0,0,0,.35)}}
+.hook{{position:relative}}
+.w{{display:inline-block}}
+.ul{{position:absolute;left:10%;width:80%;bottom:-34px;height:38px;overflow:visible}}
+.ul path{{fill:none;stroke:var(--aida);stroke-width:11;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}}
 .dim{{position:absolute;inset:0;background:#000;opacity:0;z-index:5}}
 .end{{background:var(--board)}}
 .doodles{{position:absolute;inset:0;width:100%;height:100%;opacity:.55}}
@@ -182,7 +218,7 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .iart{{position:absolute;inset:0;width:100%;height:100%}}
 #iring,#iring2{{fill:none;stroke:var(--chalk);stroke-width:6;stroke-linecap:round;stroke-dasharray:1571}}
 #iring2{{stroke:var(--chalk-pink,#E7A3AE);stroke-width:4;stroke-dasharray:1709}}
-#irays line{{stroke:var(--aida-light,#F2AF75);stroke-width:8;stroke-linecap:round}}
+#irays line{{stroke:var(--aida-light,#F2AF75);stroke-width:11;stroke-linecap:round}}
 .ilogo{{position:absolute;left:310px;top:730px;width:460px;height:460px;border-radius:50%;box-shadow:0 0 0 10px var(--foam),0 30px 70px rgba(0,0,0,.45)}}
 .iword{{position:absolute;top:1290px;left:0;right:0;text-align:center;direction:ltr;font-weight:800;font-size:120px;color:var(--chalk);letter-spacing:2px}}
 .iword span{{display:inline-block}}
