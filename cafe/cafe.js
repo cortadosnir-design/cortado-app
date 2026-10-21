@@ -52,7 +52,7 @@ if (hero){
 
 // מוזיקה: מתחילה לבד. דפדפנים לא מרשים צליל לפני שהמבקר נגע בדף, אז מנסים מיד, ואם נחסם — בנגיעה הראשונה בכל מקום.
 // מי שעצר בכפתור — היא לא חוזרת לבד. נכנסת בהדרגה ונעצרת כשעוזבים את הלשונית.
-// המוזיקה היא גיטרה מסונתזת בקוד, בלי דגימות: אין רישיון לבדוק ואין עלות.
+// המוזיקה היא גיטרה ופכפוך מים מסונתזים בקוד, בלי דגימות: אין רישיון לבדוק ואין עלות. הקובץ עצמו שקט, כי באייפון אין שליטה בעוצמה.
 const soundBtn = document.querySelector(".sound");
 if (soundBtn){
   const audio = new Audio("sc/cafe-music.mp3");
@@ -71,7 +71,7 @@ if (soundBtn){
   const start = () => {
     if (off || !audio.paused) return;
     audio.play().then(() => {
-      soundBtn.setAttribute("aria-pressed", "true"); fade(0.55);
+      soundBtn.setAttribute("aria-pressed", "true"); fade(0.35);
       kicks.forEach(t => removeEventListener(t, kick, true));
     }).catch(() => {});
   };
