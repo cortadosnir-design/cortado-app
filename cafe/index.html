@@ -122,7 +122,7 @@ section[id]{scroll-margin-top:72px}
 .frame{position:absolute;bottom:0;height:var(--fh);width:calc(var(--fh)*.75);left:calc(50vw - var(--fh)*.75*.46);pointer-events:none}
 .frame img{position:absolute;max-width:none;display:block}
 .f-back{z-index:1}
-.f-back img{inset:0;width:100%;height:100%;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);mask-composite:intersect;
+.f-back img{position:absolute;inset:0;width:100%;height:100%;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 90%,transparent 100%),linear-gradient(to right,transparent 0,#000 8%,#000 92%,transparent 100%);mask-composite:intersect;
   transform-origin:50% 62%;scale:calc(1 - .07 * var(--sc-p,0));translate:calc(var(--mx,0) * -6px) calc(-3% * var(--sc-p,0) + var(--my,0) * -4px);filter:brightness(calc(1 - .12 * var(--sc-p,0)))}
 .f-front{z-index:3}
 .f-front img{left:12%;top:63.714%;width:68%;height:36.286%;transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,transparent 0,#000 14%);mask-image:linear-gradient(to top,transparent 0,#000 14%);scale:calc(1 + .24 * var(--sc-p,0));translate:calc(var(--mx,0) * 14px) calc(5% * var(--sc-p,0) + var(--my,0) * 8px);filter:drop-shadow(0 18px 22px rgba(26,22,17,.28))}
@@ -392,6 +392,35 @@ footer :focus-visible{outline-color:var(--apricot)}
   .bar a.main{background:var(--apricot);color:var(--ink)}
   .bar svg{width:18px;height:18px}
 }
+
+
+/* ===== חיים: אדים, נורות, קערה מסתובבת, כריך שנפתח, עגלה שנדלקת ===== */
+.f-back .plate{position:absolute;inset:0;transform-origin:50% 62%;scale:calc(1 - .07 * var(--sc-p,0));translate:calc(var(--mx,0) * -6px) calc(-3% * var(--sc-p,0) + var(--my,0) * -4px)}
+.f-back .plate img{scale:none;translate:none}
+.bulb{position:absolute;left:var(--x);top:var(--y);width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,140,.95) 0,rgba(255,180,90,.45) 35%,rgba(255,170,80,0) 70%);mix-blend-mode:screen;animation:glow 3.2s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes glow{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+.f-front .cups{position:absolute;left:12%;top:63.714%;width:68%;height:36.286%;transform-origin:50% 100%;scale:calc(1 + .24 * var(--sc-p,0));translate:calc(var(--mx,0) * 14px) calc(5% * var(--sc-p,0) + var(--my,0) * 8px)}
+.f-front .cups img{position:absolute;inset:0;left:0;top:0;width:100%;height:100%;scale:none;translate:none}
+.steam{position:absolute;left:0;bottom:84%;width:100%;height:78%;overflow:visible;pointer-events:none}
+.steam path{fill:none;stroke:rgba(255,255,255,.88);stroke-width:4.2;stroke-linecap:round;stroke-dasharray:30 90;filter:blur(2.2px);animation:rise 3.4s ease-in-out infinite}
+.steam .w2{animation-delay:-.9s}.steam .w3{animation-delay:-1.7s}.steam .w4{animation-delay:-2.5s}
+@keyframes rise{0%{stroke-dashoffset:30;opacity:0}20%{opacity:1}70%{opacity:.8}100%{stroke-dashoffset:-75;opacity:0}}
+.sk-coffee{position:relative}
+.sk-coffee .steam{left:22%;width:56%;bottom:68%;height:34%}
+.sk-coffee img{rotate:calc(var(--sk-p,0) * 70deg)}
+.sk-spin img{rotate:calc(var(--sk-p,0) * 110deg);scale:calc(.9 + var(--sk-p,0) * .14)}
+.sk-split{display:flex;justify-content:center;align-items:center;gap:0}
+.sk-split img{max-width:44%;max-height:min(34svh,330px);rotate:none;scale:none}
+.sk-split .half-a{translate:calc(var(--sk-p,0) * 26px) 0;rotate:calc(var(--sk-p,0) * 7deg)}
+.sk-split .half-b{translate:calc(var(--sk-p,0) * -26px) 0;rotate:calc(var(--sk-p,0) * -7deg)}
+.sk-4 .sk-art2{translate:calc((1 - var(--sk-p,0)) * -60px) 0}
+.visit{--lit:min(1,max(0,var(--sc-p,1) * 2.6 - .3))}
+.eve{filter:brightness(calc(.38 + .62 * var(--lit))) saturate(calc(.6 + .4 * var(--lit))) drop-shadow(0 30px 30px rgba(0,0,0,.45));z-index:1}
+.cart-glow{position:absolute;inset:auto 8% 6% 8%;height:70%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,190,110,.45),rgba(255,170,90,0));opacity:var(--lit);filter:blur(10px)}
+.moon{translate:0 calc((1 - var(--lit)) * 60px)}
+.star{position:absolute;left:var(--x);top:var(--y);width:4px;height:4px;border-radius:50%;background:#FFF3DE;box-shadow:0 0 6px #FFE3B8;opacity:calc(var(--lit) * .9);animation:twinkle 2.8s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes twinkle{50%{transform:scale(.4)}}
+@media (prefers-reduced-motion:reduce){.f-back .plate,.f-front .cups{scale:none!important;translate:none!important}.sk-split img,.sk-coffee img,.sk-spin img,.sk-4 .sk-art2{rotate:none!important;translate:none!important;scale:none!important}.visit{--lit:1}}
 
 /* reduced motion: הכל במצב הסופי, בלי תנועה */
 @media (prefers-reduced-motion:reduce){
@@ -721,13 +750,13 @@ footer :focus-visible{outline-color:var(--apricot)}
 <!-- 1 · הגעה: סצנה בשכבות מתמונה אחת. העגלה נסוגה, הכוסות מתקרבות, הכותרת ביניהן. -->
 <section class="hero" id="hero" aria-labelledby="h1">
   <div class="hero-stage">
-    <div class="frame f-back" aria-hidden="true"><img src="img/sc/hero-plate.webp" alt="" width="1050" height="1400" fetchpriority="high"></div>
+    <div class="frame f-back" aria-hidden="true"><div class="plate"><img src="img/sc/hero-plate.webp" alt="" width="1050" height="1400" fetchpriority="high"><i class="bulb" style="--x:36.8%;--y:10.8%"></i><i class="bulb" style="--x:61%;--y:12.1%;--d:-.8s"></i><i class="bulb" style="--x:60.5%;--y:15.2%;--d:-1.6s"></i><i class="bulb" style="--x:81.5%;--y:12.9%;--d:-2.2s"></i></div></div>
     <div class="hero-top">
       <p class="label">עגלת קפה משפחתית · קיבוץ שניר, הגליל העליון</p>
       <p class="sub">מדשאה בצל עצים ותיקים, גן שעשועים ממול, וקורטדו טוב. דקות מהחצבאני ומהבניאס.</p>
     </div>
     <h1 id="h1" class="hero-h1"><span class="ln">קפה על הדשא,</span> <span class="ln">בלב קיבוץ שניר.</span></h1>
-    <div class="frame f-front" aria-hidden="true"><img src="img/sc/hero-cups-solid.webp" alt="" width="714" height="508"></div>
+    <div class="frame f-front" aria-hidden="true"><div class="cups"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M26 58 C20 46 32 38 26 26 C21 16 30 10 27 2"/><path class="w2" d="M34 58 C29 48 39 40 34 30 C30 22 37 16 35 8"/><path class="w3" d="M66 58 C60 46 72 38 66 26 C61 16 70 10 67 2"/><path class="w4" d="M74 58 C69 48 79 40 74 30 C70 22 77 16 75 8"/></svg><img src="img/sc/hero-cups-solid.webp" alt="" width="714" height="508"></div></div>
     <span class="stamp" aria-hidden="true"><b>5.0</b><i>★★★★★</i><small>בגוגל</small></span>
     <div class="hero-actions">
       <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו אלינו בוויז</a>
@@ -828,7 +857,7 @@ footer :focus-visible{outline-color:var(--apricot)}
   <div class="stack">
     <article class="sk sk-1">
       <div class="sk-txt"><h3>קפה</h3><p>עם חלב רגיל או צמחי, לבחירתכם.</p><ul><li>קורטדו</li><li>הפוך ואספרסו</li><li>אמריקנו</li><li>מקיאטו</li><li>אפוגאטו</li><li>קפה קר</li></ul></div>
-      <div class="sk-art"><img src="img/sc/menu-coffee.webp" alt="כוס קפה עם ציור לאטה, מלמעלה" width="892" height="900" loading="lazy"></div>
+      <div class="sk-art sk-coffee"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M40 58 C34 46 46 38 40 26 C35 16 44 10 41 2"/><path class="w2" d="M52 58 C47 48 57 40 52 30 C48 22 55 16 53 8"/><path class="w3" d="M62 58 C56 46 68 38 62 26 C57 16 66 10 63 2"/></svg><img src="img/sc/menu-coffee.webp" alt="כוס קפה עם ציור לאטה, מלמעלה" width="892" height="900" loading="lazy"></div>
     </article>
     <article class="sk sk-hot">
       <div class="sk-txt"><h3>שתייה חמה</h3><p>לחורף שבפתח.</p><ul><li>סחלב</li><li>סיידר חם</li><li>שוקו</li><li>תה בטעמים שונים</li></ul></div>
@@ -836,11 +865,11 @@ footer :focus-visible{outline-color:var(--apricot)}
     </article>
     <article class="sk sk-2">
       <div class="sk-txt"><h3>שייקים ומתוקים</h3><p>לימים החמים על הדשא.</p><ul><li>שייקי פירות <em>טבעוני</em></li><li>קערת אסאי <em>טבעוני</em></li></ul></div>
-      <div class="sk-art"><img src="img/sc/menu-acai.webp" alt="קערת אסאי עם תותים, אוכמניות, בננה וגרנולה" width="649" height="638" loading="lazy"></div>
+      <div class="sk-art sk-spin"><img src="img/sc/menu-acai.webp" alt="קערת אסאי עם תותים, אוכמניות, בננה וגרנולה" width="649" height="638" loading="lazy"></div>
     </article>
     <article class="sk sk-3">
       <div class="sk-txt"><h3>מהוויטרינה</h3><p>משתנה מיום ליום.</p><ul><li>כריכים</li><li>פיצות</li></ul></div>
-      <div class="sk-art"><img src="img/sc/menu-sandwich.webp" alt="כריך חתוך לשניים עם ירקות" width="898" height="900" loading="lazy"></div>
+      <div class="sk-art sk-split" role="img" aria-label="כריך חתוך לשניים עם ירקות"><img class="half-a" src="img/sc/sandwich-a.webp" alt="" width="336" height="640" loading="lazy"><img class="half-b" src="img/sc/sandwich-b.webp" alt="" width="303" height="640" loading="lazy"></div>
     </article>
     <article class="sk sk-4">
       <div class="sk-txt"><h3>מאפים ועוגות</h3><p>מהוויטרינה, משתנה מיום ליום.</p><ul><li>מאפים ועוגות <em>יש גם ללא גלוטן</em></li></ul></div>
@@ -889,6 +918,8 @@ footer :focus-visible{outline-color:var(--apricot)}
   <div class="wrap visit-grid">
     <div class="visit-art" aria-hidden="true">
       <div class="moon"></div>
+      <i class="star" style="--x:18%;--y:12%"></i><i class="star" style="--x:72%;--y:8%;--d:-1s"></i><i class="star" style="--x:44%;--y:20%;--d:-2s"></i><i class="star" style="--x:86%;--y:28%;--d:-.5s"></i><i class="star" style="--x:8%;--y:34%;--d:-1.5s"></i>
+      <div class="cart-glow"></div>
       <img class="eve" src="img/sc/evening-cart.webp" alt="" width="697" height="476" loading="lazy" data-sc-parallax="-0.9">
     </div>
     <div>
