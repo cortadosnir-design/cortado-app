@@ -1,6 +1,6 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
-<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?}.
+<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?}.
      Paths are relative to this file. Everything inside y 250–1670 (app chrome above and below). -->
 <style>
 html,body{height:1920px}
@@ -18,6 +18,7 @@ html,body{height:1920px}
 .card .k{color:#A9592F;font-weight:700;font-size:34px}
 .card .n{font-weight:900;font-size:120px;line-height:1.05;color:var(--cart)}
 .card .l{font-size:34px;color:var(--espresso)}
+.card .l.em{font-size:42px;font-weight:800;color:#A9592F}
 .ribbon{top:1478px;font-size:44px}
 .socials{top:1566px;bottom:auto}
 .foot.r{top:1612px;bottom:auto}
@@ -36,6 +37,7 @@ const p = (window.HOURS || {}).partner || {};
 document.getElementById("photo").src = p.photo || "";
 document.getElementById("name").textContent = p.name || "";
 document.getElementById("line").textContent = p.line || "";
+if (p.em) document.getElementById("line").classList.add("em"); // the one thing the partner asked to stress
 if (p.logo) { const l = document.getElementById("logo"); l.hidden = false; l.querySelector("img").src = p.logo; }
 </script>
 </body></html>
