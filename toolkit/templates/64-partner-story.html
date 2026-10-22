@@ -1,0 +1,40 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
+<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?}.
+     Paths are relative to this file. Everything inside y 250–1670 (app chrome above and below). -->
+<style>
+html,body{height:1920px}
+.doodles{opacity:.55}
+.badge{top:262px}
+.fl{position:absolute;left:50%;top:390px;width:820px;height:830px;margin-left:-410px;border:12px solid var(--foam);border-radius:32px;overflow:hidden;
+  background:#fff;transform:rotate(-1.5deg);box-shadow:0 22px 50px rgba(0,0,0,.4)}
+.fl img{display:block;width:100%;height:100%;object-fit:cover}
+.logo{position:absolute;right:56px;top:1020px;width:170px;height:170px;border-radius:50%;background:#fff;border:6px solid var(--foam);
+  box-shadow:0 12px 26px rgba(0,0,0,.35);overflow:hidden;transform:rotate(8deg)}
+.logo img{width:100%;height:100%;object-fit:contain}
+.sticker{left:44px;top:340px;width:180px;height:180px;font-size:32px;transform:rotate(-12deg);box-shadow:0 12px 26px rgba(0,0,0,.35)}
+.card{left:84px;right:84px;top:1205px;height:250px;text-align:center;padding-top:22px}
+.card .k{color:#A9592F;font-weight:700;font-size:34px}
+.card .n{font-weight:900;font-size:120px;line-height:1.05;color:var(--cart)}
+.card .l{font-size:34px;color:var(--espresso)}
+.ribbon{top:1478px;font-size:44px}
+.socials{top:1566px;bottom:auto}
+.foot.r{top:1612px;bottom:auto}
+</style></head><body class="board-bg">
+<img class="doodles" src="../assets/art/doodles-story.svg" alt="">
+<div class="badge"><img src="../assets/logo.png" alt=""><span>cortado</span></div>
+<div class="fl"><img id="photo" alt=""></div>
+<div class="logo" id="logo" hidden><img alt=""></div>
+<div class="sticker"><span>שותפים<br>ליום<br>הבוחר</span></div>
+<div class="card"><div class="k">השותפים שלנו ליום הבוחר</div><div class="n" id="name"></div><div class="l" id="line"></div></div>
+<div class="ribbon">נתראה בעגלה ביום הבוחר</div>
+<div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
+<div class="foot r">שלישי 27.10 · קיבוץ שניר · על הדשא ליד המרכולית</div>
+<script>
+const p = (window.HOURS || {}).partner || {};
+document.getElementById("photo").src = p.photo || "";
+document.getElementById("name").textContent = p.name || "";
+document.getElementById("line").textContent = p.line || "";
+if (p.logo) { const l = document.getElementById("logo"); l.hidden = false; l.querySelector("img").src = p.logo; }
+</script>
+</body></html>
