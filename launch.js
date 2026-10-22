@@ -35,21 +35,21 @@ async function pullGoogle(btn){
         el("span", { class: "small", text: "עכשיו: " + (x.from.length ? x.from.join(", ") : "סגור") })));
     box.append(el("p", { class: "small", text: `בגוגל כתוב אחרת ב-${r.changes} ימים:` }), list,
       el("div", { class: "actions" },
-        el("button", { class: "primary", text: "עדכן דף ופייסבוק", onclick: (e) => withBusy(e.currentTarget, async () => {
+        el("button", { class: "primary", text: "עדכן את הדף", onclick: (e) => withBusy(e.currentTarget, async () => {
           try {
             await H.applyFromGoogle(r.plan);
             clear(box);
-            status("launchStatus", "ok", "עודכן לפי גוגל. דף הנחיתה ופייסבוק מתעדכנים עכשיו.");
+            status("launchStatus", "ok", "עודכן לפי גוגל. דף הנחיתה מתעדכן עכשיו.");
           } catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
         }) }),
         el("button", { text: "ביטול", onclick: () => clear(box) })));
   });
 }
 
-const LABEL = { page: "דף הנחיתה", facebook: "פייסבוק", google: "גוגל" };
+const LABEL = { page: "דף הנחיתה", google: "גוגל" };
 
 function row(key, state, note, actions){
-  const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…", skip: "—" }[state] || "…";
+  const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…" }[state] || "…";
   const r = el("div", { class: "launchrow " + state });
   r.append(el("span", { class: "launchicon", text: icon }));
   r.append(el("div", { class: "grow" },
@@ -63,34 +63,30 @@ function row(key, state, note, actions){
 function channels(){
   const st = H.stateOf(wid(), S.week), sync = st.sync;
   const when = sync && sync.at && sync.at.seconds ? " · " + new Date(sync.at.seconds * 1000).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) : "";
-  if (st.pending) return { page: ["pending", "מתעדכן…"], facebook: ["pending", "מתעדכן…"], google: googleRow() };
+  if (st.pending) return { page: ["pending", "מתעדכן…"], google: googleRow() };
   const stale = st.dirty;
   const page = !sync ? ["pending", st.live ? "יתעדכן לבד עוד רגע." : "יתעדכן לבד כשהשבוע יינעל. אפשר גם עכשיו."]
     : stale ? ["fail", "השעות השתנו מאז העדכון האחרון. לחץ \"עדכן עכשיו\"."]
     : sync.page === "ok" ? ["ok", "מעודכן" + when] : ["fail", sync.page];
-  const facebook = !sync ? ["pending", ""]
-    : sync.facebook === "skip" ? ["skip", "פייסבוק מחזיק שעות של שבוע אחד, וכרגע זה שבוע אחר."]
-    : stale ? ["fail", "לא מעודכן."]
-    : sync.facebook === "ok" ? ["ok", "מעודכן" + when] : ["fail", sync.facebook || "לא נוסה."];
-  return { page, facebook, google: googleRow() };
+  return { page, google: googleRow() };
 }
 function googleRow(){
   return googleMarked()
     ? ["ok", `סומן כמעודכן${googleWhen() ? " ב-" + googleWhen() : ""}.`]
-    : ["manual", "שינית שעות בגוגל? \"משוך מגוגל\" מעדכן מכאן את דף הנחיתה ופייסבוק."];
+    : ["manual", "שינית שעות בגוגל? \"משוך מגוגל\" מעדכן מכאן את דף הנחיתה."];
 }
 
 function render(){
   const box = $("launchList"); if (!box) return;
   clear(box);
   const ch = channels();
-  for (const key of ["page","facebook","google"]){
+  for (const key of ["page","google"]){
     const [state, note] = ch[key];
     let actions = null;
     if (key === "page")
       actions = el("div", { class: "actions" },
         el("a", { class: "btn", href: "cafe/#visit", target: "_blank", rel: "noopener", text: "פתח את דף הנחיתה" }));
-    // גוגל היא המקור: משנים שם, ו"משוך מגוגל" מפיץ לדף ולפייסבוק. זה גם מסמן את גוגל כמעודכנת.
+    // גוגל היא המקור: משנים שם, ו"משוך מגוגל" מפיץ לדף. זה גם מסמן את גוגל כמעודכנת.
     if (key === "google")
       actions = el("div", { class: "actions" },
         state === "manual" ? el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }) : null,
@@ -106,8 +102,7 @@ async function launch(btn){
     if (!S.week){ status("launchStatus", "warn", "אין עוד משמרות בשבוע הזה."); return; }
     const out = await H.publish(wid(), S.week).catch((e) => ({ page: e.message }));
     if (!out){ status("launchStatus", "warn", "כבר מתעדכן, או שאין עוד שבוע."); return; }
-    const okN = [out.page, out.facebook, out.google].filter(x => x === "ok").length;
-    status("launchStatus", out.page === "ok" ? "ok" : "bad", out.page === "ok" ? `עודכן. ${okN} מתוך 3 ערוצים אוטומטיים.` : out.page);
+    status("launchStatus", out.page === "ok" ? "ok" : "bad", out.page === "ok" ? "עודכן." : out.page);
     render();
   });
 }

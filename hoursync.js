@@ -1,6 +1,6 @@
 // שעות הפתיחה מתעדכנות לבד, בכל מקום, ברגע ששומרים.
 //
-// עד עכשיו שינוי שעה נשמר רק על מסמך השבוע. דף העגלה ופייסבוק התעדכנו
+// עד עכשיו שינוי שעה נשמר רק על מסמך השבוע. דף העגלה התעדכן
 // רק כשמישהו לחץ "שגר" — ואחרי השיגור הראשון שום דבר לא אמר שהשעות
 // השתנו מאז. בעל העסק משנה שעה בטלפון, והלקוח ממשיך לראות את הישנה.
 //
@@ -11,11 +11,10 @@
 //   · השבוע הבא — מרגע שננעל או שוגר.
 // מה שכבר פורסם נרשם על מסמך השבוע (sync.sig), ולכן אין לולאה ואין כפילות
 // גם כששני מכשירים פתוחים.
-import { S, db, ymd, addDays, sundayOf, weekId, fromYmd, api, WORKER_URL, emit, track,
+import { S, db, ymd, addDays, sundayOf, weekId, fromYmd, api, emit, track,
   doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from "./core.js";
-import { hoursByDayOf, hoursPairsOf, hoursDocOf } from "./shifts.js";
+import { hoursByDayOf, hoursDocOf } from "./shifts.js";
 
-const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const WAIT = 1200;
 
 export const weeks = {};         // wid → נתוני השבוע (null = אין מסמך)
@@ -35,9 +34,6 @@ export function isLive(id, data){
   if (id === currentWid()) return true;
   return id === nextWid() && (!!data.launchedAt || data.phase === "locked");
 }
-/* פייסבוק מחזיק שעות שבועיות אחת, לא לפי תאריך. לכן הוא מקבל את השבוע
-   הבא מרגע שזה חי (כמו ב"שגר" של יום חמישי), ואת הנוכחי עד אז. */
-const fbWid = () => isLive(nextWid(), weeks[nextWid()]) ? nextWid() : currentWid();
 
 /** מצב הסנכרון של שבוע, בשביל המסך. */
 export function stateOf(id, data = weeks[id]){
@@ -47,14 +43,13 @@ export function stateOf(id, data = weeks[id]){
     live: isLive(id, data),
     pending: busy.has(id) || (isLive(id, data) && dirty && (hasHours(data) || !!sync)),
     dirty, sync,
-    fbHere: id === fbWid(),
     google: googleFresh(data),
     error: lastError[id] || "",
   };
 }
 const hasHours = (data) => hoursByDayOf(data).some(x => x.length);
 
-/* גוגל עוד לא מאושרת ל-API, ולכן זה הערוץ היחיד שנעשה ביד. "מעודכן" אומר:
+/* גוגל נעשית ביד. "מעודכן" אומר:
    מה שסומן בגוגל הוא בדיוק השעות של עכשיו. סימון ישן (בלי googleSig)
    נחשב מעודכן רק אם השבוע לא השתנה אחריו. */
 export function googleFresh(data){
@@ -103,14 +98,15 @@ function schedule(id){
 }
 
 /* ===== הפרסום עצמו ===== */
-/** מפרסם את השעות של שבוע: דף העגלה, פייסבוק, וגוגל כשתאושר. */
+/** מפרסם את השעות של שבוע לדף העגלה. פייסבוק וגוגל — רק דרך בוט קורטדו
+    (/hours/bot בשרת); /hours/facebook ו-/hours/google מחזירים 410. */
 export async function publish(id, data = weeks[id]){
   if (!data || busy.has(id)) return null;
   busy.add(id); emit("hoursync", id);
   const ws = startOf(id), sig = sigOf(data);
-  const out = { page: "", facebook: "", google: "" };
+  const out = { page: "" };
   try {
-    // 1. דף העגלה. המסמך מחזיק את השבוע הנוכחי ואת הבא, כל אחד בשמו,
+    // דף העגלה. המסמך מחזיק את השבוע הנוכחי ואת הבא, כל אחד בשמו,
     //    כדי ששיגור של השבוע הבא ביום חמישי לא ימחק את השעות של שישי-שבת.
     try {
       let cur = {};
@@ -130,28 +126,11 @@ export async function publish(id, data = weeks[id]){
       out.page = e.code === "permission-denied" ? "שעות הפתיחה מתפרסמות עכשיו רק דרך בוט קורטדו בוואטסאפ." : "העדכון נכשל: " + String(e.message || e.code || "").slice(0, 140);
     }
 
-    // 2. פייסבוק ו-3. גוגל — רק לשבוע ש"מחזיק" את שעות העמוד.
-    if (id === fbWid() && WORKER_URL){
-      const hours = {};
-      hoursPairsOf(data).forEach((list, i) => { if (list.length) hours[FB_DAY[i]] = list; });
-      try { await api("/hours/facebook", { hours }); out.facebook = "ok"; }
-      catch (e){
-        const msg = String(e.message || "");
-        out.facebook = /not_configured|חסר/.test(msg) ? "עמוד הפייסבוק עוד לא מחובר." : msg.slice(0, 140);
-      }
-      try {
-        await api("/hours/google", { hours: hoursPairsOf(data) });
-        out.google = "ok";
-      } catch (e){
-        out.google = /not_configured|עוד לא מחוברת/.test(String(e.message || "")) ? "manual" : String(e.message || "").slice(0, 140);
-      }
-    } else out.facebook = out.google = "skip";
 
     const patch = { sync: { sig, at: serverTimestamp(), ...out } };
     if (out.page === "ok" && !data.launchedAt) patch.launchedAt = serverTimestamp();
-    if (out.google === "ok"){ patch.googleAt = serverTimestamp(); patch.googleSig = sig; }
     lastError[id] = out.page === "ok" ? "" : out.page;
-    // בלי sync.sig על המסמך, כל snapshot היה מפרסם שוב. גם כשפייסבוק נכשל —
+    // בלי sync.sig על המסמך, כל snapshot היה מפרסם שוב. גם כשנכשל —
     // ניסיון חוזר הוא ידני, לא לולאה.
     await setDoc(doc(db, "weeks", id), patch, { merge: true });
     return out;
@@ -183,7 +162,7 @@ export async function setOverride(id, day, value){
 /* ===== גוגל כמקור =====
    קוראים את השעות מהפרופיל בגוגל וכותבים אותן כשעות מיוחדות (hoursOverride) על
    השבוע הנוכחי והבא. המשמרות והשיבוצים לא זזים. מכאן הסנכרון הרגיל מפיץ לבד
-   לדף הנחיתה ולפייסבוק. שעה ששונתה אחר כך באפליקציה ("היום") גוברת — העריכה
+   לדף הנחיתה. שעה ששונתה אחר כך באפליקציה ("היום") גוברת — העריכה
    האחרונה מנצחת. */
 const valueOf = (ranges) => ranges.length ? { ranges } : { closed: true };
 /** מה גוגל אומרת, מול מה שמפורסם עכשיו. לא כותב כלום. */

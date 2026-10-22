@@ -232,12 +232,10 @@ function closeAt(day, ranges, T, now = false){
 function syncLine(id, data, day, ov){
   const st = H.stateOf(id, data);
   const line = el("div", { class: "tsync" });
-  if (st.pending){ line.append(el("span", { text: "מעדכן את דף העגלה ופייסבוק…" })); return line; }
+  if (st.pending){ line.append(el("span", { text: "מעדכן את דף העגלה…" })); return line; }
   const sync = st.sync;
   if (sync){
     line.append(el("span", { class: sync.page === "ok" ? "okc" : "badc", text: sync.page === "ok" ? "דף העגלה ✓" : "דף העגלה: " + sync.page }));
-    if (sync.facebook === "ok") line.append(el("span", { class: "okc", text: "פייסבוק ✓" }));
-    else if (sync.facebook && sync.facebook !== "skip") line.append(el("span", { class: "warnc", text: "פייסבוק: " + sync.facebook }));
   }
   if (st.google) line.append(el("span", { class: "okc", text: "גוגל ✓" }));
   else line.append(chip("גוגל: העתק ופתח", async (e) => {

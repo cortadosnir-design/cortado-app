@@ -108,13 +108,12 @@ await page.evaluate(() => { window.__api = {}; });
 /* ═══ מסע 3: לשגר שעות ═══ */
 {
   journey("שגר: שעות הפתיחה בכל מקום");
-  await page.evaluate(() => { window.__api["/hours/facebook"] = { ok: true }; window.__api["/hours/google"] = { fail: "not_configured גוגל עוד לא מחוברת" }; });
   await tap("#launchBtn");
   await page.waitForTimeout(700);
   const rows = await page.evaluate(() => [...document.querySelectorAll(".launchrow")].map(r => r.className.replace("launchrow ", "") + ": " + r.querySelector("b").textContent));
   note("תוצאות: " + rows.join(" · "));
   const manual = rows.filter(r => r.startsWith("manual")).length;
-  note(`${manual} ערוצים ידניים. גוגל היא המקור: "משוך מגוגל" קורא משם ומפיץ לדף ולפייסבוק`);
+  note(`${manual} ערוצים ידניים. גוגל היא המקור: "משוך מגוגל" קורא משם ומפיץ לדף`);
   await page.evaluate(() => { window.__api["/hours/fromgoogle"] = { regular: [[],[],[],[],[],[],[]], dated: {}, text: [] }; });
   await tap("#launchList button.primary");           // משוך מגוגל
   await shot("launched");

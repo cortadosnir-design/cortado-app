@@ -50,8 +50,6 @@ try {
 
   // שבוע נעול: שלישי בוקר וערב, שישי בוקר. שאר הימים סגורים.
   await page.evaluate((WID) => {
-    window.__api["/hours/facebook"] = { ok: true };
-    window.__api["/hours/google"] = { fail: "not_configured גוגל עוד לא מחוברת" };
     window.__seed("weeks", WID, { phase: "locked", shifts: [
       { id: "s1", day: 2, start: "09:00", end: "12:00", need: 1 },
       { id: "s2", day: 2, start: "16:00", end: "19:00", need: 1 },

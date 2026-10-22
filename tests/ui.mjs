@@ -337,7 +337,7 @@ console.log("\n15ב. משוך מגוגל");
     btn.click(); await new Promise(res => setTimeout(res, 300));
     const rows = document.querySelectorAll("#googlePlan .gplanrow").length;
     const wroteBeforeApprove = window.__writes.length - writesBefore;
-    [...document.querySelectorAll("#googlePlan button")].find(b => b.textContent === "עדכן דף ופייסבוק").click();
+    [...document.querySelectorAll("#googlePlan button")].find(b => b.textContent === "עדכן את הדף").click();
     await new Promise(res => setTimeout(res, 300));
     const w = window.__store.weeks[cur], n = window.__store.weeks["w" + ymd(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7))];
     return { btn: true, rows, wroteBeforeApprove, ov: w.hoursOverride, shifts: w.shifts, googleSig: !!w.googleSig,

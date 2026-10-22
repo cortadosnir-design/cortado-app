@@ -45,8 +45,6 @@ try {
   await page.waitForTimeout(400);
 
   await page.evaluate(({ CUR }) => {
-    window.__api["/hours/facebook"] = { ok: true };
-    window.__api["/hours/google"] = { fail: "not_configured גוגל עוד לא מחוברת" };
     window.__seed("roster", "t1", { token: "t1", name: "דנה", phone: "050-1111111", active: true });
     window.__seed("roster", "t2", { token: "t2", name: "יואב", phone: "050-2222222", active: true });
     window.__seed("weeks", CUR, { phase: "locked", shifts: [
@@ -62,17 +60,18 @@ try {
   const pub = () => page.evaluate(() => JSON.parse(JSON.stringify((window.__store.public || {}).hours || null)));
   const week = (id) => page.evaluate((id) => (window.__store.weeks || {})[id] || null, id);
 
-  // 1. בלי שום לחיצה, השבוע הנוכחי כבר בדף העגלה ובפייסבוק
+  // 1. בלי שום לחיצה, השבוע הנוכחי כבר בדף העגלה
   let p = await pub();
   ok("השבוע הנוכחי מתפרסם לבד, בלי \"שגר\"", !!p && p.weeks && p.weeks["2026-09-20"] && p.weeks["2026-09-20"][3] === "09:30–12:30",
      JSON.stringify(p && p.weeks));
   ok("השדות הישנים (days/range) עדיין נכתבים — דף ישן במטמון לא נשבר", p && Array.isArray(p.days) && p.days[3] === "09:30–12:30" && typeof p.range === "string");
-  ok("פייסבוק קיבל את השעות", await page.evaluate(() => window.__apiCalls.some(c => c.path === "/hours/facebook" && c.body.hours.wed)));
+  const closed = () => page.evaluate(() => window.__apiCalls.filter(c => /^\/hours\/(facebook|google)$/.test(c.path)).length);
+  ok("לא קורא ל-/hours/facebook ול-/hours/google (410 בשרת)", await closed() === 0);
   const w1 = await week(CUR);
   ok("מה שפורסם נרשם על השבוע (בלי לולאה)", !!(w1.sync && w1.sync.sig), JSON.stringify(w1.sync && w1.sync.page));
-  const fbCalls = await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/hours/facebook").length);
+  const at1 = JSON.stringify((await pub()).at);
   await page.waitForTimeout(1600);
-  ok("אין פרסום חוזר כשהשעות לא השתנו", await page.evaluate(() => window.__apiCalls.filter(c => c.path === "/hours/facebook").length) === fbCalls);
+  ok("אין פרסום חוזר כשהשעות לא השתנו", JSON.stringify((await pub()).at) === at1);
 
   // 2. כרטיס היום
   const card = () => page.evaluate(() => {
@@ -88,7 +87,7 @@ try {
   ok("\"פתוח עכשיו · עד 12:30\"", /פתוח עכשיו/.test(c.kick) && c.big === "עד 12:30", c.kick + " | " + c.big);
   ok("מי בעגלה היום", /דנה/.test(c.line), c.line);
   ok("שלוש פעולות: סוגרים מוקדם / נשארים עוד", c.buttons.includes("סוגרים מוקדם") && c.buttons.includes("נשארים עוד"), c.buttons.join(" · "));
-  ok("שורת הסנכרון אומרת שהכול מעודכן", /דף העגלה ✓/.test(c.sync) && /פייסבוק ✓/.test(c.sync), c.sync);
+  ok("שורת הסנכרון אומרת שהכול מעודכן", /דף העגלה ✓/.test(c.sync), c.sync);
 
   // 3. סוגרים מוקדם: שתי נגיעות
   await page.click("#todayCard .todayacts button:has-text('סוגרים מוקדם')");
@@ -164,7 +163,7 @@ try {
   await page.waitForTimeout(2000);
   p = await pub();
   ok("שינוי משמרת בחמישי מגיע לדף העגלה לבד", p.weeks["2026-09-20"][4] === "09:30–13:00", p.weeks["2026-09-20"][4]);
-  ok("וגם לפייסבוק", await page.evaluate(() => { const c = window.__apiCalls.filter(c => c.path === "/hours/facebook").pop(); return JSON.stringify(c.body.hours.thu) === '[["09:30","13:00"]]'; }));
+  ok("ועדיין בלי קריאה לנתיבי השעות הסגורים", await closed() === 0);
 
   // 6א. התחלה שעוברת את הסיום גוררת את הסיום איתה (ולא חוזרת בשקט ל-13:00)
   const thu = () => page.evaluate((CUR) => window.__store.weeks[CUR].shifts.filter(s => s.day === 4).map(s => s.start + "–" + s.end).join(","), CUR);
