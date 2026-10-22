@@ -79,7 +79,8 @@ def check_spec(s):
 
 
 def intro_html():
-    rays = "".join(f'<line x1="540" y1="660" x2="540" y2="580" transform="rotate({k * 30} 540 960)"/>' for k in range(12))
+    # a sunrise over grandma Aida: no rays below the logo, where they ran into "cortado" (owner, 22.10.2026)
+    rays = "".join(f'<line x1="540" y1="660" x2="540" y2="580" transform="rotate({k * 30} 540 960)"/>' for k in range(12) if k not in (5, 6, 7))
     word = "".join(f"<span>{c}</span>" for c in "cortado")
     return (f'<section class="scene clip intro" id="intro" data-start="0" data-duration="{INTRO + XFADE:.2f}" style="z-index:0">'
             '<img class="doodles" id="idoo" src="assets/doodles-story.svg" alt="">'
@@ -96,7 +97,7 @@ def intro_anim():
             'tl.fromTo("#iring",{strokeDashoffset:1571},{strokeDashoffset:0,duration:0.9,ease:"power2.inOut"},0.05);'
             'tl.fromTo("#iring2",{strokeDashoffset:-1709},{strokeDashoffset:0,duration:1.0,ease:"power2.inOut"},0.15);'
             'tl.fromTo("#ilogo",{scale:0.2,rotation:-30,opacity:0},{scale:1,rotation:0,opacity:1,duration:0.75,ease:"back.out(1.9)"},0.3);'
-            'tl.fromTo("#irays",{scale:0.6,opacity:0,transformOrigin:"540px 960px"},{scale:1.25,opacity:1,duration:0.35,ease:"power2.out"},0.85);'
+            'tl.fromTo("#irays",{scale:0.6,opacity:0,svgOrigin:"540 960"},{scale:1.25,opacity:1,duration:0.35,ease:"power2.out"},0.85);'
             'tl.to("#irays",{opacity:0,duration:0.5,ease:"power1.in"},1.2);'
             'tl.fromTo("#iword span",{opacity:0,y:50},{opacity:1,y:0,duration:0.4,stagger:0.05,ease:"back.out(2)"},0.85);'
             'tl.fromTo("#iplace",{opacity:0},{opacity:.9,duration:0.4},1.3);'
