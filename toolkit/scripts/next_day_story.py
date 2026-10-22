@@ -3,6 +3,7 @@
 Usage: python scripts/next_day_story.py --date 2026-10-12 --hours 17:00–19:00 [09:00–12:00 ...] --out DIR
 Evening day (a range ending 17:00 or later): the pizza is the big photo, the small one
 rotates coffee → pastry → acai. Morning-only day: the rotating photo is big, the sandwich small, no pizza.
+Friday: never the acai photo; on a morning-only Friday the sandwich is the big photo.
 The rotation state lives in story-rotation.json next to this toolkit, so commit it after a run.
 """
 import argparse, datetime, json, pathlib, subprocess, sys
@@ -33,7 +34,10 @@ def take(state, cat):
 
 def story(date, ranges, state):
     """Returns the story data; advances state (a dict) in place."""
+    friday = date.weekday() == 4  # owner, 22.10.2026: on Fridays no acai photo, only a sandwich
     cat = CATS[(CATS.index(state["cat"]) + 1) % len(CATS)] if state.get("cat") in CATS else CATS[0]
+    if friday and cat == "acai":
+        cat = CATS[(CATS.index(cat) + 1) % len(CATS)]
     state["cat"] = cat
     pick = take(state, cat)
     starts = [int(r[:2]) for r in ranges]
@@ -42,7 +46,9 @@ def story(date, ranges, state):
     s = {"day": DAYS[date.weekday()], "date": f"{date.day}.{date.month}", "hours": ranges}
     if evening:
         s.update(main=take(state, "pizza"), second=pick, sticker="יש פיצה!",
-                 sub="<b>פיצה</b>, קערת אסאי, מאפים, שייקים וקפה")
+                 sub="<b>פיצה</b>, כריכים, מאפים, שייקים וקפה" if friday else "<b>פיצה</b>, קערת אסאי, מאפים, שייקים וקפה")
+    elif friday:
+        s.update(main="sandwich.jpg", second=pick, sub="כריכים, מאפים, שייקים וקפה")
     else:
         s.update(main=pick, second="sandwich.jpg", sub="קפה, כריכים, מאפים ושייקים")
     s["line"] = ("אחר הצהריים רגוע, בצל האורנים" if min(starts) >= 15 else
@@ -76,5 +82,8 @@ if __name__ == "__main__":
     seen = [story(d, ["17:00–19:00"], st) for _ in range(4)]
     assert all(x["main"] == "pizza.jpg" for x in seen), seen
     assert [x["second"] for x in seen] == ["cortado-lawn.jpg", "pastry-2.jpg", "acai.jpg", "coffee-2.jpg"], seen
+    fri = [story(datetime.date(2026, 10, 23), ["09:00–15:00"], st) for _ in range(6)]
+    assert all(x["main"] == "sandwich.jpg" and "acai" not in x["second"] and "אסאי" not in x["sub"] for x in fri), fri
+    assert "אסאי" not in story(datetime.date(2026, 10, 23), ["16:00–19:00"], st)["sub"]
     assert all((ROOT / "assets/photos" / f).exists() for v in POOLS.values() for f in v)
     main()
