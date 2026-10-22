@@ -16,7 +16,7 @@ html,body{height:1920px}
 .sticker{left:44px;top:340px;width:180px;height:180px;font-size:32px;transform:rotate(-12deg);box-shadow:0 12px 26px rgba(0,0,0,.35)}
 .card{left:84px;right:84px;top:1205px;height:250px;text-align:center;padding-top:22px}
 .card .k{color:#A9592F;font-weight:700;font-size:34px}
-.card .n{font-weight:900;font-size:120px;line-height:1.05;color:var(--cart)}
+.card .n{font-weight:900;font-size:120px;line-height:1.05;color:var(--cart);white-space:nowrap;overflow:hidden;padding:0 36px}
 .card .l{font-size:34px;color:var(--espresso)}
 .card .l.em{font-size:42px;font-weight:800;color:#A9592F}
 .ribbon{top:1478px;font-size:44px}
@@ -36,6 +36,8 @@ html,body{height:1920px}
 const p = (window.HOURS || {}).partner || {};
 document.getElementById("photo").src = p.photo || "";
 document.getElementById("name").textContent = p.name || "";
+const n = document.getElementById("name"); // long names shrink to fit the card, measured once the font is in
+document.fonts.ready.then(() => { for (let f = 116; n.scrollWidth > n.clientWidth && f >= 64; f -= 4) n.style.fontSize = f + "px"; });
 document.getElementById("line").textContent = p.line || "";
 if (p.em) document.getElementById("line").classList.add("em"); // the one thing the partner asked to stress
 if (p.logo) { const l = document.getElementById("logo"); l.hidden = false; l.querySelector("img").src = p.logo; }
