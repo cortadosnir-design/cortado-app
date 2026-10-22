@@ -2,7 +2,7 @@
 // העיקרון: הקצב נקבע פעם אחת. כל שבוע רק ממלאים את המשבצות. משבצת ריקה היא משימה, לא חור בלוח.
 import { S, db, DAYS, $, el, clear, ymd, dm, addDays, fromYmd, toMin, holidayOn,
   status, copyText, download, withBusy, api, WORKER_URL, track, on, emit,
-  doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
+  doc, setDoc, deleteDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp
   } from "./core.js";
 import { FORMATS, TIMING, HASHTAGS, VOICE, COMPETITORS, TEMPLATES, templateOf, templatesFor } from "./playbook.js";
 import * as Card from "./card.js";
@@ -1185,57 +1185,6 @@ async function savePost(newStatus, btn){
   return savedId;
 }
 
-// הצילום המלא של פוסט: מהזיכרון אם הוא פתוח בקומפוזר, אחרת מהמסמך הנפרד.
-async function fullPhoto(id){
-  if (composerPhoto && editing === id) return composerPhoto;
-  try { const d = await getDoc(doc(db, "postmedia", id)); return d.exists() ? (d.data().image || "") : ""; }
-  catch { return ""; }
-}
-// אחרי שהפוסט יצא אין למה להחזיק את המקור. הממוזערת נשארת ללוח.
-const dropMedia = (id) => deleteDoc(doc(db, "postmedia", id)).catch(() => {});
-
-// שיגור פוסט אחד: מחזיר את תשובת השרת, או זורק.
-async function sendToMeta(id, when){
-  const p = S.posts.find(x => x.id === id) || {};
-  const text = [p.text || "", (p.hashtags || []).join(" ")].filter(Boolean).join("\n\n").slice(0, 2200);
-  const r = await api("/publish/schedule", { postId: id, text, image: await fullPhoto(id), at: when.getTime() });
-  if (!r.saved){
-    await setDoc(doc(db, "posts", id), {
-      status: "scheduled", fbPostId: r.fbPostId || "", fbPhotoId: r.fbPhotoId || "",
-      publishAt: r.publishAt || when.getTime(), igPending: !!r.igPending,
-      igPostId: r.igPostId || "", igSkipped: r.igSkipped || "", igError: r.igError || "",
-    }, { merge: true });
-  }
-  if (!r.igPending) dropMedia(id);       // עוד בתור → השרת עוד יצטרך את התמונה
-  return r;
-}
-
-/* ===== תזמון: נגיעה אחת, שתי רשתות =====
-   הלולאה הישנה הייתה: הורד CSV → פתח מתזמן → ייבא → העלה תמונה לכל פוסט →
-   חזור → סמן "תוזמן" → אחר כך סמן "פורסם". עכשיו: כפתור אחד.
-   פייסבוק מתזמן לבד; אינסטגרם נכנס לתור של השרת ומתפרסם בדקה. */
-async function schedulePost(btn){
-  const when = new Date(`${$("cDate").value}T${$("cTime").value || "10:30"}`);
-  if (isNaN(when)){ status("compStatus", "warn", "צריך תאריך ושעה כדי לתזמן."); return; }
-
-  const id = await savePost("ready", null);      // השער נאכף כאן, לפני שיוצא החוצה
-  if (!id) return;
-
-  await withBusy(btn, async () => {
-    try {
-      status("compStatus", "", "שולח…");
-      const r = await sendToMeta(id, when);
-      const at = new Date(r.publishAt || when.getTime());
-      const now = Math.abs(at - Date.now()) < 11 * 60000;
-      const fb = now ? "פורסם בפייסבוק" : `מתוזמן לפייסבוק ל-${dm(at)} ${String(at.getHours()).padStart(2,"0")}:${String(at.getMinutes()).padStart(2,"0")}`;
-      const ig = r.igPostId ? "ופורסם באינסטגרם" : r.igPending ? "אינסטגרם בתור ויעלה באותה דקה"
-               : r.igError ? "אינסטגרם נכשל: " + r.igError : r.igSkipped ? "בלי אינסטגרם — " + r.igSkipped : "";
-      status("compStatus", r.igError ? "warn" : "ok", [fb, ig].filter(Boolean).join(". ") + ".");
-      if (!r.igError) setTimeout(closeSheet, 1600);
-    } catch (e){ status("compStatus", "bad", e.message); }
-  });
-}
-
 async function removePost(){
   if (!editing || !confirm("למחוק את הפוסט?")) return;
   try { await deleteDoc(doc(db, "posts", editing)); resetComposer(); closeSheet(); }
@@ -1332,17 +1281,6 @@ function copyAll(btn){
 function renderExport(){
   const box = clear($("exportList"));
   const rows = exportRows();
-  // שני מצבים, לא שתי דרכים: יש שרת מחובר → משגרים מכאן. אין → CSV.
-  const live = publishOk;
-  const head = $("exportHow");
-  if (head) head.textContent = live
-    ? "לחיצה אחת משגרת את כל המוכנים לפייסבוק ולאינסטגרם, כל אחד בשעה שלו."
-    : "העמוד עוד לא מחובר לשרת, אז הייצוא הוא למתזמן חיצוני.";
-  const only = (id, show) => { const n = $(id); if (n) n.hidden = !show; };
-  only("sendAll", live);
-  only("exportCsv", !live);
-  only("scheduleAll", !live);
-  only("copyWeek", !live);
   if (!rows.length){ box.append(el("p", { class: "small", text: "כשמשבצת מסומנת 'מוכן' היא מופיעה כאן." })); return; }
   rows.forEach(p => {
     const d = fromYmd(p.date);
@@ -1359,14 +1297,6 @@ async function markScheduled(id){
   try { await setDoc(doc(db, "posts", id), { status: "scheduled" }, { merge: true }); return true; }
   catch { status("exportStatus", "bad", "העדכון נכשל."); return false; }
 }
-/* ===== שיגור כל המוכנים =====
-   עד עכשיו היו שתי דרכים לאותו דבר: "תזמן ופרסם" בקומפוזר, ולידו כרטיס
-   CSV שמייצא למתזמן חיצוני. שתי דרכים לאותו יעד הן החלטה מיותרת. עכשיו
-   הכרטיס משגר בעצמו — וה-CSV נשאר רק כשאין שרת מחובר. */
-// נבדק כשפותחים את הכרטיס — הרגע היחיד שבו זה מעניין — ולא בכל ציור.
-// הצלחה נזכרת; כישלון ייבדק שוב בפתיחה הבאה, כך שתקלת רשת חולפת לא
-// נועלת את הכרטיס על מסלול ה-CSV.
-let publishOk = false;
 /* ===== מצב החיבור לרשתות =====
    הפרסום בפועל תלוי בשלושה משתנים בשרת: FB_PAGE_TOKEN, FB_PAGE_ID
    ו-IG_USER_ID. עד היום מה שקרה כשהם חסרים היה שקט: כפתור השיגור
@@ -1409,36 +1339,16 @@ async function renderMeta(){
     } }));
 }
 
-async function checkPublish(){
-  if (publishOk) return true;
-  if (!WORKER_URL || !S.isOwner) return false;
+// מזהה העמוד נשמר בתצורה — ממנו ה-QR שבפוסטר בונה את הכתובת.
+// נשמר פעם אחת, לא בכל טעינה: זו כתיבה לפיירסטור.
+let pageIdChecked = false;
+async function checkPageId(){
+  if (pageIdChecked || !WORKER_URL || !S.isOwner) return;
   try {
     const r = await api("/publish/state", {});
-    publishOk = !!(r && r.facebook);
-    // מזהה העמוד נשמר בתצורה — ממנו ה-QR שבפוסטר בונה את הכתובת.
-    // נשמר פעם אחת, לא בכל טעינה: זו כתיבה לפיירסטור.
     if (r && r.pageId && Card.cfg().fbPageId !== r.pageId) await Card.saveCfg({ fbPageId: r.pageId });
-  }
-  catch { publishOk = false; }
-  renderExport();
-  return publishOk;
-}
-
-async function sendAllReady(btn){
-  const rows = exportRows();
-  if (!rows.length){ status("exportStatus", "warn", "אין פוסטים מוכנים לשגר."); return; }
-  if (!confirm(`לשגר ${rows.length} פוסטים לפייסבוק ולאינסטגרם?`)) return;
-  await withBusy(btn, async () => {
-    let ok = 0; const bad = [];
-    for (const p of rows){
-      status("exportStatus", "", `משגר ${ok + bad.length + 1} מתוך ${rows.length}…`);
-      const when = new Date(`${p.date}T${p.time || "10:30"}`);
-      try { await sendToMeta(p.id, isNaN(when) ? new Date() : when); ok++; }
-      catch (e){ bad.push(`${dm(fromYmd(p.date))}: ${e.message}`); }
-    }
-    status("exportStatus", bad.length ? (ok ? "warn" : "bad") : "ok",
-      bad.length ? `${ok} שוגרו. נכשלו — ${bad.join(" · ")}` : `${ok} פוסטים שוגרו. מה שמתוזמן יעלה לבד בשעה שלו.`);
-  });
+    pageIdChecked = true;
+  } catch {}
 }
 
 async function markAllScheduled(btn){
@@ -1530,7 +1440,6 @@ export function init(){
   $("saveIdea").addEventListener("click", (e) => savePost("idea", e.currentTarget));
   $("saveReady").addEventListener("click", (e) => savePost("ready", e.currentTarget));
   $("markDone").addEventListener("click", (e) => savePost("done", e.currentTarget));
-  $("schedulePost").addEventListener("click", (e) => schedulePost(e.currentTarget));
   $("newPost").addEventListener("click", () => newPost());
   $("delPost").addEventListener("click", removePost);
   $("closeComposer").addEventListener("click", closeSheet);
@@ -1578,8 +1487,7 @@ export function init(){
 
   $("exportCsv").addEventListener("click", exportCsv);
   $("scheduleAll").addEventListener("click", (e) => markAllScheduled(e.currentTarget));
-  $("sendAll").addEventListener("click", (e) => sendAllReady(e.currentTarget));
-  $("exportCard").addEventListener("toggle", (e) => { if (e.target.open) checkPublish(); });
+  $("exportCard").addEventListener("toggle", (e) => { if (e.target.open) checkPageId(); });
   $("copyWeek").addEventListener("click", (e) => copyAll(e.currentTarget));
 
   // בנק הקליפים

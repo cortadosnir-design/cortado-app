@@ -48,19 +48,27 @@ try {
   await page.waitForSelector("#tabs:not([hidden])", { timeout: 10000 });
   await page.waitForTimeout(400);
 
-  // שבוע נעול: שלישי בוקר וערב, שישי בוקר. שאר הימים סגורים.
+  // שבוע נעול: שלישי בוקר וערב, שישי בוקר. שאר הימים סגורים. הבוט פרסם ורשם על השבוע מה יצא.
   await page.evaluate((WID) => {
-    window.__seed("weeks", WID, { phase: "locked", shifts: [
+    window.__seed("weeks", WID, { phase: "locked", sync: { page: "ok", facebook: "ok", google: "manual", at: { seconds: 1 } }, shifts: [
       { id: "s1", day: 2, start: "09:00", end: "12:00", need: 1 },
       { id: "s2", day: 2, start: "16:00", end: "19:00", need: 1 },
       { id: "s3", day: 5, start: "09:00", end: "12:00", need: 1 },
     ] });
     window.__fire();
   }, WID);
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(1600);
+  ok("האפליקציה לא כותבת את public/hours (רק הבוט)", await page.evaluate(() => !(window.__store.public || {}).hours));
+  ok("כרטיס השעות: הצגה בלבד, בלי \"עדכן עכשיו\" ובלי \"משוך מגוגל\"", await page.evaluate(() =>
+    !document.getElementById("launchBtn") && ![...document.querySelectorAll("#launchList button")].some(b => /משוך|עדכן/.test(b.textContent))));
+  ok("כרטיס השעות אומר שהשעות יוצאות דרך הבוט", await page.evaluate(() => /בוט קורטדו/.test(document.getElementById("launchCard").textContent)));
 
-  await page.click("#launchBtn");
-  await page.waitForTimeout(800);
+  // המסמך שהבוט כותב בנוי כמו hoursDocOf (tests/worker.mjs משווה ביניהם). בונים אותו מהקוד האמיתי.
+  await page.evaluate(async (WID) => {
+    const { hoursDocOf } = await import("/shifts.js");
+    const [y, m, d] = WID.slice(1).split("-").map(Number);
+    window.__store.public = { hours: hoursDocOf(window.__store.weeks[WID], new Date(y, m - 1, d)) };
+  }, WID);
 
   const res = await page.evaluate(() => {
     const d = (window.__store.public || {}).hours;
@@ -83,9 +91,9 @@ try {
       rows: [...document.querySelectorAll(".launchrow")].map(r => r.className.replace("launchrow ", "") + ":" + r.querySelector("b").textContent) };
   });
 
-  ok("שיגור כותב את מסמך השעות", !!res.doc, JSON.stringify(res.rows));
+  ok("יש מסמך שעות", !!res.doc, JSON.stringify(res.rows));
   ok("אין מערך בתוך מערך — Firestore היה דוחה", res.nested === "", "שדה: " + res.nested);
-  ok("דף הנחיתה מסומן כהצליח", res.rows.some(r => r.startsWith("ok:דף הנחיתה")), res.rows.join(" · "));
+  ok("דף הנחיתה ופייסבוק: מה שהבוט רשם", res.rows.some(r => r.startsWith("ok:דף הנחיתה")) && res.rows.some(r => r.startsWith("ok:פייסבוק")), res.rows.join(" · "));
   ok("שורה אחת לכל שבעת הימים", Array.isArray(res.doc.days) && res.doc.days.length === 7, JSON.stringify(res.doc && res.doc.days));
   ok("כל יום הוא מחרוזת", (res.doc.days || []).every(x => typeof x === "string"), JSON.stringify(res.doc.days));
   ok("יום עם שתי משמרות מאוחד לשורה אחת", res.doc.days[2] === "09:00–12:00, 16:00–19:00", res.doc.days[2]);
@@ -123,7 +131,7 @@ try {
     over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   }));
   ok("דף הנחיתה מושך את השעות מ-public/hours דרך REST", restHit.includes("/documents/public/hours"), restHit);
-  ok("הטבלה בדף הנחיתה היא מה ש\"שגר\" כתב", cf.rows[2] === "שלישי: 09:00–12:00 · 16:00–19:00" && cf.rows[0] === "ראשון: סגור", cf.rows.join(" · "));
+  ok("הטבלה בדף הנחיתה היא מה שבמסמך", cf.rows[2] === "שלישי: 09:00–12:00 · 16:00–19:00" && cf.rows[0] === "ראשון: סגור", cf.rows.join(" · "));
   ok("היום מסומן בטבלה", cf.today === 1);
   ok("תווית המצב מחושבת", /פתוח עכשיו|נפתח/.test(cf.status), cf.status);
   ok("השבוע שהשעות שייכות לו כתוב ליד הטבלה", cf.note.startsWith("השעות לשבוע"), cf.note.slice(0, 40));
@@ -266,9 +274,8 @@ try {
   ok("דף הנחיתה קורא את השדה days", /fields\.days\b/.test(reader));
   ok("דף הנחיתה קורא את הטווח לכותרת", /fields\.range\b/.test(reader));
   ok("hours.html מפנה לדף הנחיתה", /http-equiv="refresh"[^>]*cafe\//.test(readFileSync(ROOT + "hours.html", "utf8")));
-  const writers = ["shifts.js", "launch.js"].map(f => readFileSync(ROOT + f, "utf8"));
-  ok("שני הכפתורים כותבים דרך hoursDoc אחד", writers.every(src => !/"public", "hours"\), \{\s*\n/.test(src)),
-     "אין כתיבה ישירה עם גוף מסמך משלה");
+  const writers = ["shifts.js", "launch.js", "hoursync.js", "today.js"].map(f => readFileSync(ROOT + f, "utf8"));
+  ok("שום קובץ באפליקציה לא כותב ל-public/hours", writers.every(src => !/"public", "hours"/.test(src)));
 } catch (e){
   fail++; console.log("  ✗ הבדיקה נפלה  " + e.message);
 }

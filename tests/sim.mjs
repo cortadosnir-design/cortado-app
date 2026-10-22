@@ -105,17 +105,11 @@ await page.evaluate(() => { window.__api = {}; });
   await shot("locked");
 }
 
-/* ═══ מסע 3: לשגר שעות ═══ */
+/* ═══ מסע 3: שעות הפתיחה — תצוגה, הבוט מפרסם ═══ */
 {
-  journey("שגר: שעות הפתיחה בכל מקום");
-  await tap("#launchBtn");
-  await page.waitForTimeout(700);
+  journey("שעות הפתיחה בכל מקום");
   const rows = await page.evaluate(() => [...document.querySelectorAll(".launchrow")].map(r => r.className.replace("launchrow ", "") + ": " + r.querySelector("b").textContent));
-  note("תוצאות: " + rows.join(" · "));
-  const manual = rows.filter(r => r.startsWith("manual")).length;
-  note(`${manual} ערוצים ידניים. גוגל היא המקור: "משוך מגוגל" קורא משם ומפיץ לדף`);
-  await page.evaluate(() => { window.__api["/hours/fromgoogle"] = { regular: [[],[],[],[],[],[],[]], dated: {}, text: [] }; });
-  await tap("#launchList button.primary");           // משוך מגוגל
+  note("מצב: " + rows.join(" · "));
   await shot("launched");
 }
 

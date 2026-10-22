@@ -4,7 +4,7 @@
 // קבוצת אופניים ונשארים עוד שעה, מישהו חולה ולא פותחים. כל אחד מאלה היה
 // מסע: לגלול לטופס, לבחור שעה מרשימה של 76, לגלול ל"שגר", לאשר חלון.
 // כאן זו נגיעה על הפעולה ונגיעה על השעה. השינוי נשמר כחריגה ליום אחד
-// (hoursOverride) — המשמרות והשיבוצים לא זזים — ומתפרסם לבד (hoursync.js).
+// (hoursOverride) — המשמרות והשיבוצים לא זזים. ללקוחות השעות יוצאות רק דרך בוט קורטדו.
 // אין "אתה בטוח?": יש "בטל" אחרי.
 import { S, db, DAYS, $, el, clear, dm, toMin, fromMin, waLink, copyText, whoOf, on, track,
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp, status } from "./core.js";
@@ -227,17 +227,14 @@ function closeAt(day, ranges, T, now = false){
   apply(day, toValue(rs), msg, rs.length ? `היום סוגרים ב-${fromMin(T)}.` : "היום העגלה לא נפתחת, המשמרת שלך מבוטלת.");
 }
 
-/* איפה השינוי הגיע. זה מה שהיה חסר: שינוי שנשמר ולא התפרסם נראה בדיוק
-   כמו שינוי שהתפרסם. */
+/* איפה השעות עומדות ללקוחות: מה שהבוט רשם על השבוע (sync). שינוי כאן לא
+   מתפרסם מכאן — אומרים את זה, כדי ששינוי שנשמר לא ייראה כמו שינוי שיצא. */
 function syncLine(id, data, day, ov){
-  const st = H.stateOf(id, data);
   const line = el("div", { class: "tsync" });
-  if (st.pending){ line.append(el("span", { text: "מעדכן את דף העגלה…" })); return line; }
-  const sync = st.sync;
-  if (sync){
-    line.append(el("span", { class: sync.page === "ok" ? "okc" : "badc", text: sync.page === "ok" ? "דף העגלה ✓" : "דף העגלה: " + sync.page }));
-  }
-  if (st.google) line.append(el("span", { class: "okc", text: "גוגל ✓" }));
+  const sync = data && data.sync;
+  if (sync && sync.page === "ok") line.append(el("span", { class: "okc", text: "דף העגלה ✓" }));
+  if (ov || !sync) line.append(el("span", { text: "ללקוחות: דרך בוט קורטדו" }));
+  if (H.googleFresh(data)) line.append(el("span", { class: "okc", text: "גוגל ✓" }));
   else line.append(chip("גוגל: העתק ופתח", async (e) => {
     const t = new Date();
     const text = (ov ? `היום, ${DAYS[day]} ${dm(t)}: ${rangesOf(data, day).map(([a, b]) => `${a}–${b}`).join(", ") || "סגור"}\n\n` : "")

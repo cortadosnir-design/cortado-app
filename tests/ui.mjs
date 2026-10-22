@@ -316,43 +316,6 @@ console.log("\n15. מעקב אחרי העדכון הידני בגוגל");
   ok("googleAt על מסמך השבוע נקרא כ'סומן'", wrote.marked === true);
   await p.close();
 }
-/* ── 15ב. משוך מגוגל: קוראים, מראים, ורק באישור כותבים ── */
-console.log("\n15ב. משוך מגוגל");
-{
-  const p = await fresh();
-  const r = await p.evaluate(async () => {
-    const pad = (n) => String(n).padStart(2, "0");
-    const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    const ws = window.S.weekStart, cur = "w" + ymd(ws);
-    const shifts = [{ id: "s1", day: 1, start: "06:30", end: "15:00", need: 1 }];
-    window.__store.weeks = { [cur]: { phase: "locked", shifts } };
-    window.S.week = window.__store.weeks[cur];
-    // גוגל: שני 09:00–12:00, שבת 09:00–12:00 ו-16:00–19:00, שאר הימים סגור. יום שני הבא סגור בחג.
-    const nextMon = new Date(ws); nextMon.setDate(nextMon.getDate() + 8);
-    const regular = [[], ["09:00–12:00"], [], [], [], [], ["09:00–12:00", "16:00–19:00"]];
-    window.__api["/hours/fromgoogle"] = { regular, dated: { [ymd(nextMon)]: [] }, text: [] };
-    const btn = [...document.querySelectorAll("#launchList button")].find(b => b.textContent === "משוך מגוגל");
-    if (!btn) return { btn: false };
-    const writesBefore = window.__writes.length;
-    btn.click(); await new Promise(res => setTimeout(res, 300));
-    const rows = document.querySelectorAll("#googlePlan .gplanrow").length;
-    const wroteBeforeApprove = window.__writes.length - writesBefore;
-    [...document.querySelectorAll("#googlePlan button")].find(b => b.textContent === "עדכן את הדף").click();
-    await new Promise(res => setTimeout(res, 300));
-    const w = window.__store.weeks[cur], n = window.__store.weeks["w" + ymd(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7))];
-    return { btn: true, rows, wroteBeforeApprove, ov: w.hoursOverride, shifts: w.shifts, googleSig: !!w.googleSig,
-      nextMon: n && n.hoursOverride && n.hoursOverride["1"], status: document.getElementById("launchStatus").textContent };
-  });
-  ok("כפתור 'משוך מגוגל' בשורת גוגל", r.btn);
-  ok("מראה קודם מה ישתנה", r.rows >= 3, String(r.rows));
-  ok("לא כותב כלום לפני אישור", r.wroteBeforeApprove === 0, String(r.wroteBeforeApprove));
-  ok("אחרי אישור: השעות של גוגל על השבוע", r.ov && r.ov["1"].ranges[0] === "09:00–12:00" && r.ov["6"].ranges.length === 2 && r.ov["0"].closed === true, JSON.stringify(r.ov));
-  ok("המשמרות לא זזו", r.shifts && r.shifts.length === 1 && r.shifts[0].start === "06:30", JSON.stringify(r.shifts));
-  ok("גוגל מסומנת כמעודכנת", r.googleSig);
-  ok("חג בשבוע הבא: סגור לפי התאריך, לא לפי השבוע הרגיל", r.nextMon && r.nextMon.closed === true, JSON.stringify(r.nextMon));
-  ok("הודעה ברורה", /עודכן לפי גוגל/.test(r.status), r.status);
-  await p.close();
-}
 /* ── 16. מה שהאפליקציה עושה לבד ── */
 console.log("\n16. סימוני סטטוס שנעשים לבד");
 {
@@ -382,38 +345,16 @@ console.log("\n16. סימוני סטטוס שנעשים לבד");
   ok("'כולם תוזמנו ✓' מסמן את כל המוכנים", st.length === 1 && st[0] === "scheduled", st.join(","));
   await p.close();
 }
-/* ── 18. תזמון בנגיעה אחת ── */
-console.log("\n18. תזמון ופרסום מהקומפוזר");
+/* ── 18. פוסטים יוצאים רק דרך בוט קורטדו ── */
+console.log("\n18. אין פרסום מהקומפוזר");
 {
   const p = await fresh();
-  await p.evaluate(() => {
-    window.__api["/publish/schedule"] = (b) => ({
-      fbPostId: "fb_1", fbPhotoId: "ph_1", publishAt: b.at, igPending: true, saved: false,
-    });
-  });
   await p.evaluate(() => window.C.newPost());
-  await p.fill("#cText", "שישי בבוקר, הנוף פתוח והקפה חזק.");
-  await p.fill("#cLine", "אורנה הביאה עוגת תפוחים.");
-  ok("כפתור התזמון גלוי", await p.locator("#schedulePost").isVisible());
-  await p.click("#schedulePost");
-  await p.waitForTimeout(700);
-  const sent = await p.evaluate(() => (window.__apiCalls.find(c => c.path === "/publish/schedule") || {}).body);
-  ok("נשלח לשרת עם טקסט והאשטגים", !!sent && sent.text.includes("אורנה") && sent.text.includes("#"), sent && sent.text.slice(0, 30));
-  ok("נשלח עם זמן עתידי", !!sent && sent.at > NOW.getTime() - 86400000);
-  const doc = await p.evaluate(() => Object.values(window.__store.posts)[0]);
-  ok("הפוסט סומן מתוזמן ונשמר מזהה פייסבוק", doc.status === "scheduled" && doc.fbPostId === "fb_1", doc.status);
-  ok("אינסטגרם מסומן כממתין בתור", doc.igPending === true);
-  const msg = await p.textContent("#compStatus");
-  ok("ההודעה מסבירה מה קרה בשתי הרשתות", /פייסבוק/.test(msg) && /אינסטגרם/.test(msg), msg.slice(0, 60));
-  // פוסט שממתין לאינסטגרם לא מסומן "פורסם" ע"י ה-sweep
-  const after = await p.evaluate(async () => {
-    const id = Object.keys(window.__store.posts)[0];
-    window.__store.posts[id].date = "2020-01-01"; window.__store.posts[id].time = "10:00";
-    window.S.posts = Object.entries(window.__store.posts).map(([i, x]) => ({ id: i, ...x }));
-    window.C.render(); await new Promise(r => setTimeout(r, 200));
-    return window.__store.posts[id].status;
-  });
-  ok("ממתין לאינסטגרם לא נסגר כ'פורסם'", after === "scheduled", after);
+  ok("אין כפתור תזמון ופרסום", await p.locator("#schedulePost").count() === 0);
+  await p.evaluate(() => { document.getElementById("exportCard").open = true; });
+  await p.waitForTimeout(200);
+  ok("אין שיגור המוני", await p.locator("#sendAll").count() === 0);
+  ok("שום קריאה ל-/publish/schedule", await p.evaluate(() => !window.__apiCalls.some(c => c.path === "/publish/schedule")));
   await p.close();
 }
 /* ── 21. למידה ברקע: מספרים ממטא (learn.js) ── */
@@ -507,48 +448,14 @@ console.log("\n23. דוח Z ופילוח מכירות");
   ok("המחלקה המכניסה ביותר בראש", /כריכים/.test(first), first);
   await p.close();
 }
-/* ── 22. שיגור כל המוכנים בלחיצה אחת ── */
-console.log("\n22. שיגור מרוכז");
+/* ── 22. שיגור השבוע: CSV למתזמן, גם כשהעמוד מחובר (פוסטים מהאפליקציה לא יוצאים) ── */
+console.log("\n22. שיגור השבוע");
 {
   const p = await fresh();
-  await p.evaluate(() => {
-    window.__api["/publish/state"] = { facebook: true, instagram: true, queue: true };
-    window.__api["/publish/schedule"] = (b) => ({ fbPostId: "fb_" + b.postId, fbPhotoId: "ph", publishAt: b.at, igPending: true });
-  });
-  // שני פוסטים מוכנים השבוע, אחד עם צילום מלא בצד
-  await p.evaluate(() => {
-    const d = (n) => { const x = new Date(window.S.weekStart); x.setDate(x.getDate() + n);
-      return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
-    window.__store.posts = {
-      r1: { week: "wtest", date: d(3), time: "17:30", status: "ready", text: "מוכן א", hashtags: ["#קורטדו"] },
-      r2: { week: "wtest", date: d(5), time: "08:00", status: "ready", text: "מוכן ב", hashtags: [] },
-      dr: { week: "wtest", date: d(2), time: "10:30", status: "idea", text: "טיוטה" },
-    };
-    window.__store.postmedia = { r1: { image: "data:image/jpeg;base64,AAAA" } };
-    window.S.posts = Object.entries(window.__store.posts).map(([id, x]) => ({ id, ...x }));
-    window.C.render();
-  });
+  await p.evaluate(() => { window.__api["/publish/state"] = { facebook: true, instagram: true, queue: true }; });
   await p.evaluate(() => { document.getElementById("exportCard").open = true; });
   await p.waitForTimeout(500);
-  ok("עם שרת מחובר: כפתור שיגור, בלי CSV", await p.locator("#sendAll").isVisible() && await p.locator("#exportCsv").isHidden());
-  p.once("dialog", d => d.accept());
-  await p.click("#sendAll");
-  await p.waitForTimeout(900);
-  const calls = await p.evaluate(() => window.__apiCalls.filter(c => c.path === "/publish/schedule").map(c => ({ id: c.body.postId, img: !!c.body.image })));
-  ok("שוגרו רק המוכנים", calls.length === 2 && calls.every(c => c.id.startsWith("r")), calls.map(c => c.id).join(","));
-  ok("הצילום המלא נשלף מהמסמך הנפרד", (calls.find(c => c.id === "r1") || {}).img === true);
-  const st = await p.evaluate(() => Object.fromEntries(Object.entries(window.__store.posts).map(([k, v]) => [k, v.status])));
-  ok("המוכנים סומנו מתוזמנים, הטיוטה לא", st.r1 === "scheduled" && st.r2 === "scheduled" && st.dr === "idea", JSON.stringify(st));
-  ok("ההודעה מסכמת כמה יצאו", /2/.test(await p.textContent("#exportStatus")), await p.textContent("#exportStatus"));
-  await p.close();
-}
-{
-  // בלי שרת: הדרך הישנה נשארת
-  const p = await fresh();
-  await p.evaluate(() => { window.__api["/publish/state"] = { fail: "אין שרת" }; });
-  await p.evaluate(() => { document.getElementById("exportCard").open = true; });
-  await p.waitForTimeout(500);
-  ok("בלי שרת: CSV נשאר, בלי כפתור שיגור", await p.locator("#exportCsv").isVisible() && await p.locator("#sendAll").isHidden());
+  ok("עם שרת מחובר: CSV, בלי כפתור שיגור", await p.locator("#exportCsv").isVisible() && await p.locator("#sendAll").count() === 0);
   await p.close();
 }
 console.log("\n" + (errors.length ? "שגיאות JS:\n" + [...new Set(errors)].join("\n") : "אין שגיאות JS"));

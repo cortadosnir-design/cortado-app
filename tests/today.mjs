@@ -1,8 +1,7 @@
-/* "היום" ושעות שמתפרסמות לבד.
+/* "היום": שינוי שעות ליום אחד בלחיצה, ומה שהלקוח רואה.
 
-   הבעיה שהבדיקה הזו שומרת עליה: בעל העסק שינה שעה בטלפון, והלקוח המשיך
-   לראות את הישנה — כי דף העגלה ופייסבוק התעדכנו רק בלחיצה על "שגר".
-   וסגירה מוקדמת "רק להיום" לא הייתה קיימת בכלל.
+   ללקוחות השעות יוצאות רק דרך בוט קורטדו. האפליקציה כותבת חריגה על מסמך
+   השבוע ולא נוגעת ב-public/hours — והבדיקה שומרת על שני הצדדים.
 
    השעון של הדפדפן קבוע: רביעי 23.9.2026, 10:40, שעון ישראל. כך "פתוח עכשיו"
    ושורת השעות לסגירה מוקדמת צפויים מראש. */
@@ -16,7 +15,7 @@ catch { ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/in
 const ROOT = new URL("..", import.meta.url).pathname;
 const PORT = process.env.TODAY_PORT || 8906;
 const NOW = new Date("2026-09-23T10:40:00+03:00");
-const CUR = "w2026-09-20", NEXT = "w2026-09-27";
+const CUR = "w2026-09-20";
 
 buildFullCore();
 writeFileSync(ROOT + "todaytest.html", readFileSync(ROOT + "index.html", "utf8")
@@ -29,7 +28,7 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n + (x ? "  " + x : "")))
                                : (fail++, console.log("  ✗ " + n + "  " + x));
 
-console.log("\n29. היום, ושעות שמתפרסמות לבד");
+console.log("\n29. היום");
 const b = await chromium.launch();
 try {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "Asia/Jerusalem", locale: "he-IL" });
@@ -47,7 +46,7 @@ try {
   await page.evaluate(({ CUR }) => {
     window.__seed("roster", "t1", { token: "t1", name: "דנה", phone: "050-1111111", active: true });
     window.__seed("roster", "t2", { token: "t2", name: "יואב", phone: "050-2222222", active: true });
-    window.__seed("weeks", CUR, { phase: "locked", shifts: [
+    window.__seed("weeks", CUR, { phase: "locked", sync: { page: "ok", at: { seconds: 1 } }, shifts: [
       { id: "a", day: 0, start: "09:00", end: "12:00", need: 1 },
       { id: "d", day: 3, start: "09:30", end: "12:30", need: 1 },
       { id: "e", day: 4, start: "09:30", end: "12:30", need: 1 },
@@ -60,18 +59,11 @@ try {
   const pub = () => page.evaluate(() => JSON.parse(JSON.stringify((window.__store.public || {}).hours || null)));
   const week = (id) => page.evaluate((id) => (window.__store.weeks || {})[id] || null, id);
 
-  // 1. בלי שום לחיצה, השבוע הנוכחי כבר בדף העגלה
-  let p = await pub();
-  ok("השבוע הנוכחי מתפרסם לבד, בלי \"שגר\"", !!p && p.weeks && p.weeks["2026-09-20"] && p.weeks["2026-09-20"][3] === "09:30–12:30",
-     JSON.stringify(p && p.weeks));
-  ok("השדות הישנים (days/range) עדיין נכתבים — דף ישן במטמון לא נשבר", p && Array.isArray(p.days) && p.days[3] === "09:30–12:30" && typeof p.range === "string");
+  // 1. האפליקציה לא מפרסמת שעות בעצמה
   const closed = () => page.evaluate(() => window.__apiCalls.filter(c => /^\/hours\/(facebook|google)$/.test(c.path)).length);
+  ok("האפליקציה לא כותבת את public/hours — רק הבוט", await pub() === null);
   ok("לא קורא ל-/hours/facebook ול-/hours/google (410 בשרת)", await closed() === 0);
-  const w1 = await week(CUR);
-  ok("מה שפורסם נרשם על השבוע (בלי לולאה)", !!(w1.sync && w1.sync.sig), JSON.stringify(w1.sync && w1.sync.page));
-  const at1 = JSON.stringify((await pub()).at);
-  await page.waitForTimeout(1600);
-  ok("אין פרסום חוזר כשהשעות לא השתנו", JSON.stringify((await pub()).at) === at1);
+  const ovOf = async (d) => { const x = (await week(CUR)).hoursOverride; return x && x[d] ? JSON.stringify(x[d]) : ""; };
 
   // 2. כרטיס היום
   const card = () => page.evaluate(() => {
@@ -87,7 +79,7 @@ try {
   ok("\"פתוח עכשיו · עד 12:30\"", /פתוח עכשיו/.test(c.kick) && c.big === "עד 12:30", c.kick + " | " + c.big);
   ok("מי בעגלה היום", /דנה/.test(c.line), c.line);
   ok("שלוש פעולות: סוגרים מוקדם / נשארים עוד", c.buttons.includes("סוגרים מוקדם") && c.buttons.includes("נשארים עוד"), c.buttons.join(" · "));
-  ok("שורת הסנכרון אומרת שהכול מעודכן", /דף העגלה ✓/.test(c.sync), c.sync);
+  ok("שורת הסנכרון מראה מה הבוט פרסם", /דף העגלה ✓/.test(c.sync), c.sync);
 
   // 3. סוגרים מוקדם: שתי נגיעות
   await page.click("#todayCard .todayacts button:has-text('סוגרים מוקדם')");
@@ -105,28 +97,24 @@ try {
   ok("וואטסאפ מוכן לדנה, עם השעה", c.wa.some(h => h.includes("972501111111") && decodeURIComponent(h).includes("11:00")), c.wa.join(" "));
   ok("בלי חלון \"אתה בטוח?\"", dialogs.length === 0, dialogs.join(" | "));
   await page.waitForTimeout(1800);
-  p = await pub();
-  ok("דף העגלה קיבל את הסגירה המוקדמת לבד", p.weeks["2026-09-20"][3] === "09:30–11:00" && p.days[3] === "09:30–11:00", p.weeks["2026-09-20"][3]);
-  ok("שאר הימים לא זזו", p.weeks["2026-09-20"][4] === "09:30–12:30" && p.weeks["2026-09-20"][0] === "09:00–12:00");
+  ok("שורת הסנכרון אומרת שללקוחות זה יוצא דרך הבוט", /בוט קורטדו/.test((await card()).sync), (await card()).sync);
+  ok("ועדיין לא נכתב public/hours", await pub() === null);
   ok("בלוח המשמרות רואים שהיום שונה ללקוחות", await page.evaluate(() => [...document.querySelectorAll("#board .tov")].some(n => n.textContent.includes("09:30–11:00"))));
 
   // 4. בטל מחזיר בדיוק את מה שהיה
   await page.click("#todayCard .todaytoast button:has-text('בטל')");
   await page.waitForTimeout(1900);
-  w = await week(CUR); p = await pub();
+  w = await week(CUR);
   ok("בטל מוחק את החריגה", !w.hoursOverride || !w.hoursOverride["3"], JSON.stringify(w.hoursOverride));
-  ok("ודף העגלה חוזר ל-12:30", p.weeks["2026-09-20"][3] === "09:30–12:30", p.weeks["2026-09-20"][3]);
 
   // 5. נשארים עוד
   await page.click("#todayCard .todayacts button:has-text('נשארים עוד')");
   await page.click("#todayCard .tchips button:has-text('עד 13:30')");
   await page.waitForTimeout(1900);
-  p = await pub();
-  ok("נשארים עוד שעה: 09:30–13:30 בדף העגלה", p.weeks["2026-09-20"][3] === "09:30–13:30", p.weeks["2026-09-20"][3]);
+  ok("נשארים עוד שעה: 09:30–13:30", await ovOf(3) === '{"ranges":["09:30–13:30"]}', await ovOf(3));
   await page.click("#todayCard .tov button:has-text('חזרה לרגיל')");
   await page.waitForTimeout(1900);
-  p = await pub();
-  ok("\"חזרה לרגיל\" בלחיצה אחת", p.weeks["2026-09-20"][3] === "09:30–12:30", p.weeks["2026-09-20"][3]);
+  ok("\"חזרה לרגיל\" בלחיצה אחת", await ovOf(3) === "", await ovOf(3));
 
   // 5ב. מישהו לא מגיע: שתי נגיעות להוריד, נגיעה אחת לשבץ מחליף
   await page.click("#todayCard .todayacts button:has-text('מישהו לא מגיע')");
@@ -141,7 +129,7 @@ try {
   ok("יואב משובץ לאותה משמרת, באותו פורמט כמו שיבוץ ידני", await page.evaluate((k) => { const d = (window.__store.signups || {})[k]; return !!d && d.token === "t2" && d.shift === "d"; }, `${CUR}_d_t2`));
   c = await card();
   ok("המסך מראה את יואב בעגלה", /יואב/.test(c.line) && !/דנה/.test(c.line), c.line);
-  ok("השעות לא זזו כשהחלפנו אנשים", (await pub()).weeks["2026-09-20"][3] === "09:30–12:30");
+  ok("השעות לא זזו כשהחלפנו אנשים", await ovOf(3) === "");
 
   // 5ג. שעות קבועות: נערכות באפליקציה
   await page.evaluate(() => { document.getElementById("hoursTools").open = true; document.getElementById("regBox").open = true; });
@@ -157,13 +145,12 @@ try {
   const regDoc = await page.evaluate(() => (window.__store.brand || {}).hours);
   ok("נשמר ל-brand/hours, שורה ליום", regDoc && regDoc.days[0] === "08:00–11:00" && regDoc.days[1] === "" && regDoc.days[3] === "09:30–12:30", JSON.stringify(regDoc && regDoc.days));
 
-  // 6. שינוי שעה בלוח הניהול מתפרסם בלי "שגר"
+  // 6. שינוי שעה בלוח הניהול נשמר על המשמרת, בלי לפרסם מהאפליקציה
   const sel = page.locator("#planner .planday").nth(4).locator("select.timesel").nth(1);
   await sel.selectOption("13:00");
   await page.waitForTimeout(2000);
-  p = await pub();
-  ok("שינוי משמרת בחמישי מגיע לדף העגלה לבד", p.weeks["2026-09-20"][4] === "09:30–13:00", p.weeks["2026-09-20"][4]);
-  ok("ועדיין בלי קריאה לנתיבי השעות הסגורים", await closed() === 0);
+  ok("שינוי משמרת בחמישי נשמר", await page.evaluate((CUR) => window.__store.weeks[CUR].shifts.find(s => s.id === "e").end, CUR) === "13:00");
+  ok("ועדיין בלי public/hours ובלי נתיבי השעות הסגורים", await pub() === null && await closed() === 0);
 
   // 6א. התחלה שעוברת את הסיום גוררת את הסיום איתה (ולא חוזרת בשקט ל-13:00)
   const thu = () => page.evaluate((CUR) => window.__store.weeks[CUR].shifts.filter(s => s.day === 4).map(s => s.start + "–" + s.end).join(","), CUR);
@@ -207,24 +194,7 @@ try {
   ok("הפוסטר מסומן כמבוטל אחרי הסנכרון", await page.evaluate((id) => window.__store.posts[id].status, "poster-" + CUR + "-6") === "cancelled");
   ok("ההודעה לא מדווחת על כישלון", !/נכשל/.test(await page.textContent("#wkStatus")), await page.textContent("#wkStatus"));
 
-  // 7. השבוע הבא: לא מתפרסם עד שננעל, ואז לא מוחק את השבוע הנוכחי
-  await page.evaluate(({ NEXT }) => {
-    window.__seed("weeks", NEXT, { phase: "open", shifts: [{ id: "n1", day: 5, start: "08:00", end: "11:00", need: 1 }] });
-    window.__fire();
-  }, { NEXT });
-  await page.waitForTimeout(1800);
-  p = await pub();
-  ok("שבוע הבא פתוח לשיבוץ — עוד לא בדף", !p.weeks["2026-09-27"], Object.keys(p.weeks).join(","));
-  await page.evaluate(({ NEXT }) => {
-    const w = window.__store.weeks[NEXT]; window.__seed("weeks", NEXT, { ...w, phase: "locked" }); window.__fire();
-  }, { NEXT });
-  await page.waitForTimeout(1900);
-  p = await pub();
-  ok("נעילת השבוע הבא מפרסמת אותו לבד", p.weeks["2026-09-27"] && p.weeks["2026-09-27"][5] === "08:00–11:00", JSON.stringify(p.weeks["2026-09-27"]));
-  ok("והשבוע הנוכחי נשאר בדף (שישי-שבת לא נמחקים)", p.weeks["2026-09-20"][4] === "09:30–13:00" && p.from === "2026-09-20", p.from);
-  ok("אין מערך בתוך מערך", !JSON.stringify(p.weeks).includes("[["));
-
-  // 7א. הדבקת שעות לשבוע (מהפלייר): משמרות קיימות נשמרות עם השיבוצים, והשעות מתפרסמות לבד
+  // 7א. הדבקת שעות לשבוע (מהפלייר): משמרות קיימות נשמרות עם השיבוצים
   await page.evaluate(() => { document.getElementById("hoursTools").open = true; document.getElementById("pasteBox").open = true; });
   await page.waitForTimeout(100);
   const pre = await page.inputValue("#weekPaste");
@@ -242,8 +212,6 @@ try {
   const byDay = [0,1,2,3,4,5,6].map(i => wk.shifts.filter(s => s.day === i).sort((a, b) => a.start.localeCompare(b.start)).map(s => s.start + "–" + s.end).join(", "));
   ok("השעות של השבוע הן בדיוק מה שהודבק", JSON.stringify(byDay) === JSON.stringify(["16:00–19:00", "09:30–12:30, 16:00–19:00", "", "09:30–12:30, 16:00–19:00", "09:30–12:30, 16:00–19:30", "09:00–12:00", "16:00–19:00"]), JSON.stringify(byDay));
   ok("המשמרת של רביעי שמרה את המזהה שלה", wk.shifts.some(s => s.id === "d" && s.day === 3 && s.start === "09:30"));
-  p = await pub();
-  ok("דף העגלה קיבל את השעות החדשות לבד", p.weeks["2026-09-20"][4] === "09:30–12:30, 16:00–19:30" && p.weeks["2026-09-20"][2] === "", JSON.stringify(p.weeks["2026-09-20"]));
   ok("בלי שגיאות בקונסולה", errors.length === 0, errors.slice(0, 2).join(" | "));
 
   // 8. דף העגלה קורא לפי תאריך

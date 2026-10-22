@@ -12,6 +12,10 @@ const STEPS = ["ימים", "זמינות", "שיבוץ", "נעול"];
 
 const scrollTo = (id) => { const n = $(id); if (n && !n.hidden) n.scrollIntoView({ behavior: "smooth", block: "start" }); };
 const click = (sel) => { const n = document.querySelector(sel); if (n && !n.disabled) n.click(); };
+const toLaunch = () => {
+  emit("tab", "shifts");
+  setTimeout(() => { const c = $("launchCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 120);
+};
 const isPlanningWeek = () => ymd(S.weekStart) === ymd(S.__defaultWeek || S.weekStart);
 
 function owner(){
@@ -75,8 +79,8 @@ function owner(){
   const { done, total } = weekProgress();
   if (!launched) return {
     step: 3, title: "השבוע נעול",
-    sub: "השעות מתפרסמות לבד לדף העגלה ולפייסבוק, תוך שנייה או שתיים.",
-    primary: ["עדכן עכשיו", () => click("#launchBtn")],
+    sub: "השעות מתפרסמות דרך בוט קורטדו בוואטסאפ.",
+    primary: ["לכרטיס השעות", toLaunch],
     ghost: [`קריאייטיב ${done}/${total}`, () => emit("tab", "creative")],
   };
   // גוגל הוא הערוץ שמביא את מי שמחפש "קפה ליד", והיחיד שעדיין נעשה ביד.
@@ -85,10 +89,7 @@ function owner(){
     step: 3, title: "גוגל עוד לא עודכן השבוע",
     sub: "מי שמחפש קפה בדרך לבניאס רואה את גוגל, לא את פייסבוק. 20 שניות.",
     nudge: cur && today >= 4 ? "סוף השבוע מתקרב — שעות שגויות בגוגל שולחות אנשים לעגלה סגורה." : "",
-    primary: ["לעדכן בגוגל", () => {
-      emit("tab", "shifts");
-      setTimeout(() => { const c = $("launchCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 120);
-    }],
+    primary: ["לעדכן בגוגל", toLaunch],
     ghost: [`קריאייטיב ${done}/${total}`, () => emit("tab", "creative")],
   };
 

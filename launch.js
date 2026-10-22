@@ -1,52 +1,16 @@
-// שעות הפתיחה בכל מקום. מאז hoursync.js זה קורה לבד בכל שינוי; הכרטיס
-// הזה מראה איפה כל ערוץ עומד, ומשאיר כפתור "עדכן עכשיו" למקרה שמשהו נכשל.
-import { S, $, el, clear, dm, fromYmd, DAYS, status, copyText, withBusy, api, on } from "./core.js";
+// שעות הפתיחה ללקוחות: רק תצוגה. השעות יוצאות דרך בוט קורטדו, והבוט רושם
+// על מסמך השבוע מה יצא לכל ערוץ (sync). כאן מראים את זה, ולא כותבים שעות.
+import { S, $, el, clear, dm, status, copyText, withBusy, api, on } from "./core.js";
 import { hoursText, wid } from "./shifts.js";
 import * as H from "./hoursync.js";
 
 const GBP_URL = "https://business.google.com/";
 
-/* ===== גוגל, כל עוד אין אישור API =====
-   הערוץ הכי חשוב הוא גם היחיד שנעשה ביד. "מסומן" = מה שסומן בגוגל הוא
-   בדיוק השעות של עכשיו; שינוי שעה אחרי הסימון מחזיר את הנדנוד. */
+/* גוגל: מה שהבוט פרסם שם, או סימון ידני. "מסומן" = מה שבגוגל הוא בדיוק
+   השעות של עכשיו; שינוי שעה אחרי זה מחזיר את הנדנוד. */
 export const googleMarked = () => H.googleFresh(S.week);
-const googleWhen = () => {
-  const t = S.week && S.week.googleAt;
-  return t && t.seconds ? dm(new Date(t.seconds * 1000)) : "";
-};
-/* ===== משוך מגוגל: קוראים, מראים מה ישתנה, ורק באישור מפיצים ===== */
-async function pullGoogle(btn){
-  const box = clear($("googlePlan"));
-  await withBusy(btn, async () => {
-    let r;
-    try { status("launchStatus", "", "קורא את השעות מגוגל…"); r = await H.planFromGoogle(); }
-    catch (e){ status("launchStatus", "bad", e.message); return; }
-    if (!r.changes){
-      await Promise.all(r.plan.map(w => H.markGoogle(w.id).catch(() => {})));
-      status("launchStatus", "ok", "השעות כבר זהות למה שכתוב בגוגל. אין מה לעדכן.");
-      render(); return;
-    }
-    status("launchStatus", "", "");
-    const list = el("div", { class: "gplan" });
-    for (const w of r.plan) for (const x of w.rows)
-      list.append(el("div", { class: "gplanrow" },
-        el("b", { text: `${DAYS[x.day]} ${dm(fromYmd(x.date))}` }),
-        el("span", { class: "mono", text: x.to.length ? x.to.join(", ") : "סגור" }),
-        el("span", { class: "small", text: "עכשיו: " + (x.from.length ? x.from.join(", ") : "סגור") })));
-    box.append(el("p", { class: "small", text: `בגוגל כתוב אחרת ב-${r.changes} ימים:` }), list,
-      el("div", { class: "actions" },
-        el("button", { class: "primary", text: "עדכן את הדף", onclick: (e) => withBusy(e.currentTarget, async () => {
-          try {
-            await H.applyFromGoogle(r.plan);
-            clear(box);
-            status("launchStatus", "ok", "עודכן לפי גוגל. דף הנחיתה מתעדכן עכשיו.");
-          } catch { status("launchStatus", "bad", "לא נשמר. רק המנהל יכול."); }
-        }) }),
-        el("button", { text: "ביטול", onclick: () => clear(box) })));
-  });
-}
 
-const LABEL = { page: "דף הנחיתה", google: "גוגל" };
+const LABEL = { page: "דף הנחיתה", facebook: "פייסבוק", google: "גוגל" };
 
 function row(key, state, note, actions){
   const icon = { ok: "✅", manual: "📋", fail: "⚠️", pending: "…" }[state] || "…";
@@ -59,52 +23,38 @@ function row(key, state, note, actions){
   return r;
 }
 
-/** מצב כל ערוץ, מתוך מה שנרשם על מסמך השבוע — לא מתוך לחיצה אחרונה. */
-function channels(){
-  const st = H.stateOf(wid(), S.week), sync = st.sync;
-  const when = sync && sync.at && sync.at.seconds ? " · " + new Date(sync.at.seconds * 1000).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) : "";
-  if (st.pending) return { page: ["pending", "מתעדכן…"], google: googleRow() };
-  const stale = st.dirty;
-  const page = !sync ? ["pending", st.live ? "יתעדכן לבד עוד רגע." : "יתעדכן לבד כשהשבוע יינעל. אפשר גם עכשיו."]
-    : stale ? ["fail", "השעות השתנו מאז העדכון האחרון. לחץ \"עדכן עכשיו\"."]
-    : sync.page === "ok" ? ["ok", "מעודכן" + when] : ["fail", sync.page];
-  return { page, google: googleRow() };
-}
-function googleRow(){
-  return googleMarked()
-    ? ["ok", `סומן כמעודכן${googleWhen() ? " ב-" + googleWhen() : ""}.`]
-    : ["manual", "שינית שעות בגוגל? \"משוך מגוגל\" מעדכן מכאן את דף הנחיתה."];
+/** מה הבוט רשם לכל ערוץ. "skip"/"manual"/"dry" אינם תקלה — פשוט לא יצא אוטומטית. */
+function channel(sync, key){
+  const v = sync && sync[key];
+  const when = sync && sync.at && sync.at.seconds ? " · " + dm(new Date(sync.at.seconds * 1000)) : "";
+  if (!v) return ["pending", "עוד לא פורסם."];
+  if (v === "ok") return ["ok", "מעודכן" + when];
+  if (v === "skip" || v === "manual" || v === "dry") return ["manual", "לא יצא אוטומטית."];
+  return ["fail", v];
 }
 
 function render(){
   const box = $("launchList"); if (!box) return;
   clear(box);
-  const ch = channels();
-  for (const key of ["page","google"]){
-    const [state, note] = ch[key];
+  const sync = S.week && S.week.sync;
+  for (const key of ["page", "facebook", "google"]){
+    let [state, note] = channel(sync, key);
     let actions = null;
     if (key === "page")
       actions = el("div", { class: "actions" },
         el("a", { class: "btn", href: "cafe/#visit", target: "_blank", rel: "noopener", text: "פתח את דף הנחיתה" }));
-    // גוגל היא המקור: משנים שם, ו"משוך מגוגל" מפיץ לדף. זה גם מסמן את גוגל כמעודכנת.
-    if (key === "google")
-      actions = el("div", { class: "actions" },
-        state === "manual" ? el("button", { text: "העתק שעות", onclick: (e) => copyText(hoursText(), e.currentTarget, "העתק שעות") }) : null,
-        el("a", { class: "btn", href: GBP_URL, target: "_blank", rel: "noopener", text: "פתח גוגל" }),
-        el("button", { class: "primary", text: "משוך מגוגל", onclick: (e) => pullGoogle(e.currentTarget) }));
+    if (key === "google"){
+      if (googleMarked()){ if (state !== "ok") [state, note] = ["ok", "סומן כמעודכן."]; }
+      // אם הבוט לא הגיע לגוגל: מעתיקים, מעדכנים שם ביד, ומסמנים — כמו בכרטיס "היום".
+      else actions = el("div", { class: "actions" },
+        el("button", { text: "העתק ופתח גוגל", onclick: async (e) => {
+          window.open(GBP_URL, "_blank", "noopener");
+          await copyText(hoursText(), e.currentTarget, "העתק ופתח גוגל");
+          try { await H.markGoogle(wid(), S.week); } catch {}
+        } }));
+    }
     box.append(row(key, state, note, actions));
   }
-}
-
-/* ===== עדכון ידני — למקרה שמשהו נכשל, או לשבוע הבא לפני שננעל ===== */
-async function launch(btn){
-  await withBusy(btn, async () => {
-    if (!S.week){ status("launchStatus", "warn", "אין עוד משמרות בשבוע הזה."); return; }
-    const out = await H.publish(wid(), S.week).catch((e) => ({ page: e.message }));
-    if (!out){ status("launchStatus", "warn", "כבר מתעדכן, או שאין עוד שבוע."); return; }
-    status("launchStatus", out.page === "ok" ? "ok" : "bad", out.page === "ok" ? "עודכן." : out.page);
-    render();
-  });
 }
 
 /* ===== חיבור עמוד פייסבוק, פעם אחת =====
@@ -122,7 +72,7 @@ async function fbSetup(btn, pageId){
       if (!pages.length){ $("fbSetupOut").textContent = "לא נמצאו עמודים בחשבון הזה."; return; }
       if (r.saved){
         $("fbUserToken").value = "";
-        status("launchStatus", "ok", `העמוד "${r.saved.name}" מחובר${r.saved.ig ? " · אינסטגרם @" + r.saved.ig : ""}. שעות ופרסום יוצאים מעכשיו — לחץ "שגר".`);
+        status("launchStatus", "ok", `העמוד "${r.saved.name}" מחובר${r.saved.ig ? " · אינסטגרם @" + r.saved.ig : ""}.`);
         $("fbConnect").open = false;
         return;
       }
@@ -161,11 +111,8 @@ async function fbStatus(btn){
 export function init(){
   const fb = $("fbSetup"); if (fb) fb.addEventListener("click", (e) => fbSetup(e.currentTarget));
   const fs = $("fbStatus"); if (fs) fs.addEventListener("click", (e) => fbStatus(e.currentTarget));
-  const btn = $("launchBtn");
-  if (btn) btn.addEventListener("click", (e) => launch(e.currentTarget));
   render();
   on("week", render);
   on("weekchanged", render);
   on("hoursync", render);
-  on("locked", () => status("launchStatus", "ok", "השבוע ננעל. השעות מתפרסמות לבד."));
 }
