@@ -1,0 +1,17 @@
+{
+  "intro": true,
+  "hook": "ככה מתחיל בוקר בצפון",
+  "scenes": [
+    {"media": "2026-10-27/reel-boker/hermon-golan.jpg", "dur": 2.5},
+    {"media": "2026-10-27/reel-boker/pines-sun.jpg", "text": "שמש בין האורנים", "dur": 2.0},
+    {"media": "2026-10-27/reel-boker/dew.jpg", "text": "טל על הדשא", "dur": 2.0},
+    {"media": "toolkit/assets/photos/lawn.jpg", "text": "הדשא בשניר", "dur": 2.0},
+    {"media": "toolkit/assets/photos/hero.jpg", "text": "כוס אחרי כוס", "dur": 2.5},
+    {"media": "toolkit/assets/photos/cortado-lawn.jpg", "text": "ואנחנו לא ממהרים", "dur": 2.5}
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 11,
+  "music": "drive",
+  "motion": "push"
+}
