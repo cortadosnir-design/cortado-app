@@ -1,6 +1,6 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
-<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?, pos?}.
+<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?, pos?, more?}.
      Paths are relative to this file. Everything inside y 250–1670 (app chrome above and below). -->
 <style>
 html,body{height:1920px}
@@ -18,6 +18,11 @@ html,body{height:1920px}
 .card .k{color:#A9592F;font-weight:700;font-size:34px}
 .card .n{font-weight:900;font-size:120px;line-height:1.05;color:var(--cart);white-space:nowrap;overflow:hidden;padding:0 36px}
 .card .l{font-size:34px;color:var(--espresso)}
+.card .m{font-size:30px;color:var(--espresso);opacity:.85;margin-top:6px}
+.card .m[hidden]{display:none}
+.tall .fl{height:770px}
+.tall .logo{top:960px}
+.tall .card{top:1150px;height:305px}
 .card .l.em{font-size:42px;font-weight:800;color:#A9592F}
 .ribbon{top:1478px;font-size:44px}
 .socials{top:1566px;bottom:auto}
@@ -28,7 +33,7 @@ html,body{height:1920px}
 <div class="fl"><img id="photo" alt=""></div>
 <div class="logo" id="logo" hidden><img alt=""></div>
 <div class="sticker"><span>שותפים<br>ליום<br>הבוחר</span></div>
-<div class="card"><div class="k">השותפים שלנו ליום הבוחר</div><div class="n" id="name"></div><div class="l" id="line"></div></div>
+<div class="card"><div class="k">השותפים שלנו ליום הבוחר</div><div class="n" id="name"></div><div class="l" id="line"></div><div class="m" id="more" hidden></div></div>
 <div class="ribbon">נתראה בעגלה ביום הבוחר</div>
 <div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
 <div class="foot r">שלישי 27.10 · קיבוץ שניר · על הדשא ליד המרכולית</div>
@@ -40,6 +45,7 @@ document.getElementById("name").textContent = p.name || "";
 const n = document.getElementById("name"); // long names shrink to fit the card, measured once the font is in
 document.fonts.ready.then(() => { for (let f = 116; n.scrollWidth > n.clientWidth && f >= 64; f -= 4) n.style.fontSize = f + "px"; });
 document.getElementById("line").textContent = p.line || "";
+if (p.more) { const m = document.getElementById("more"); m.hidden = false; m.textContent = p.more; document.body.classList.add("tall"); } // a second, smaller line
 if (p.em) document.getElementById("line").classList.add("em"); // the one thing the partner asked to stress
 if (p.logo) { const l = document.getElementById("logo"); l.hidden = false; l.querySelector("img").src = p.logo; }
 </script>
