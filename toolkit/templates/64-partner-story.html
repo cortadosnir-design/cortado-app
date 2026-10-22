@@ -1,6 +1,6 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
-<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?}.
+<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?, pos?}.
      Paths are relative to this file. Everything inside y 250–1670 (app chrome above and below). -->
 <style>
 html,body{height:1920px}
@@ -35,6 +35,7 @@ html,body{height:1920px}
 <script>
 const p = (window.HOURS || {}).partner || {};
 document.getElementById("photo").src = p.photo || "";
+if (p.pos) document.getElementById("photo").style.objectPosition = p.pos; // which part of a tall photo stays in the frame
 document.getElementById("name").textContent = p.name || "";
 const n = document.getElementById("name"); // long names shrink to fit the card, measured once the font is in
 document.fonts.ready.then(() => { for (let f = 116; n.scrollWidth > n.clientWidth && f >= 64; f -= 4) n.style.fontSize = f + "px"; });
