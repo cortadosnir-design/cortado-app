@@ -1714,12 +1714,10 @@ async function setFacebookHours(env, b){
 
 /* ===== שעות מהבוט (בוט קורטדו, עוזר הוואטסאפ של הבעלים) =====
    הבעלים שולח לבוט את לו"ז השבוע ומאשר ב"כן"; הבוט שולח לכאן שעות לשבעה ימים.
-   כאן קורה מה ש-hoursync.js עושה בדפדפן של מנהל מחובר, רק בלי דפדפן: השעות
-   נכתבות כ-hoursOverride על מסמך השבוע (המשמרות והשיבוצים לא זזים), מתפרסמות
-   ל-public/hours (דף הנחיתה) ולפייסבוק, ו-sync.sig נרשם כדי שאפליקציה פתוחה
-   לא תפרסם שוב את אותו דבר.
-   הפורמטים (מסמך השעות, הטקסט, החתימה) חייבים להישאר זהים ל-shifts.js
-   ול-hoursync.js. tests/worker.mjs נופל אם הם נפרדים. */
+   זה הכותב היחיד של שעות הפתיחה: השעות נכתבות כ-hoursOverride על מסמך השבוע,
+   מתפרסמות ל-public/hours (דף העגלה), לפייסבוק ולגוגל, ו-sync נרשם עם מה שיצא.
+   דף העגלה (cafe/cafe.js) והאפייה (.github/scripts/bake-hours.mjs) קוראים את
+   public/hours בצורה הזו; tests/hours.mjs נופל אם הם נפרדים. */
 const BOT_DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const FB_DAY = ["sun","mon","tue","wed","thu","fri","sat"];
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -1757,7 +1755,7 @@ function botPlan(b, today){
   const days = pairs.map(list => list.map(([a, z]) => `${a}–${z}`));
   return {
     week, cur, pairs, days,
-    sig: JSON.stringify(days),   // זהה ל-sigOf ב-hoursync.js
+    sig: JSON.stringify(days),
     override: Object.fromEntries(days.map((r, i) => [String(i), r.length ? { ranges: r } : { closed: true }])),
     doc: { week: "w" + week, from: week, to: plusDays(week, 6),
       range: `${dmOf(week)} – ${dmOf(plusDays(week, 6))}`,

@@ -1,18 +1,8 @@
-/* דף השעות הציבורי: מה שנכתב, ומה שהדף קורא.
-
-   הבדיקה הזו נולדה מבאג אמיתי שהמשתמש ראה במסך: "דף הנחיתה — העדכון
-   נכשל. נסה שוב." בכל שיגור, מאז שהדף נולד. הסיבה לא הייתה הרשאות ולא
-   רשת: המסמך הכיל `days` כמערך של מערכים, ו-Firestore דוחה מערך בתוך
-   מערך עוד לפני שהבקשה יוצאת ("Nested arrays are not supported").
-   ה-Firestore המזויף של הבדיקות לא אוכף את זה, ולכן הבדיקה כאן אוכפת
-   בעצמה — על המסמך שהקוד האמיתי מייצר.
-
-   בנוסף, הכותב והקורא היו בשני פורמטים שונים: דף השעות הישן חיפש מפה
-   בשם `hours` שאיש לא כתב, ולכן גם שיגור שהיה מצליח היה מצייר "סגור"
-   בכל יום. היום הקורא הוא דף הנחיתה, cafe/cafe.js. */
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
+/* דף העגלה (cafe/): מה שהוא מצייר מ-public/hours, והשעות שנאפות ל-HTML.
+   את המסמך כותב רק השרת (botPlan/botHours); tests/worker.mjs בודק את הצורה שלו.
+   כאן מוודאים שהקורא מבין בדיוק את הצורה הזו: מחרוזת לכל יום, בלי מערך בתוך מערך. */
+import { readFileSync, existsSync } from "fs";
 import { spawn } from "child_process";
-import { buildFullCore } from "./fullcore.mjs";
 let chromium;
 try { ({ chromium } = await import("playwright")); }
 catch { ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs")); }
@@ -20,18 +10,10 @@ catch { ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/in
 const ROOT = new URL("..", import.meta.url).pathname;
 const PORT = process.env.HOURS_PORT || 8904;
 
-buildFullCore();
-writeFileSync(ROOT + "hourstest.html", readFileSync(ROOT + "index.html", "utf8")
-  .replace("</head>", `<script type="importmap">{"imports":{"/core.js":"/tests/stubs/core-full.js"}}</script></head>`));
 const server = spawn("npx", ["--yes", "http-server", ROOT, "-p", String(PORT), "-s"], { cwd: ROOT, stdio: "ignore" });
-const cleanup = () => { try { server.kill(); } catch {} try { unlinkSync(ROOT + "hourstest.html"); } catch {} };
+const cleanup = () => { try { server.kill(); } catch {} };
 await new Promise(r => setTimeout(r, 2500));
 
-const pad = (n) => String(n).padStart(2, "0");
-const t = new Date(), ws = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-ws.setDate(ws.getDate() - ws.getDay());
-if (t.getDay() >= 5) ws.setDate(ws.getDate() + 7);
-const WID = `w${ws.getFullYear()}-${pad(ws.getMonth()+1)}-${pad(ws.getDate())}`;
 
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n + (x ? "  " + x : "")))
@@ -40,81 +22,9 @@ const ok = (n, c, x = "") => c ? (pass++, console.log("  ✓ " + n + (x ? "  " +
 console.log("\n28. דף השעות הציבורי");
 const b = await chromium.launch();
 try {
-  const page = await b.newPage({ viewport: { width: 1200, height: 900 } });
-  const errors = [];
-  page.on("pageerror", e => errors.push(e.message));
-  page.on("dialog", async d => await d.accept());
-  await page.goto(`http://127.0.0.1:${PORT}/hourstest.html`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("#tabs:not([hidden])", { timeout: 10000 });
-  await page.waitForTimeout(400);
-
-  // שבוע נעול: שלישי בוקר וערב, שישי בוקר. שאר הימים סגורים. הבוט פרסם ורשם על השבוע מה יצא.
-  await page.evaluate((WID) => {
-    window.__seed("weeks", WID, { phase: "locked", sync: { page: "ok", facebook: "ok", google: "manual", at: { seconds: 1 } }, shifts: [
-      { id: "s1", day: 2, start: "09:00", end: "12:00", need: 1 },
-      { id: "s2", day: 2, start: "16:00", end: "19:00", need: 1 },
-      { id: "s3", day: 5, start: "09:00", end: "12:00", need: 1 },
-    ] });
-    window.__fire();
-  }, WID);
-  await page.waitForTimeout(1600);
-  ok("האפליקציה לא כותבת את public/hours (רק הבוט)", await page.evaluate(() => !(window.__store.public || {}).hours));
-  ok("כרטיס השעות: הצגה בלבד, בלי \"עדכן עכשיו\" ובלי \"משוך מגוגל\"", await page.evaluate(() =>
-    !document.getElementById("launchBtn") && ![...document.querySelectorAll("#launchList button")].some(b => /משוך|עדכן/.test(b.textContent))));
-  ok("כרטיס השעות אומר שהשעות יוצאות דרך הבוט", await page.evaluate(() => /בוט קורטדו/.test(document.getElementById("launchCard").textContent)));
-
-  // מה מחכה לצאת בבוט: מה שבעתיד מוצג לפי הסדר, מה שעבר לא
-  const q = await page.evaluate(async () => {
-    window.__seed("botqueue", "now", { items: [
-      { kind: "ריל", at: "2099-01-02T10:00", label: "" },
-      { kind: "סטורי", at: "2099-01-01T18:30", label: "elections.png" },
-      { kind: "פוסט", at: "2000-01-01T08:00", label: "ישן" } ] });
-    window.__fire(); await new Promise(r => setTimeout(r, 300));
-    return [...document.querySelectorAll("#botQueue .launchrow")].map(r => r.textContent);
-  });
-  ok("התור של הבוט מוצג בכרטיס השעות, לפי הסדר ובלי מה שעבר", q.length === 2 && /סטורי.*18:30 · elections\.png/.test(q[0]) && /ריל/.test(q[1]), JSON.stringify(q));
-
-  // המסמך שהבוט כותב בנוי כמו hoursDocOf (tests/worker.mjs משווה ביניהם). בונים אותו מהקוד האמיתי.
-  await page.evaluate(async (WID) => {
-    const { hoursDocOf } = await import("/shifts.js");
-    const [y, m, d] = WID.slice(1).split("-").map(Number);
-    window.__store.public = { hours: hoursDocOf(window.__store.weeks[WID], new Date(y, m - 1, d)) };
-  }, WID);
-
-  const res = await page.evaluate(() => {
-    const d = (window.__store.public || {}).hours;
-    // Firestore דוחה מערך בתוך מערך. כאן בודקים בדיוק את זה, כי החנות
-    // המזויפת מקבלת הכול — ובלי הבדיקה הבאג חוזר בשקט.
-    const nested = (v, path = "") => {
-      if (Array.isArray(v)){
-        for (let i = 0; i < v.length; i++){
-          if (Array.isArray(v[i])) return `${path}[${i}]`;
-          const r = nested(v[i], `${path}[${i}]`); if (r) return r;
-        }
-        return "";
-      }
-      if (v && typeof v === "object" && !v.toDate){
-        for (const k of Object.keys(v)){ const r = nested(v[k], path ? `${path}.${k}` : k); if (r) return r; }
-      }
-      return "";
-    };
-    return { doc: d, nested: d ? nested(d) : "אין מסמך",
-      rows: [...document.querySelectorAll(".launchrow")].map(r => r.className.replace("launchrow ", "") + ":" + r.querySelector("b").textContent) };
-  });
-
-  ok("יש מסמך שעות", !!res.doc, JSON.stringify(res.rows));
-  ok("אין מערך בתוך מערך — Firestore היה דוחה", res.nested === "", "שדה: " + res.nested);
-  ok("דף הנחיתה ופייסבוק: מה שהבוט רשם", res.rows.some(r => r.startsWith("ok:דף הנחיתה")) && res.rows.some(r => r.startsWith("ok:פייסבוק")), res.rows.join(" · "));
-  ok("שורה אחת לכל שבעת הימים", Array.isArray(res.doc.days) && res.doc.days.length === 7, JSON.stringify(res.doc && res.doc.days));
-  ok("כל יום הוא מחרוזת", (res.doc.days || []).every(x => typeof x === "string"), JSON.stringify(res.doc.days));
-  ok("יום עם שתי משמרות מאוחד לשורה אחת", res.doc.days[2] === "09:00–12:00, 16:00–19:00", res.doc.days[2]);
-  ok("יום סגור הוא מחרוזת ריקה", res.doc.days[0] === "" && res.doc.days[6] === "", JSON.stringify(res.doc.days));
-  ok("טווח התאריכים נשמר לכותרת הדף", typeof res.doc.range === "string" && res.doc.range.includes("–"), res.doc.range);
-  ok("גם הטקסט להדבקה נשמר", typeof res.doc.text === "string" && res.doc.text.includes("שעות העגלה"), (res.doc.text || "").slice(0, 30));
-  ok("בלי שגיאות בקונסולה", errors.length === 0, errors.slice(0,2).join(" | "));
-  ok("גם רשימת השעות באפליקציה נעולה לכיוון",
-     await page.evaluate(() => getComputedStyle(document.querySelector("#hours dd")).direction) === "ltr");
-  await page.close();
+  // המסמך כמו שהשרת כותב אותו (botPlan ב-worker/src/index.js; tests/worker.mjs בודק את הצורה):
+  // שלישי בוקר וערב, שישי בוקר, שאר הימים סגורים. מחרוזת לכל יום — Firestore לא מקבל מערך בתוך מערך.
+  const res = { doc: { days: ["", "", "09:00–12:00, 16:00–19:00", "", "", "09:00–12:00", ""], range: "1.1 – 7.1" } };
 
   /* דף הנחיתה (cafe/) — הדף שגוגל מאנדקסת. השעות בו מגיעות מאותו מסמך,
      דרך REST של Firestore בלי SDK; כאן הבקשה נתפסת ומקבלת את המסמך שנכתב. */
@@ -268,7 +178,6 @@ try {
       && fontFiles.every(f => existsSync(ROOT + "cafe/" + f)) && o.fonts.length === 0, fontFiles.filter(f => !existsSync(ROOT + "cafe/" + f)).concat(o.fonts).join(", "));
     const maps = [...src.matchAll(/https:\/\/www\.google\.com\/maps[^"]*/g)].map(m => m[0]);
     ok("כל קישור לגוגל מפות פותח את דף העסק, לא סיכה על קואורדינטות", maps.length >= 4 && maps.every(u => u.includes("query_place_id=")), maps.filter(u => !u.includes("query_place_id=")).join(" "));
-    ok("האפליקציה הפנימית מסומנת noindex, כמו ש-robots.txt אומר", /<meta name="robots" content="noindex/.test(readFileSync(ROOT + "index.html", "utf8")));
   }
   if (process.env.CAFE_SHOT) await cafe.screenshot({ path: process.env.CAFE_SHOT, fullPage: true });
   await cafe.setViewportSize({ width: 390, height: 844 });
@@ -285,8 +194,10 @@ try {
   ok("דף הנחיתה קורא את השדה days", /fields\.days\b/.test(reader));
   ok("דף הנחיתה קורא את הטווח לכותרת", /fields\.range\b/.test(reader));
   ok("hours.html מפנה לדף הנחיתה", /http-equiv="refresh"[^>]*cafe\//.test(readFileSync(ROOT + "hours.html", "utf8")));
-  const writers = ["shifts.js", "launch.js", "hoursync.js", "today.js"].map(f => readFileSync(ROOT + f, "utf8"));
-  ok("שום קובץ באפליקציה לא כותב ל-public/hours", writers.every(src => !/"public", "hours"/.test(src)));
+  // הכתובות הישנות (השורש, דף העובד) מפנות לדף העגלה, ומי שהתקין פעם את האפליקציה מקבל קובץ שמנקה ומסיר את עצמו
+  ok("השורש ו-z.html מפנים לדף העגלה", ["index.html", "z.html"].every(f => /http-equiv="refresh"[^>]*cafe\//.test(readFileSync(ROOT + f, "utf8"))));
+  const sw = readFileSync(ROOT + "sw.js", "utf8");
+  ok("sw.js מוחק את המטמון ומסיר את עצמו", /caches\.delete/.test(sw) && /registration\.unregister\(\)/.test(sw) && !/addEventListener\("fetch"/.test(sw));
 } catch (e){
   fail++; console.log("  ✗ הבדיקה נפלה  " + e.message);
 }

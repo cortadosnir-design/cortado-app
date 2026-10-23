@@ -1,5 +1,4 @@
-# האפליקציה התפעולית (index.html, z.html) מסומנת noindex בעצמה.
-# מה שמיועד לגוגל הוא דף הנחיתה ודף השעות.
+# מה שמיועד לגוגל הוא דף העגלה (cafe/). הכתובות הישנות מפנות אליו.
 User-agent: *
 Allow: /
 Sitemap: https://cortadosnir-design.github.io/cortado-app/sitemap.xml

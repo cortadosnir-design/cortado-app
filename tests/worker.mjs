@@ -142,17 +142,8 @@ if (f2) process.exitCode = 1;
   ok("שעה בלי אפס מוביל נדחית", await bad([["9:00","12:00"]]));
   ok("טווחים חופפים נדחים", await bad([["09:00","13:00"], ["12:00","19:00"]]));
 
-  // הפורמטים חייבים להיות זהים למה שהאפליקציה עצמה כותבת: מריצים את הקוד האמיתי של shifts.js.
-  const read = (file) => readFileSync(new URL("../" + file, import.meta.url), "utf8");
-  const util = read("util.js"), shifts = read("shifts.js");
-  const app = new Function("serverTimestamp", "S",
-    (util.slice(util.indexOf("export const DAYS ="), util.indexOf("export const holidayOn"))
-      + shifts.slice(shifts.indexOf("const parseRange"), shifts.indexOf("export const hoursDoc = ()"))).replace(/^export /gm, "")
-    + "\nreturn { hoursByDayOf, hoursDocOf, fromYmd };")(() => "TS", {});
-  const data = { hoursOverride: plan.override };
-  const theirs = app.hoursDocOf(data, app.fromYmd("2026-10-04")); delete theirs.at;
-  ok("מסמך השעות זהה למה ש-shifts.js כותב", JSON.stringify(theirs) === JSON.stringify(plan.doc), JSON.stringify(plan.doc.days));
-  ok("החתימה זהה ל-sigOf, ולכן אפליקציה פתוחה לא תפרסם שוב", JSON.stringify(app.hoursByDayOf(data)) === plan.sig);
+  // מה שדף העגלה קורא מהמסמך הזה נבדק ב-tests/hours.mjs (מחרוזת לכל יום, בלי מערך בתוך מערך).
+  ok("days במסמך: שבע מחרוזות", plan.doc.days.length === 7 && plan.doc.days.every(x => typeof x === "string"));
 
   // הפרסום עצמו, מול Firestore ומטא מזויפים.
   const run = async ({ env = {}, key = "k".repeat(40), docs = {}, fbFails = false, today, shifts } = {}) => {

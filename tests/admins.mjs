@@ -51,20 +51,10 @@ ok("מחיקה: מנהל רגיל לא יכול להדיח מנהל",
   /allow delete:[\s\S]*?isFounder\(\) \|\| !adminOf\(resource\.data\)/.test(members));
 ok("רשימת שדות סגורה על members", /hasOnly\(\['name','email','photo','admin','at'\]\)/.test(members));
 
-/* ---- הממשק לא מציע מה שהכללים ידחו ---- */
-const ops = read("ops.js");
-ok("כפתור המינוי מוצג למייסד בלבד", /if \(S\.isFounder && !me\)/.test(ops));
-ok("אי אפשר להסיר את עצמך", /const me = S\.me && m\.uid === S\.me\.uid/.test(ops));
-ok("setAdmin כותב עם merge (לא דורס שם ומייל)", /setAdmin[\s\S]*?\{ admin: makeAdmin \}, \{ merge: true \}/.test(ops));
-
 /* ---- השרת בודק את אותו מקור ---- */
 ok("השרת בודק את דגל admin ב-members", /members\/\$\{encodeURIComponent\(uid\)\}/.test(worker));
 ok("השרת מצרף את בדיקת המנהל לבדיקת המייסדים", /ownersOf\(env\)\.includes[\s\S]{0,80}isAdminUid\(env, user\.uid\)/.test(worker));
 ok("בלי FIREBASE_SA השרת נכשל סגור (מייסדים בלבד)", /if \(!env\.FIREBASE_SA \|\| !uid\) return false;/.test(worker));
-
-/* ---- הדפדפן ---- */
-const app = read("app.js");
-ok("app.js מפריד isFounder מ-isOwner", /S\.isFounder = .*FOUNDER_EMAILS/.test(app) && /S\.isOwner = m\.exists\(\) && m\.data\(\)\.admin === true/.test(app));
 
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 process.exit(fail ? 1 : 0);

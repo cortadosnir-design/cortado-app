@@ -1,34 +1,11 @@
 #!/usr/bin/env node
-// מריץ את כל הבדיקות: מרים שרת סטטי, בונה את ה-harness, מריץ, מנקה.
+// מריץ את כל הבדיקות: השרת (worker), בחירת המודל, רשימת המייסדים, ודף העגלה עם השעות.
 //   node tests/run.mjs
 import { spawn } from "child_process";
-import { build, clean } from "./harness.mjs";
 
-const PORT = process.env.PORT || 8899;
 const ROOT = new URL("..", import.meta.url).pathname;
-const run = (cmd, args, env) => new Promise(res =>
-  spawn(cmd, args, { stdio: "inherit", cwd: ROOT, env: { ...process.env, ...env } }).on("close", res));
-
-build();
-const server = spawn("npx", ["--yes", "http-server", ROOT, "-p", String(PORT), "-s"],
-  { cwd: ROOT, stdio: "ignore" });
-await new Promise(r => setTimeout(r, 2500));
+const run = (file) => new Promise(res => spawn("node", [file], { stdio: "inherit", cwd: ROOT }).on("close", res));
 
 let code = 0;
-code |= await run("node", ["tests/ui.mjs"], { PORT });
-code |= await run("node", ["tests/worker.mjs"]);
-code |= await run("node", ["tests/version.mjs"]);
-code |= await run("node", ["tests/sales.mjs"]);
-code |= await run("node", ["tests/mixversion.mjs"]);
-code |= await run("node", ["tests/models.mjs"]);
-code |= await run("node", ["tests/exports.mjs"]);
-code |= await run("node", ["tests/admins.mjs"]);
-code |= await run("node", ["tests/assign.mjs"]);
-code |= await run("node", ["tests/hours.mjs"]);
-code |= await run("node", ["tests/today.mjs"]);
-code |= await run("node", ["tests/a11y.mjs"]);
-code |= await run("node", ["tests/remind.mjs"]);
-
-server.kill();
-clean();
+for (const f of ["tests/worker.mjs", "tests/models.mjs", "tests/admins.mjs", "tests/hours.mjs"]) code |= await run(f);
 process.exit(code ? 1 : 0);
