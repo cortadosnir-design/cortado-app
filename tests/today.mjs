@@ -101,7 +101,7 @@ try {
 
   // 4. הבוט פרסם ורשם על השבוע: כרטיס היום והלוח מתעדכנים מזה
   await page.evaluate((CUR) => {
-    window.__seed("weeks", CUR, { ...window.__store.weeks[CUR], hoursOverride: { "3": { ranges: ["09:30–11:00"] } }, sync: { page: "ok", at: { seconds: 2 } } });
+    window.__seed("weeks", CUR, { ...window.__store.weeks[CUR], hoursOverride: { "3": { ranges: ["09:30–11:00"] }, "4": { ranges: ["09:30–12:30"] } }, sync: { page: "ok", at: { seconds: 2 } } });
     window.__fire();
   }, CUR);
   await page.waitForTimeout(400);
@@ -109,6 +109,7 @@ try {
   ok("אחרי הפרסום של הבוט: עד 11:00", c.big === "עד 11:00", c.big);
   ok("שורת הסנכרון אומרת שללקוחות זה יוצא דרך הבוט", /בוט קורטדו/.test(c.sync), c.sync);
   ok("בלוח המשמרות רואים שהיום שונה ללקוחות", await page.evaluate(() => [...document.querySelectorAll("#board .tov")].some(n => n.textContent.includes("09:30–11:00"))));
+  ok("יום שהבוט רשם בדיוק כמו המשמרות לא מסומן \"שונה\"", await page.evaluate(() => [...document.querySelectorAll("#board .tov, #planner .tov")].every(n => !n.textContent.includes("09:30–12:30"))));
 
   // 5. נשארים עוד, וחזרה לרגיל: גם הם דרך הבוט
   await page.click("#todayCard .todayacts button:has-text('נשארים עוד')");

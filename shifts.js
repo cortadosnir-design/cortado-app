@@ -641,7 +641,14 @@ export function rangesOf(data, day){
   }
   return merged;
 }
-export const overrideOf = (data, day) => (data && data.hoursOverride && data.hoursOverride[day]) || null;
+// חריגה שזהה למשמרות היא לא חריגה: הבוט רושם את כל שבעת הימים בכל פרסום, ובלי זה
+// "שונה ידנית" הופיע כמעט תמיד. מוצג רק יום שבו מה שהלקוח רואה שונה מהמשמרות.
+const dayLine = (data, day) => rangesOf(data, day).map(([a, b]) => `${a}–${b}`).join(", ");
+export function overrideOf(data, day){
+  const ov = data && data.hoursOverride && data.hoursOverride[day];
+  if (!ov) return null;
+  return dayLine(data, day) === dayLine({ ...data, hoursOverride: null }, day) ? null : ov;
+}
 export const hoursByDayOf = (data) => [0,1,2,3,4,5,6].map(i => rangesOf(data, i).map(([a,b]) => `${a}–${b}`));
 // זוגות שעות גולמיים, בפורמט שפייסבוק וגוגל מבקשים
 export const hoursPairsOf = (data) => [0,1,2,3,4,5,6].map(i => rangesOf(data, i).slice(0, 2));
