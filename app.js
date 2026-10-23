@@ -101,7 +101,7 @@ getRedirectResult(auth).catch(() => {});
 
 function startSubs(){
   Shifts.subscribe();
-  if (S.isOwner){ Creative.subscribe(); Sales.subscribe(); Hours.subscribe(); Today.subscribe(); Weekly.subscribe(); }
+  if (S.isOwner){ Creative.subscribe(); Sales.subscribe(); Hours.subscribe(); Launch.subscribe(); Today.subscribe(); Weekly.subscribe(); }
   Ops.subscribe();
 }
 

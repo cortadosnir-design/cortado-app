@@ -47,6 +47,7 @@ export default {
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
+      if (url.pathname === "/queue/bot") return json(await botQueue(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
@@ -1909,6 +1910,18 @@ async function botTeam(env, request){
   const team = (await fsList(env, "roster")).filter(x => x.active !== false && x.name)
     .map(x => ({ name: String(x.name).trim(), phone: String(x.phone || "").replace(/\D/g, "") }));
   return { ok: true, team };
+}
+// מה מחכה לצאת בבוט (סטורי, ריל, פרסום אוטומטי, לו"ז מתוזמן), כדי שהאפליקציה תראה את זה.
+// הבוט שולח רק כשהתור משתנה. נשמר כמו שהוא, אחרי ניקוי: רשימה קצרה של מחרוזות קצרות.
+async function botQueue(env, request){
+  botAuth(env, request);
+  const b = await request.json().catch(() => ({}));
+  if (!Array.isArray(b.items) || b.items.length > 50) throw fail("bad_request", "items צריך להיות רשימה של עד 50.");
+  const clip = (v, n) => String(v || "").slice(0, n);
+  const items = b.items.map(x => ({ kind: clip(x && x.kind, 20), at: clip(x && x.at, 16), label: clip(x && x.label, 120) }))
+    .filter(x => x.kind && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(x.at));
+  await fsPatch(env, "botqueue/now", { items, at: new Date() });
+  return { ok: true, items: items.length };
 }
 async function status(env){
   const out = { gemini: !!env.GEMINI_API_KEY, facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID };

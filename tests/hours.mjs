@@ -63,6 +63,17 @@ try {
     !document.getElementById("launchBtn") && ![...document.querySelectorAll("#launchList button")].some(b => /משוך|עדכן/.test(b.textContent))));
   ok("כרטיס השעות אומר שהשעות יוצאות דרך הבוט", await page.evaluate(() => /בוט קורטדו/.test(document.getElementById("launchCard").textContent)));
 
+  // מה מחכה לצאת בבוט: מה שבעתיד מוצג לפי הסדר, מה שעבר לא
+  const q = await page.evaluate(async () => {
+    window.__seed("botqueue", "now", { items: [
+      { kind: "ריל", at: "2099-01-02T10:00", label: "" },
+      { kind: "סטורי", at: "2099-01-01T18:30", label: "elections.png" },
+      { kind: "פוסט", at: "2000-01-01T08:00", label: "ישן" } ] });
+    window.__fire(); await new Promise(r => setTimeout(r, 300));
+    return [...document.querySelectorAll("#botQueue .launchrow")].map(r => r.textContent);
+  });
+  ok("התור של הבוט מוצג בכרטיס השעות, לפי הסדר ובלי מה שעבר", q.length === 2 && /סטורי.*18:30 · elections\.png/.test(q[0]) && /ריל/.test(q[1]), JSON.stringify(q));
+
   // המסמך שהבוט כותב בנוי כמו hoursDocOf (tests/worker.mjs משווה ביניהם). בונים אותו מהקוד האמיתי.
   await page.evaluate(async (WID) => {
     const { hoursDocOf } = await import("/shifts.js");

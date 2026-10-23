@@ -1,6 +1,6 @@
 // שעות הפתיחה ללקוחות: רק תצוגה. השעות יוצאות דרך בוט קורטדו, והבוט רושם
 // על מסמך השבוע מה יצא לכל ערוץ (sync). כאן מראים את זה, ולא כותבים שעות.
-import { S, $, el, clear, dm, status, copyText, withBusy, api, on } from "./core.js";
+import { S, $, el, clear, dm, status, copyText, withBusy, api, on, db, doc, onSnapshot, track, DAYS, fromYmd } from "./core.js";
 import { hoursText, wid } from "./shifts.js";
 import * as H from "./hoursync.js";
 
@@ -106,6 +106,30 @@ async function fbStatus(btn){
         (r.facebookError ? `\nשגיאה: ${r.facebookError}` : "");
     } catch (e){ $("fbSetupOut").textContent = "שגיאה: " + e.message; }
   });
+}
+
+/* ===== מה מחכה לצאת בבוט =====
+   הבוט שולח לשרת את התור שלו (סטורי, ריל, פרסום אוטומטי, לו"ז מתוזמן) בכל שינוי,
+   והשרת שומר ב-botqueue/now. כאן רק מציגים. */
+let queue = [];
+export function subscribe(){
+  if (!S.isOwner) return;
+  track(onSnapshot(doc(db, "botqueue", "now"), (snap) => { queue = (snap.exists() && snap.data().items) || []; renderQueue(); }, () => {}));
+}
+const localNow = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+function renderQueue(){
+  const box = $("botQueue"); if (!box) return;
+  clear(box);
+  const now = localNow(), items = queue.filter(x => x.at >= now).sort((a, b) => a.at < b.at ? -1 : 1);
+  if (!items.length) return;
+  box.append(el("h3", { text: "מחכה לצאת" }));
+  for (const x of items){
+    const d = fromYmd(x.at.slice(0, 10));
+    box.append(el("div", { class: "launchrow pending" },
+      el("span", { class: "launchicon", text: "🕐" }),
+      el("div", { class: "grow" }, el("b", { text: x.kind }),
+        el("div", { class: "small", text: `${DAYS[d.getDay()]} ${dm(d)} ${x.at.slice(11)}${x.label ? " · " + x.label : ""}` }))));
+  }
 }
 
 export function init(){

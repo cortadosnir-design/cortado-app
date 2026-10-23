@@ -247,6 +247,29 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── התור של הבוט לאפליקציה: רק במפתח של הבוט, מנוקה ── */
+{
+  console.log("\nהתור של הבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botQueue("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw Object.assign(new Error("x"), { status: 403 }); };
+  const wrote = [];
+  const fail = (code, message) => Object.assign(new Error(message), { code });
+  const botQueue = new Function("botAuth", "fsPatch", "fail", wsrc.slice(a, z) + "\nreturn botQueue;")(auth, async (_e, path, body) => wrote.push({ path, body }), fail);
+  const req = (key, body) => new Request("https://x/queue/bot", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify(body) });
+  await botQueue({ BOT_KEY: "k" }, req("k", { items: [{ kind: "סטורי", at: "2026-10-24T18:30", label: "elections.png" }, { kind: "ריל", at: "לא שעה" }, { kind: "x".repeat(50), at: "2026-10-25T10:00", label: "y".repeat(500) }] }));
+  const items = wrote[0] && wrote[0].body.items;
+  ok("נשמר ל-botqueue/now", wrote.length === 1 && wrote[0].path === "botqueue/now");
+  ok("שעה לא תקינה לא נכנסת, ומחרוזות מקוצרות", items.length === 2 && items[0].label === "elections.png" && items[1].kind.length === 20 && items[1].label.length === 120, JSON.stringify(items.map(x => x.kind.length)));
+  let denied = false; try { await botQueue({ BOT_KEY: "k" }, req("nope", { items: [] })); } catch (e){ denied = e.status === 403; }
+  ok("מפתח שגוי: נדחה בלי לכתוב", denied && wrote.length === 1);
+  let tooMany = false; try { await botQueue({ BOT_KEY: "k" }, req("k", { items: Array(51).fill({ kind: "a", at: "2026-10-25T10:00" }) })); } catch (e){ tooMany = e.code === "bad_request"; }
+  ok("יותר מ-50 נדחה", tooMany && wrote.length === 1);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/queue/bot"') > 0 && wsrc.indexOf('"/queue/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── פוסט מהבוט ── */
 {
   console.log("\nפוסט מהבוט");
