@@ -34,7 +34,8 @@ END_DUR, XFADE = 2.8, 0.4                 # closing card, scene push
 DRIVE_BPM = 120                           # the intro is one bar of this; scene durations in half-seconds land every cut on a beat
 INTRO = 4 * 60 / DRIVE_BPM - XFADE        # scene 0 starts pushing in here and settles on the drop
 BANNED = ["כשר", "חוויה", "מוזמנים", "מחכים לכם", "קסום", "מדהים"]
-CHROME = ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"]
+import glob  # any installed Playwright build: the version number changes between sandboxes
+CHROME = [p for p in sorted(glob.glob("/opt/pw-browsers/chromium_headless_shell-*/chrome-*/*headless*shell"), reverse=True) + sorted(glob.glob("/opt/pw-browsers/chromium-*/chrome-linux*/chrome"), reverse=True) if os.access(p, os.X_OK)]
 
 
 # toolkit/SKILL.md: pastry-tray is not for publishing (owner, 10.10.2026); hermon.jpg needs a CC BY-SA credit line

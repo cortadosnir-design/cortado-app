@@ -1,0 +1,17 @@
+{
+  "intro": true,
+  "hook": "יום ירוק בשניר",
+  "scenes": [
+    {"media": "2026-10-27/reel-boker/pines-sun.jpg", "text": "אור בין העצים", "dur": 2.5},
+    {"media": "2026-10-27/reel-boker/dew.jpg", "text": "דשא רך מתחת לרגליים", "dur": 2.5},
+    {"media": "toolkit/assets/photos/lawn.jpg", "text": "צל של אורנים", "dur": 2.5},
+    {"media": "toolkit/assets/photos/coffee-5.jpg", "text": "קפה טרי מהמכונה", "dur": 2.5},
+    {"media": "toolkit/assets/photos/hero.jpg", "text": "ישר מהעגלה", "dur": 2.5},
+    {"media": "2026-10-23/avira/counter-dusk.jpg", "text": "מהדלפק שלנו, אליכם", "dur": 3.5}
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 14,
+  "music": "drive",
+  "motion": "chalk"
+}
