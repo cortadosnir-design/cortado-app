@@ -81,40 +81,42 @@ try {
   ok("שלוש פעולות: סוגרים מוקדם / נשארים עוד", c.buttons.includes("סוגרים מוקדם") && c.buttons.includes("נשארים עוד"), c.buttons.join(" · "));
   ok("שורת הסנכרון מראה מה הבוט פרסם", /דף העגלה ✓/.test(c.sync), c.sync);
 
-  // 3. סוגרים מוקדם: שתי נגיעות
+  // 3. סוגרים מוקדם: שתי נגיעות, והשינוי נפתח בצ'אט עם בוט קורטדו (הבוט מפרסם אחרי "כן")
+  await page.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(decodeURIComponent(String(u))); return null; }; });
+  const opened = () => page.evaluate(() => window.__opened.slice());
   await page.click("#todayCard .todayacts button:has-text('סוגרים מוקדם')");
   c = await card();
   ok("השעות לסגירה: עכשיו, ואז כל חצי שעה עד הסגירה", c.chips.join(",") === "עכשיו,11:00,11:30,12:00", c.chips.join(","));
   await page.click("#todayCard .tchips button:has-text('11:00')");
   await page.waitForTimeout(300);
+  ok("נפתח צ'אט עם הבוט, עם היום והשעות", (await opened()).some(u => u.startsWith("https://wa.me/15556354769?text=") && u.includes("רביעי 23.9: 09:30–11:00")), (await opened()).join(" | "));
   let w = await week(CUR);
-  ok("נשמר כחריגה ליום, בלי לגעת במשמרת", JSON.stringify(w.hoursOverride) === '{"3":{"ranges":["09:30–11:00"]}}' && w.shifts.find(s => s.id === "d").end === "12:30",
-     JSON.stringify(w.hoursOverride));
+  ok("האפליקציה לא כותבת שעות על השבוע, והמשמרת לא זזה", !w.hoursOverride && w.shifts.find(s => s.id === "d").end === "12:30", JSON.stringify(w.hoursOverride));
   ok("השיבוץ של דנה לא נמחק", await page.evaluate((k) => !!(window.__store.signups || {})[k], `${CUR}_d_t1`));
   c = await card();
-  ok("המסך מתעדכן מיד: עד 11:00", c.big === "עד 11:00", c.big);
-  ok("הודעה עם \"בטל\"", /11:00/.test(c.toast) && /בטל/.test(c.toast), c.toast);
+  ok("ההודעה אומרת שזה מחכה ל\"כן\" בבוט", /11:00/.test(c.toast) && /בוט/.test(c.toast), c.toast);
   ok("וואטסאפ מוכן לדנה, עם השעה", c.wa.some(h => h.includes("972501111111") && decodeURIComponent(h).includes("11:00")), c.wa.join(" "));
   ok("בלי חלון \"אתה בטוח?\"", dialogs.length === 0, dialogs.join(" | "));
-  await page.waitForTimeout(1800);
-  ok("שורת הסנכרון אומרת שללקוחות זה יוצא דרך הבוט", /בוט קורטדו/.test((await card()).sync), (await card()).sync);
   ok("ועדיין לא נכתב public/hours", await pub() === null);
+
+  // 4. הבוט פרסם ורשם על השבוע: כרטיס היום והלוח מתעדכנים מזה
+  await page.evaluate((CUR) => {
+    window.__seed("weeks", CUR, { ...window.__store.weeks[CUR], hoursOverride: { "3": { ranges: ["09:30–11:00"] } }, sync: { page: "ok", at: { seconds: 2 } } });
+    window.__fire();
+  }, CUR);
+  await page.waitForTimeout(400);
+  c = await card();
+  ok("אחרי הפרסום של הבוט: עד 11:00", c.big === "עד 11:00", c.big);
+  ok("שורת הסנכרון אומרת שללקוחות זה יוצא דרך הבוט", /בוט קורטדו/.test(c.sync), c.sync);
   ok("בלוח המשמרות רואים שהיום שונה ללקוחות", await page.evaluate(() => [...document.querySelectorAll("#board .tov")].some(n => n.textContent.includes("09:30–11:00"))));
 
-  // 4. בטל מחזיר בדיוק את מה שהיה
-  await page.click("#todayCard .todaytoast button:has-text('בטל')");
-  await page.waitForTimeout(1900);
-  w = await week(CUR);
-  ok("בטל מוחק את החריגה", !w.hoursOverride || !w.hoursOverride["3"], JSON.stringify(w.hoursOverride));
-
-  // 5. נשארים עוד
+  // 5. נשארים עוד, וחזרה לרגיל: גם הם דרך הבוט
   await page.click("#todayCard .todayacts button:has-text('נשארים עוד')");
-  await page.click("#todayCard .tchips button:has-text('עד 13:30')");
-  await page.waitForTimeout(1900);
-  ok("נשארים עוד שעה: 09:30–13:30", await ovOf(3) === '{"ranges":["09:30–13:30"]}', await ovOf(3));
+  await page.click("#todayCard .tchips button:has-text('עד 12:00')");
+  ok("נשארים עוד שעה: נשלח לבוט 09:30–12:00", (await opened()).some(u => u.includes("רביעי 23.9: 09:30–12:00")), (await opened()).at(-1));
   await page.click("#todayCard .tov button:has-text('חזרה לרגיל')");
-  await page.waitForTimeout(1900);
-  ok("\"חזרה לרגיל\" בלחיצה אחת", await ovOf(3) === "", await ovOf(3));
+  ok("\"חזרה לרגיל\": נשלח לבוט", (await opened()).at(-1).includes("רביעי 23.9: 09:30–12:30 (לפי המשמרות)"), (await opened()).at(-1));
+  ok("ושום דבר לא נכתב על השבוע", await ovOf(3) === '{"ranges":["09:30–11:00"]}', await ovOf(3));
 
   // 5ב. מישהו לא מגיע: שתי נגיעות להוריד, נגיעה אחת לשבץ מחליף
   await page.click("#todayCard .todayacts button:has-text('מישהו לא מגיע')");
@@ -129,7 +131,7 @@ try {
   ok("יואב משובץ לאותה משמרת, באותו פורמט כמו שיבוץ ידני", await page.evaluate((k) => { const d = (window.__store.signups || {})[k]; return !!d && d.token === "t2" && d.shift === "d"; }, `${CUR}_d_t2`));
   c = await card();
   ok("המסך מראה את יואב בעגלה", /יואב/.test(c.line) && !/דנה/.test(c.line), c.line);
-  ok("השעות לא זזו כשהחלפנו אנשים", await ovOf(3) === "");
+  ok("השעות לא זזו כשהחלפנו אנשים", await ovOf(3) === '{"ranges":["09:30–11:00"]}');
 
   // 5ג. שעות קבועות: נערכות באפליקציה
   await page.evaluate(() => { document.getElementById("hoursTools").open = true; document.getElementById("regBox").open = true; });

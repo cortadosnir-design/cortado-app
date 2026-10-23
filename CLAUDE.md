@@ -120,8 +120,9 @@ limormelman@gmail.com
     ואת `openingHoursSpecification`. הריצה הבאה תדרוס אותם.
   - מה שנאפה תמיד מתוארך (`data-week`, `validFrom`/`validThrough`), ו-`cafe.js`
     מוחק בדפדפן שעות של שבוע שעבר. שעות בלי תאריך ב-HTML מפילות את `tests/hours.mjs`.
-  - commit של הרובוט לא מפעיל את `deploy.yml`, ולכן העותק ב-Firebase מקבל את
-    השעות האפויות רק בדחיפה הבאה. הכתובת הקנונית היא GitHub Pages, ושם זה מיידי.
+  - commit של הרובוט לא מפעיל את `deploy.yml` לבד, ולכן `hours.yml` מפעיל אותו
+    במפורש (`gh workflow run`) אחרי כל commit. כך גם העותק ב-Firebase מקבל את השעות
+    האפויות תוך דקות. הכתובת הקנונית היא GitHub Pages.
 
 **אין עותקים כפולים בשורש.** ה-workflows יושבים רק תחת
 `.github/workflows/`, וקוד השרת יושב רק ב-`worker/src/index.js`.

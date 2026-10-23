@@ -3,10 +3,10 @@
 // בעל עגלה לא מתכנן את היום מראש — יורד גשם וסוגרים ב-11:00, מגיעה
 // קבוצת אופניים ונשארים עוד שעה, מישהו חולה ולא פותחים. כל אחד מאלה היה
 // מסע: לגלול לטופס, לבחור שעה מרשימה של 76, לגלול ל"שגר", לאשר חלון.
-// כאן זו נגיעה על הפעולה ונגיעה על השעה. השינוי נשמר כחריגה ליום אחד
-// (hoursOverride) — המשמרות והשיבוצים לא זזים. ללקוחות השעות יוצאות רק דרך בוט קורטדו.
-// אין "אתה בטוח?": יש "בטל" אחרי.
-import { S, db, DAYS, $, el, clear, dm, toMin, fromMin, waLink, copyText, whoOf, on, track,
+// כאן זו נגיעה על הפעולה ונגיעה על השעה, והשינוי נפתח כהודעה מוכנה בצ'אט עם בוט קורטדו.
+// הבוט מכין טיוטה, ואחרי "כן" מפרסם לדף, לפייסבוק ולגוגל — אותה שרשרת כמו כל שינוי שעות.
+// המשמרות והשיבוצים לא זזים.
+import { S, db, DAYS, $, el, clear, dm, toMin, fromMin, waLink, copyText, whoOf, on, track, addDays, fromYmd,
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp, status } from "./core.js";
 import { rangesOf, overrideOf, hoursTextOf, regularHours, parseDayHours } from "./shifts.js";
 import * as H from "./hoursync.js";
@@ -69,15 +69,22 @@ function peopleToday(data, day){
   return [...byName.values()];
 }
 
-async function apply(day, value, msg, workerText){
-  const id = H.currentWid();
-  const data = H.weeks[id];
+/* שינוי שעות יום אחד: נפתח בבוט כהודעה מוכנה. value: { ranges } / { closed } / null = לפי המשמרות,
+   ואז נשלחות השעות עצמן מהמשמרות, כדי שלבוט יהיה מה לפרסם. */
+function hoursLine(value, data, day){
+  if (!value){ const rs = rangesOf({ ...(data || {}), hoursOverride: null }, day); return rs.length ? rs.map(([a, b]) => `${a}–${b}`).join(", ") + " (לפי המשמרות)" : "העגלה סגורה"; }
+  return value.closed ? "העגלה סגורה" : value.ranges.join(", ");
+}
+function toBot(date, value, data){
+  const day = date.getDay();
+  window.open(H.botLink(`שעות הפתיחה ביום ${DAYS[day]} ${dm(date)}: ${hoursLine(value, data, day)}`), "_blank", "noopener");
+}
+function apply(day, value, msg, workerText){
+  const data = H.weeks[H.currentWid()];
   const people = peopleToday(data, day);
-  let prev;
-  try { prev = await H.setOverride(id, day, value); }
-  catch (e){ last = { msg: "לא נשמר: " + (e.code === "permission-denied" ? "רק המנהל יכול." : (e.message || "תקלה")), people: [] }; render(); return; }
+  toBot(new Date(), value, data);   // לפני כל await: דפדפן בטלפון חוסם חלון שנפתח אחרי המתנה
   panel = null;
-  last = { msg, people, text: workerText, undo: async () => { await H.setOverride(id, day, prev); last = { msg: "בוטל. השעות חזרו למה שהיו.", people: [] }; render(); } };
+  last = { msg: msg + " נשלח לבוט: אחרי \"כן\" שם זה יוצא ללקוחות.", people, text: workerText };
   clearTimeout(lastTimer);
   lastTimer = setTimeout(() => { last = null; render(); }, 45000);
   render();
@@ -253,9 +260,7 @@ export function init(){
   on("hoursync", render);
   on("state", render);
   // שבוע שהמנהל שינה בו יום מתוך לוח הניהול (שורת "ללקוחות")
-  on("override", ({ day, value, id }) => {
-    H.setOverride(id, day, value).catch(() => {});
-  });
+  on("override", ({ day, value, id }) => toBot(addDays(fromYmd(id.slice(1)), day), value, H.weeks[id] || S.week));
   // הזמן זז: "פתוח עכשיו" צריך להתחלף ל"סיימנו" בלי רענון.
   setInterval(() => { if (!document.hidden && !panel) render(); }, 60000);
   document.addEventListener("visibilitychange", () => {

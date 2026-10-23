@@ -3,8 +3,9 @@
 // ללקוחות (דף העגלה, פייסבוק, גוגל) השעות יוצאות רק דרך בוט קורטדו
 // (/hours/bot בשרת). הבוט רושם על מסמך השבוע מה יצא (sync, launchedAt,
 // googleAt), והאפליקציה רק מציגה את זה. public/hours סגור לכתיבה מהלקוח.
-import { S, db, addDays, sundayOf, weekId, emit, track,
-  doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from "./core.js";
+import { S, db, addDays, sundayOf, weekId, emit, track, waLink,
+  doc, setDoc, onSnapshot, serverTimestamp } from "./core.js";
+import { BOT_WA } from "./config.js";
 import { hoursByDayOf } from "./shifts.js";
 
 export const weeks = {};         // wid → נתוני השבוע (null = אין מסמך)
@@ -42,23 +43,7 @@ export function subscribe(){
 /** אפליקציה שנשארה פתוחה אחרי מוצאי שבת — עוברים לשבוע החדש. */
 export function refresh(){ if (S.isOwner && subbed && subbed !== currentWid()) subscribe(); }
 
-/* ===== חריגה ליום אחד ===== */
-/** כותב (או מוחק, עם null) חריגת שעות ליום אחד, לאפליקציה ולצוות — ללקוחות זה יוצא רק דרך הבוט.
-    מחזיר את מה שהיה, בשביל "בטל". */
-const dataOf = (id) => weeks[id] !== undefined ? weeks[id] : (id === weekId(S.weekStart) ? S.week : null);
-// setDoc עם merge לא יודע למחוק מפתח בתוך מפה, ולכן המפה נכתבת כולה —
-// updateDoc מחליף את השדה. מסמך שעוד לא קיים (שבוע בלי משמרות) נוצר.
-async function writeOverrides(id, next){
-  const data = dataOf(id);
-  const body = { phase: (data && data.phase) || "availability", hoursOverride: next, updatedAt: serverTimestamp() };
-  if (data) await updateDoc(doc(db, "weeks", id), body);
-  else await setDoc(doc(db, "weeks", id), body, { merge: true });
-}
-export async function setOverride(id, day, value){
-  const data = dataOf(id);
-  const prev = (data && data.hoursOverride && data.hoursOverride[day]) || null;
-  const next = { ...((data && data.hoursOverride) || {}) };
-  if (value) next[String(day)] = value; else delete next[String(day)];
-  await writeOverrides(id, next);
-  return prev;
-}
+/* ===== שינוי שעות: דרך הבוט =====
+   האפליקציה לא כותבת שעות. שינוי (סוגרים מוקדם, חזרה לרגיל) נפתח בצ'אט עם בוט קורטדו
+   כהודעה מוכנה. הבוט מכין טיוטה, ואחרי "כן" מפרסם לדף, לפייסבוק ולגוגל, ורושם על השבוע. */
+export const botLink = (text) => waLink(BOT_WA, text);

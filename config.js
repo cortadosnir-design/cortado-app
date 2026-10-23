@@ -4,7 +4,7 @@
 // גרסת הבנייה. מוצגת בכותרת, וזהה ל-VERSION ב-sw.js (יש בדיקה שמוודאת).
 // **מעלים אותה בכל דחיפה שמשנה קבצים** — אחרת ה-Service Worker לא מתחלף
 // והדפדפן ממשיך להגיש את הגרסה הישנה.
-export const APP_VERSION = "2026-10-22.3";
+export const APP_VERSION = "2026-10-23.1";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD75yNOaZM6prmFAm2iyeLNcgzuQl-gh4Y",
@@ -35,6 +35,8 @@ export const OWNER_EMAILS = FOUNDER_EMAILS;
 
 // כתובת השרת (Cloudflare Worker). ריק = הכפתורים החכמים מוסתרים.
 export const WORKER_URL = "https://cortado-api.cortado-snir.workers.dev";
+// בוט קורטדו בוואטסאפ: שינוי שעות מהאפליקציה נפתח אצלו כהודעה מוכנה, והוא מפרסם אחרי "כן".
+export const BOT_WA = "+15556354769";
 
 // מיקום העגלה, לתחזית מזג האוויר. קואורדינטות מקורבות של קיבוץ שניר.
 // אם התחזית נראית לא מדויקת: פותחים את Google Maps על העגלה, לוחצים ימני

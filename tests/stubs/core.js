@@ -89,6 +89,11 @@ export async function setDoc(ref, body, opts){
 export async function updateDoc(ref, body){ return setDoc(ref, body, { merge: true }); }
 export async function deleteDoc(ref){ delete (store[ref.col] || {})[ref.id]; listeners.slice().forEach(fire); }
 export const track = () => {};
+export function waLink(phone, text){
+  let p = String(phone || "").replace(/[^\d+]/g, "");
+  if (p.startsWith("+")) p = p.slice(1); else if (p.startsWith("0")) p = "972" + p.slice(1);
+  return p.length >= 11 ? `https://wa.me/${p}?text=${encodeURIComponent(text)}` : null;
+}
 const st = new Date(); st.setDate(st.getDate() - st.getDay());
 export const S = { isOwner: true, week: null, roster: [], availability: [], signups: [], weekStart: new Date(st.getFullYear(), st.getMonth(), st.getDate()),
   posts: [], memory: null, timing: null, creative: {}, logs: [], sales: [] };

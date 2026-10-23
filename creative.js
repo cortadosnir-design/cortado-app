@@ -1157,7 +1157,7 @@ async function savePost(newStatus, btn){
       if (newStatus !== "scheduled"){
         Object.assign(body, { igError: "", igPending: false, igSkipped: "" });
       }
-      // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא מצורף בפרסום.
+      // הממוזערת נשמרת כדי שהלוח יהיה ויזואלי. הצילום המלא לא נשמר: פוסטים יוצאים רק דרך הבוט.
       if (composerThumb) body.thumb = composerThumb;
       body.template = ($("cTemplate") && $("cTemplate").value) || "";
       body.headline = ($("cHead") && $("cHead").value.trim().slice(0, 80)) || "";
@@ -1167,12 +1167,6 @@ async function savePost(newStatus, btn){
       if (lastShoot || $("shootHint").textContent) body.shoot = (lastShoot || $("shootHint").textContent.replace(/^מה לצלם: /, "")).slice(0, 200);
       const id = editing || ("p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6));
       await setDoc(doc(db, "posts", id), body, { merge: true });
-      // הצילום המלא יושב במסמך נפרד: הלוח טוען 150 פוסטים, והוא לא צריך
-      // לגרור מאות קילובייט. נמחק ברגע שהפוסט מתפרסם.
-      if (composerPhoto){
-        try { await setDoc(doc(db, "postmedia", id), { image: composerPhoto, at: serverTimestamp() }); }
-        catch { status("compStatus", "warn", "הטקסט נשמר, אבל הצילום המלא לא — פרסום מרוכז יצא בלי תמונה."); }
-      }
       if (aiOrigin && newStatus !== "idea") await learnFromEdit(aiOrigin, text);
       $("cText").value = text;
       editing = id; savedId = id; $("delPost").hidden = false;
