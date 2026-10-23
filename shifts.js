@@ -565,8 +565,30 @@ async function assign(s, c){
   }
 }
 
+/* הסידור נקבע בוואטסאפ עם בוט קורטדו (מי באיזו משמרת). כשהבוט פרסם אותו (botShifts),
+   הלוח מציג אותו כמו שהוא, לקריאה בלבד: משנים בבוט, לא כאן. */
+function renderBotBoard(box, list){
+  const named = list.map((s, k) => ({ ...s, people: botNamesOf(wid(), k) }));
+  for (let i = 0; i < 7; i++){
+    const day = named.filter(s => s.day === i);
+    if (!day.length) continue;
+    const d = addDays(S.weekStart, i), h = holidayOn(d);
+    const col = el("div", { class: "day" });
+    col.append(el("div", { class: "dayhead" }, el("b", { text: DAYS[i] }), el("span", { text: dm(d) })));
+    if (h) col.append(el("div", { class: "hol", text: h[1] + (h[2] ? " · " + h[2] : "") }));
+    for (const s of day)
+      col.append(el("div", { class: "shift " + (s.people.length ? "full" : "") },
+        el("div", { class: "row" }, el("b", { class: "mono", text: `${s.start}–${s.end}` }),
+          s.note || s.open === false ? el("span", { class: "count", text: s.note || "לא שעת פתיחה" }) : null),
+        el("div", { class: "people" }, ...(s.people.length ? s.people.map(n => el("div", { class: "person" }, el("span", { class: "nm", text: n })))
+          : [el("div", { class: "slot", text: "עוד אין משובצת" })]))));
+    box.append(col);
+  }
+}
 function renderBoard(){
   const box = clear($("board"));
+  const bot = botShiftsOf(S.week);
+  if (bot) return renderBotBoard(box, bot);
   const shifts = shiftsOf();
   if (!shifts.length){
     box.append(el("p", { class: "empty", text: S.isOwner ? "הגדר ימים ומשמרות בלוח הניהול למטה." : "המנהל עוד לא קבע את השבוע." }));
@@ -624,6 +646,9 @@ function renderBoard(){
      hoursOverride: { "3": { ranges: ["09:30–11:00"] } }
    הטווחים הם מחרוזות ולא זוגות, כי Firestore לא מקבל מערך בתוך מערך. */
 const parseRange = (r) => String(r).split(/[–-]/).map(x => x.trim());
+// הסידור שהבוט פרסם (שעות בלבד), או null כשאין. השמות ב-S.botPeople[wid], שורה לכל משמרת.
+export const botNamesOf = (id, i) => String(((S.botPeople || {})[id] || [])[i] || "").split(", ").filter(Boolean);
+export const botShiftsOf = (data) => (data && Array.isArray(data.botShifts) && data.botShifts.length) ? data.botShifts : null;
 export function rangesOf(data, day){
   const ov = data && data.hoursOverride && data.hoursOverride[day];
   if (ov){
@@ -631,7 +656,9 @@ export function rangesOf(data, day){
     if (Array.isArray(ov.ranges)) return ov.ranges.map(parseRange)
       .filter(p => p.length === 2 && toMin(p[1]) > toMin(p[0]));
   }
-  const ss = (data && Array.isArray(data.shifts) ? data.shifts : [])
+  // הסידור של הבוט, כשיש, הוא המשמרות האמיתיות. משמרת שאינה שעת פתיחה לא נספרת.
+  const bot = botShiftsOf(data);
+  const ss = (bot ? bot.filter(s => s.open !== false) : data && Array.isArray(data.shifts) ? data.shifts : [])
     .filter(s => s.day === day).sort((a,b) => toMin(a.start) - toMin(b.start));
   const merged = [];
   for (const s of ss){
@@ -755,6 +782,7 @@ function renderPhaseButtons(){
 
 /* ===== חיווט ===== */
 export function init(){
+  on("hoursync", renderBoard);   // השמות מהסידור של הבוט מגיעים במאזין נפרד
   // רשימת העובדים היא הקלט השלישי של autoAdvance, והיא מגיעה ממאזין נפרד ב-ops.
   on("state", () => { autoAdvance().catch(() => {}); boardFollowsRoster(); });
   $("prevWeek").addEventListener("click", () => { emit("weekchange", -7); });

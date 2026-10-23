@@ -8,7 +8,7 @@
 // המשמרות והשיבוצים לא זזים.
 import { S, db, DAYS, $, el, clear, dm, toMin, fromMin, waLink, copyText, whoOf, on, track, addDays, fromYmd,
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp, status } from "./core.js";
-import { rangesOf, overrideOf, hoursTextOf, regularHours, parseDayHours } from "./shifts.js";
+import { rangesOf, overrideOf, hoursTextOf, regularHours, parseDayHours, botShiftsOf, botNamesOf } from "./shifts.js";
 import * as H from "./hoursync.js";
 
 const GBP_URL = "https://business.google.com/";
@@ -58,6 +58,10 @@ const toValue = (rs) => rs.length ? { ranges: str(rs) } : { closed: true };
 
 /** מי עובד היום: שמות, ומי מהם אפשר להגיע אליו בוואטסאפ. */
 function peopleToday(data, day){
+  // הסידור מהבוט: שמות בלבד, הטלפון מרשימת הצוות. אין מסמכי שיבוץ להוריד.
+  const bot = botShiftsOf(data);
+  if (bot) return [...new Set(bot.flatMap((s, k) => s.day === day ? botNamesOf(H.currentWid(), k) : []))]
+    .map(name => { const r = S.roster.find(x => x.name === name); return { name, phone: r && r.phone, docs: [] }; });
   const ids = new Set(((data && data.shifts) || []).filter(s => s.day === day).map(s => s.id));
   const byName = new Map();
   for (const u of signups.filter(x => ids.has(x.shift))){
@@ -134,7 +138,7 @@ export function render(){
   } else {
     acts.append(chip(ended ? "פותחים שוב" : "פותחים היום בכל זאת", toggle("open"), panel === "open" ? "on" : ""));
   }
-  if (people.length && !ended) acts.append(chip("מישהו לא מגיע", toggle("swap"), panel === "swap" ? "on" : ""));
+  if (people.length && !ended && !botShiftsOf(data)) acts.append(chip("מישהו לא מגיע", toggle("swap"), panel === "swap" ? "on" : ""));
   box.append(acts);
 
   if (panel){

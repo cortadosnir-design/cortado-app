@@ -202,6 +202,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── מי באיזו משמרת, מהסידור של הבוט: רק השרת כותב, מנהלים קוראים ──
+    // השעות עצמן על weeks (נקרא לכולם); השמות כאן, כי weeks פתוח לקריאה.
+    match /botpeople/{id} { allow read: if isOwner(); allow write: if false; }
+
     // ── מה מחכה לצאת בבוט: רק השרת כותב (/queue/bot), מנהלים קוראים ──
     match /botqueue/{id} { allow read: if isOwner(); allow write: if false; }
 

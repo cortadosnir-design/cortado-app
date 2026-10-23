@@ -155,7 +155,7 @@ if (f2) process.exitCode = 1;
   ok("החתימה זהה ל-sigOf, ולכן אפליקציה פתוחה לא תפרסם שוב", JSON.stringify(app.hoursByDayOf(data)) === plan.sig);
 
   // הפרסום עצמו, מול Firestore ומטא מזויפים.
-  const run = async ({ env = {}, key = "k".repeat(40), docs = {}, fbFails = false, today } = {}) => {
+  const run = async ({ env = {}, key = "k".repeat(40), docs = {}, fbFails = false, today, shifts } = {}) => {
     const writes = [], fbCalls = [];
     const { botHours } = mk({
       fsGet: async (_e, path) => docs[path] || null,
@@ -169,7 +169,7 @@ if (f2) process.exitCode = 1;
     const curWk = (() => { const t = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
       const x = new Date(t + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x.toISOString().slice(0, 10); })();
     if (!("public/hours" in docs)) docs["public/hours"] = { weeks: { [curWk]: DAYS7.map(d => d.map(r => r.join("–")).join(", ")) } };
-    const req = new Request("https://x/hours/bot", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify({ week: wk, days: DAYS7 }) });
+    const req = new Request("https://x/hours/bot", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify({ week: wk, days: DAYS7, shifts }) });
     let res = null, err = null;
     try { res = await botHours({ BOT_KEY: "k".repeat(40), FIREBASE_SA: "{}", ...env }, req); } catch (e){ err = e; }
     return { res, err, writes, fbCalls, wk };
@@ -181,6 +181,15 @@ if (f2) process.exitCode = 1;
   ok("מעדכן את פייסבוק, בלי ימים סגורים", good.fbCalls.length === 1 && !("sun" in good.fbCalls[0]) && good.fbCalls[0].sat.length === 2);
   ok("רושם חריגה, חתימה ושיגור על מסמך השבוע", !!week && week.fields.sync.sig === plan.sig && week.fields.sync.page === "ok"
     && week.fields.sync.facebook === "ok" && week.fields.launchedAt instanceof Date && week.fields.phase === "availability");
+  ok("בוט בלי סידור לא מוחק את הסידור הקיים", !("botShifts" in week.fields));
+  const withRoster = await run({ shifts: [
+    { day: 6, start: "09:00", end: "13:00", people: [" אלונה ", "", "x".repeat(40)], open: true },
+    { day: 6, start: "13:00", end: "14:00", people: [], open: false, note: "קיפול" },
+    { day: 9, start: "09:00", end: "10:00" }, { day: 1, start: "12:00", end: "10:00" }] });
+  const rw = withRoster.writes.find(w => w.path === "weeks/w" + withRoster.wk).fields.botShifts;
+  const rp = withRoster.writes.find(w => w.path === "botpeople/w" + withRoster.wk);
+  ok("השעות מהסידור על השבוע, מנוקות ובלי שמות (weeks נקרא לכולם)", rw.length === 2 && !("people" in rw[0]) && rw[1].open === false && rw[1].note === "קיפול", JSON.stringify(rw));
+  ok("השמות במסמך נפרד, שורה לכל משמרת", !!rp && rp.fields.people.join("|") === "אלונה, " + "x".repeat(30) + "|", JSON.stringify(rp && rp.fields.people));
   ok("גוגל נשארת ידנית, והטקסט המוכן חוזר", good.res.google === "manual" && /שעות העגלה/.test(good.res.text) && !week.fields.googleAt);
   const noCur = await run({ docs: { "public/hours": null } });
   ok("השבוע הנוכחי לא פורסם: הדף מתעדכן, פייסבוק לא נדרס", noCur.res.page === "ok" && noCur.res.facebook === "skip" && noCur.fbCalls.length === 0);

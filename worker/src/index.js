@@ -1761,6 +1761,14 @@ function botPlan(b, today){
       days: days.map(x => x.join(", ")), text: botHoursText(week, days) },
   };
 }
+// הסידור מהבוט, אחרי ניקוי: עד 40 משמרות, שעה תקינה, עד 12 שמות קצרים.
+function botShiftsOf(list){
+  return list.slice(0, 40).map(s => ({
+    day: Number(s && s.day), start: String(s && s.start || ""), end: String(s && s.end || ""),
+    people: (Array.isArray(s && s.people) ? s.people : []).map(x => String(x).trim().slice(0, 30)).filter(Boolean).slice(0, 12),
+    note: String(s && s.note || "").slice(0, 60), open: !(s && s.open === false),
+  })).filter(s => Number.isInteger(s.day) && s.day >= 0 && s.day <= 6 && HHMM.test(s.start) && HHMM.test(s.end) && s.end > s.start);
+}
 // הבוט מזדהה במפתח משותף. בלי מפתח בשרת: סגור, גם למפתח ריק.
 function botAuth(env, request){
   if (!env.BOT_KEY) throw fail("not_configured", "חסר BOT_KEY בשרת.", 501);
@@ -1826,7 +1834,8 @@ async function publishRolling(env, weeks, today){
 async function botHours(env, request){
   botAuth(env, request);
   const today = ilToday();
-  const p = botPlan(await request.json().catch(() => ({})), today);
+  const body = await request.json().catch(() => ({}));
+  const p = botPlan(body, today);
   const now = new Date();
   const data = await fsGet(env, "weeks/w" + p.week);
   const out = { page: "", facebook: "", google: "" };
@@ -1856,11 +1865,19 @@ async function botHours(env, request){
   else out.facebook = out.google = "skip";
 
   const patch = { hoursOverride: p.override, updatedAt: now, sync: { sig: p.sig, at: now, page: out.page, facebook: out.facebook, google: out.google } };
+  // הסידור נקבע בוואטסאפ עם הבוט, והאפליקציה מציגה אותו. בוט ישן בלי shifts לא מוחק כלום.
+  // השעות על השבוע (נקרא לכולם, דף העובד צריך אותו); השמות במסמך נפרד שרק מנהלים קוראים.
+  const roster = Array.isArray(body.shifts) ? botShiftsOf(body.shifts) : null;
+  if (roster) patch.botShifts = roster.map(({ people, ...s }) => s);
   if (!data) patch.phase = "availability";
   if (out.page === "ok" && !(data && data.launchedAt)) patch.launchedAt = now;
   if (out.google === "ok"){ patch.googleAt = now; patch.googleSig = p.sig; }
   // הרישום על מסמך השבוע הוא הערה, לא הפרסום עצמו. אם הוא נכשל, השעות כבר בחוץ, ואומרים את זה.
-  try { await fsPatch(env, "weeks/w" + p.week, patch); }
+  try {
+    await fsPatch(env, "weeks/w" + p.week, patch);
+    // Firestore לא מקבל מערך בתוך מערך: שורה לכל משמרת, באותו סדר כמו botShifts
+    if (roster) await fsPatch(env, "botpeople/w" + p.week, { people: roster.map(s => s.people.join(", ")), at: now });
+  }
   catch (e){ out.record = hebrew(e.message); }
   return { ok: out.page === "ok", week: p.week, ...out, text: out.text || p.doc.text };
 }

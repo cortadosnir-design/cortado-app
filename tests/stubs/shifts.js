@@ -10,6 +10,8 @@ export const hoursDoc = () => ({ week: "wtest", from: "2026-01-04", to: "2026-01
 // hoursync.js (דרך launch.js) מבקש את הגרסאות הטהורות, שמקבלות נתוני שבוע.
 export const rangesOf = (data, day) => (hoursPairs()[day] || []);
 export const overrideOf = () => null;
+export const botShiftsOf = () => null;
+export const botNamesOf = () => [];
 export const hoursByDayOf = () => hoursByDay();
 export const hoursPairsOf = () => hoursPairs();
 export const hoursTextOf = () => hoursText();

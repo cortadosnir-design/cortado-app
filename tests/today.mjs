@@ -217,6 +217,20 @@ try {
   ok("המשמרת של רביעי שמרה את המזהה שלה", wk.shifts.some(s => s.id === "d" && s.day === 3 && s.start === "09:30"));
   ok("בלי שגיאות בקונסולה", errors.length === 0, errors.slice(0, 2).join(" | "));
 
+  // 7ב. הסידור נקבע בבוט: הלוח וכרטיס היום מציגים אותו, לקריאה בלבד
+  await page.evaluate((CUR) => {
+    window.__seed("weeks", CUR, { ...window.__store.weeks[CUR], botShifts: [
+      { day: 3, start: "09:00", end: "13:00", note: "", open: true },
+      { day: 3, start: "13:00", end: "13:30", note: "קיפול", open: false }] });
+    window.__seed("botpeople", CUR, { people: ["יואב", ""] });
+    window.__fire();
+  }, CUR);
+  await page.waitForTimeout(400);
+  const bb = await page.evaluate(() => ({ text: document.getElementById("board").textContent, buttons: document.querySelectorAll("#board button, #board select").length }));
+  ok("הלוח מציג את הסידור של הבוט, בלי כפתורי שיבוץ", /09:00–13:00/.test(bb.text) && /יואב/.test(bb.text) && /קיפול/.test(bb.text) && bb.buttons === 0, bb.text.slice(0, 80));
+  c = await card();
+  ok("כרטיס היום: מי בעגלה לפי הבוט, בלי \"מישהו לא מגיע\"", /יואב/.test(c.line) && !/דנה/.test(c.line) && !c.buttons.includes("מישהו לא מגיע"), c.line + " | " + c.buttons.join(","));
+
   // 8. דף העגלה קורא לפי תאריך
   const rest = (v) => Array.isArray(v) ? { arrayValue: { values: v.map(rest) } }
     : v && typeof v === "object" ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, rest(x)])) } }

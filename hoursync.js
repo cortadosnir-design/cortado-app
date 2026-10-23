@@ -38,6 +38,11 @@ export function subscribe(){
       weeks[id] = snap.exists() ? snap.data() : null;
       emit("hoursync", id);
     }, () => {}));
+    // מי באיזו משמרת, מהסידור של הבוט: שורה לכל משמרת ב-botShifts, באותו סדר. רק מנהלים קוראים.
+    track(onSnapshot(doc(db, "botpeople", id), (snap) => {
+      S.botPeople = { ...(S.botPeople || {}), [id]: snap.exists() ? (snap.data().people || []) : [] };
+      emit("hoursync", id);
+    }, () => {}));
   }
 }
 /** אפליקציה שנשארה פתוחה אחרי מוצאי שבת — עוברים לשבוע החדש. */
