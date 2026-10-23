@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+# פריסה אחת בכל רגע, לפי הסדר: אחרת פריסה ישנה שמסתיימת אחרונה מחזירה את cafe/index.html לפני האפייה
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest

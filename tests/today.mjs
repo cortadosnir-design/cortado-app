@@ -229,7 +229,23 @@ try {
   const bb = await page.evaluate(() => ({ text: document.getElementById("board").textContent, buttons: document.querySelectorAll("#board button, #board select").length }));
   ok("הלוח מציג את הסידור של הבוט, בלי כפתורי שיבוץ", /09:00–13:00/.test(bb.text) && /יואב/.test(bb.text) && /קיפול/.test(bb.text) && bb.buttons === 0, bb.text.slice(0, 80));
   c = await card();
+  // שורת השמות שייכת לסידור באותו אורך בלבד: סידור חדש עם שמות ישנים לא מציג שמות על המשמרת הלא נכונה
+  await page.evaluate((CUR) => { window.__seed("botpeople", CUR, { people: ["יואב"] }); window.__fire(); }, CUR);
+  await page.waitForTimeout(300);
+  ok("שמות מסידור באורך אחר לא מוצגים", await page.evaluate(() => !/יואב/.test(document.getElementById("board").textContent)));
+  await page.evaluate((CUR) => { window.__seed("botpeople", CUR, { people: ["יואב", ""] }); window.__fire(); }, CUR);
+  await page.waitForTimeout(300);
   ok("כרטיס היום: מי בעגלה לפי הבוט, בלי \"מישהו לא מגיע\"", /יואב/.test(c.line) && !/דנה/.test(c.line) && !c.buttons.includes("מישהו לא מגיע"), c.line + " | " + c.buttons.join(","));
+
+  // שבוע שהבוט פרסם כסגור כולו: הלוח אומר את זה ולא חוזר למשמרות הישנות; "עכשיו" לא נתקע על "בונים את השבוע"
+  await page.evaluate((CUR) => {
+    window.__seed("weeks", CUR, { phase: "availability", botShifts: [], launchedAt: { seconds: 1 } });
+    window.__seed("botpeople", CUR, { people: [] }); window.__fire();
+  }, CUR);
+  await page.waitForTimeout(400);
+  const closedWk = await page.evaluate(() => ({ board: document.getElementById("board").textContent, now: (document.getElementById("now") || {}).textContent || "" }));
+  ok("שבוע סגור מהבוט: \"העגלה סגורה השבוע\" בלוח, בלי המשמרות הישנות", /העגלה סגורה השבוע/.test(closedWk.board) && !/אני לוקח/.test(closedWk.board), closedWk.board.slice(0, 60));
+  ok("\"עכשיו\" לא נתקע על \"בונים את השבוע\" בשבוע של הבוט", !/בונים את השבוע/.test(closedWk.now), closedWk.now.slice(0, 60));
 
   // 8. דף העגלה קורא לפי תאריך
   const rest = (v) => Array.isArray(v) ? { arrayValue: { values: v.map(rest) } }

@@ -568,7 +568,14 @@ async function assign(s, c){
 /* הסידור נקבע בוואטסאפ עם בוט קורטדו (מי באיזו משמרת). כשהבוט פרסם אותו (botShifts),
    הלוח מציג אותו כמו שהוא, לקריאה בלבד: משנים בבוט, לא כאן. */
 function renderBotBoard(box, list){
-  const named = list.map((s, k) => ({ ...s, people: botNamesOf(wid(), k) }));
+  if (!list.length){ box.append(el("p", { class: "empty", text: "העגלה סגורה השבוע." })); return; }
+  // השמות רק למנהלים (botpeople). שבוע שלא נטען (לא הנוכחי ולא הבא) נטען פעם אחת כאן.
+  const id = wid(), known = S.botPeople && id in S.botPeople;
+  if (S.isOwner && !known){
+    S.botPeople = { ...(S.botPeople || {}), [id]: null };
+    getDoc(doc(db, "botpeople", id)).then(s => { S.botPeople = { ...S.botPeople, [id]: s.exists() ? (s.data().people || []) : [] }; renderBoard(); }).catch(() => {});
+  }
+  const named = list.map((s, k) => ({ ...s, people: botNamesOf(id, k, list.length) }));
   for (let i = 0; i < 7; i++){
     const day = named.filter(s => s.day === i);
     if (!day.length) continue;
@@ -580,8 +587,8 @@ function renderBotBoard(box, list){
       col.append(el("div", { class: "shift " + (s.people.length ? "full" : "") },
         el("div", { class: "row" }, el("b", { class: "mono", text: `${s.start}–${s.end}` }),
           s.note || s.open === false ? el("span", { class: "count", text: s.note || "לא שעת פתיחה" }) : null),
-        el("div", { class: "people" }, ...(s.people.length ? s.people.map(n => el("div", { class: "person" }, el("span", { class: "nm", text: n })))
-          : [el("div", { class: "slot", text: "עוד אין משובצת" })]))));
+        S.isOwner ? el("div", { class: "people" }, ...(s.people.length ? s.people.map(n => el("div", { class: "person" }, el("span", { class: "nm", text: n })))
+          : [el("div", { class: "slot", text: "עוד אין משובצת" })])) : null));
     box.append(col);
   }
 }
@@ -646,9 +653,13 @@ function renderBoard(){
      hoursOverride: { "3": { ranges: ["09:30–11:00"] } }
    הטווחים הם מחרוזות ולא זוגות, כי Firestore לא מקבל מערך בתוך מערך. */
 const parseRange = (r) => String(r).split(/[–-]/).map(x => x.trim());
-// הסידור שהבוט פרסם (שעות בלבד), או null כשאין. השמות ב-S.botPeople[wid], שורה לכל משמרת.
-export const botNamesOf = (id, i) => String(((S.botPeople || {})[id] || [])[i] || "").split(", ").filter(Boolean);
-export const botShiftsOf = (data) => (data && Array.isArray(data.botShifts) && data.botShifts.length) ? data.botShifts : null;
+// הסידור שהבוט פרסם (שעות בלבד), או null כשאין. רשימה ריקה = הבוט פרסם שבוע סגור.
+export const botShiftsOf = (data) => (data && Array.isArray(data.botShifts)) ? data.botShifts : null;
+// השמות ב-S.botPeople[wid], שורה לכל משמרת. רשימה באורך אחר שייכת לסידור אחר (כתיבה שנכשלה באמצע) — לא מציגים.
+export function botNamesOf(id, i, n){
+  const rows = (S.botPeople || {})[id];
+  return rows && rows.length === n ? String(rows[i] || "").split(", ").filter(Boolean) : [];
+}
 export function rangesOf(data, day){
   const ov = data && data.hoursOverride && data.hoursOverride[day];
   if (ov){
@@ -746,7 +757,7 @@ export function render(){
     renderHoursList();
   }
   renderPhaseButtons();
-  $("p-shifts").dataset.phase = (!shifts.length && ph !== "locked") ? "setup" : ph;
+  $("p-shifts").dataset.phase = botShiftsOf(S.week) ? "locked" : (!shifts.length && ph !== "locked") ? "setup" : ph;
   emit("state");
 }
 

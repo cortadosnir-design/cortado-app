@@ -60,7 +60,7 @@ const toValue = (rs) => rs.length ? { ranges: str(rs) } : { closed: true };
 function peopleToday(data, day){
   // הסידור מהבוט: שמות בלבד, הטלפון מרשימת הצוות. אין מסמכי שיבוץ להוריד.
   const bot = botShiftsOf(data);
-  if (bot) return [...new Set(bot.flatMap((s, k) => s.day === day ? botNamesOf(H.currentWid(), k) : []))]
+  if (bot) return [...new Set(bot.flatMap((s, k) => s.day === day ? botNamesOf(H.currentWid(), k, bot.length) : []))]
     .map(name => { const r = S.roster.find(x => x.name === name); return { name, phone: r && r.phone, docs: [] }; });
   const ids = new Set(((data && data.shifts) || []).filter(s => s.day === day).map(s => s.id));
   const byName = new Map();

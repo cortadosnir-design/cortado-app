@@ -79,8 +79,9 @@ for (let k = 0; k < 3; k++){
   labels.push(t); await page.waitForTimeout(250);
 }
 ok(labels.join("|") === "בקשה בוואטסאפ|תזכורת בוואטסאפ|תזכורת אחרונה בוואטסאפ", "בקשה → תזכורת → תזכורת אחרונה", labels.join(" | "));
-const count = await page.evaluate((wid) => (window.__store.weeks[wid].reminded || {}).tokBBB, wid);
-ok(count === 3, "נספר על השבוע: 3 ליובל", String(count));
+const rem = await page.evaluate((wid) => window.__store.weeks[wid].reminded || {}, wid);
+ok(Object.values(rem).includes(3), "נספר על השבוע: 3 ליובל", JSON.stringify(rem));
+ok(!JSON.stringify(rem).includes("tokBBB"), "הקוד האישי לא נכתב על מסמך השבוע (הוא פתוח לקריאה לכולם)", JSON.stringify(rem));
 ok(await page.evaluate(() => ![...document.querySelectorAll("#now .remind a.btn.wa")].some(x => /יובל/.test(decodeURIComponent(x.href))) && /מספיק/.test(document.querySelector("#now .remind").textContent)),
   "אחרי 3 אין עוד כפתור ליובל");
 ok(await page.evaluate((wid) => (window.__store.weeks[wid].shifts || []).length === 2 && window.__store.weeks[wid].phase === "availability", wid), "השבוע לא נפגע מהכתיבה");

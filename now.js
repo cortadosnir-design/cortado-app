@@ -1,7 +1,7 @@
 // "עכשיו": השורה הראשונה שרואים. איפה השבוע עומד, ומה הצעד האחד הבא.
 // האפליקציה יודעת איזה יום היום ומה השלב, ומציעה את הפעולה במקום שהמנהלת תחפש אותה.
 import { S, DAYS, $, el, clear, dm, ymd, on, emit } from "./core.js";
-import { phase, shiftsOf, openDays, sentKeys, hasSent } from "./shifts.js";
+import { phase, shiftsOf, openDays, sentKeys, hasSent, botShiftsOf } from "./shifts.js";
 import { weekProgress } from "./creative.js";
 import { googleMarked } from "./launch.js";
 import * as Remind from "./remind.js";
@@ -19,7 +19,8 @@ const toLaunch = () => {
 const isPlanningWeek = () => ymd(S.weekStart) === ymd(S.__defaultWeek || S.weekStart);
 
 function owner(){
-  const ph = phase(), shifts = shiftsOf();
+  // שבוע שהבוט פרסם נקבע בוואטסאפ: הוא נעול מבחינת האפליקציה, גם בלי משמרות בה
+  const ph = botShiftsOf(S.week) ? "locked" : phase(), shifts = shiftsOf();
   const today = new Date().getDay();
   const cur = isPlanningWeek();
   const slots = shifts.reduce((n, s) => n + (s.need || 1), 0);

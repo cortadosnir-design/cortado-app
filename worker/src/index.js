@@ -1056,7 +1056,7 @@ async function cancelPost(env, b){
   }
 
   const out = { deleted: [], failed: [] };
-  for (const pid of [b.fbPostId, b.fbPhotoId].filter(Boolean)){
+  for (const pid of [graphId(b.fbPostId), graphId(b.fbPhotoId)].filter(Boolean)){   // כמו postInsights: רק מזהה של גרף, לא נתיב
     try { await graph(env, String(pid), {}, "DELETE"); out.deleted.push(String(pid)); }
     catch (e){ out.failed.push(hebrew(e.message)); }
   }
@@ -1396,21 +1396,22 @@ async function fsPatch(env, path, fields){
   const r = await fetch(`${fsBase(env)}/${path}?${mask}`, { method: "PATCH",
     headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
     body: JSON.stringify({ fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, toFs(v)])) }) });
-  if (!r.ok) throw fail("firestore", "העדכון ב-Firestore נכשל: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok){ console.error("firestore", r.status, (await r.text()).slice(0, 500)); throw fail("firestore", `העדכון ב-Firestore נכשל (${r.status}).`, 502); }
   return true;
 }
+// גוף שגיאה של Firestore (נתיב הפרויקט, חשבון השירות) הולך ללוג בלבד: הוא היה חוזר למבקש ונרשם על מסמך שבוע ציבורי
 async function fsGet(env, path){
   const tok = await saToken(env);
   const r = await fetch(`${fsBase(env)}/${path}`, { headers: { authorization: "Bearer " + tok } });
   if (r.status === 404) return null;
-  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok){ console.error("firestore", r.status, (await r.text()).slice(0, 500)); throw fail("firestore", `הקריאה מ-Firestore נכשלה (${r.status}).`, 502); }
   const d = await r.json();
   return Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)]));
 }
 async function fsList(env, col){
   const tok = await saToken(env);
   const r = await fetch(`${fsBase(env)}/${col}?pageSize=300`, { headers: { authorization: "Bearer " + tok } });
-  if (!r.ok) throw fail("firestore", "הקריאה מ-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok){ console.error("firestore", r.status, (await r.text()).slice(0, 500)); throw fail("firestore", `הקריאה מ-Firestore נכשלה (${r.status}).`, 502); }
   return ((await r.json()).documents || []).map(d => Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)])));
 }
 async function fsQuery(env, colName, wheres){
@@ -1420,7 +1421,7 @@ async function fsQuery(env, colName, wheres){
   const r = await fetch(`${fsBase(env)}:runQuery`, { method: "POST",
     headers: { authorization: "Bearer " + tok, "content-type": "application/json" },
     body: JSON.stringify({ structuredQuery: { from: [{ collectionId: colName }], where, limit: 50 } }) });
-  if (!r.ok) throw fail("firestore", "השאילתה ב-Firestore נכשלה: " + (await r.text()).slice(0, 200), 502);
+  if (!r.ok){ console.error("firestore", r.status, (await r.text()).slice(0, 500)); throw fail("firestore", `השאילתה ב-Firestore נכשלה (${r.status}).`, 502); }
   const rows = await r.json();
   return rows.filter(x => x.document).map(x => ({
     id: x.document.name.split("/").pop(),

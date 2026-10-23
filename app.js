@@ -154,7 +154,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!user || !S.isMember){
     dropSubs();
-    Object.assign(S, { week: null, availability: [], signups: [], posts: [], team: [], logs: [], members: [], joinReqs: [], creative: {}, sales: [] });
+    Object.assign(S, { week: null, availability: [], signups: [], posts: [], team: [], logs: [], members: [], joinReqs: [], creative: {}, sales: [], botPeople: {} });
     TABS.forEach(t => { const p = $("p-" + t); if (p) p.hidden = true; });
     if (user && !S.isMember){
       try {

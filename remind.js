@@ -22,7 +22,9 @@ export const missing = () => {
   const sent = sentKeys();
   return S.roster.filter(r => r.active !== false && !hasSent(r, sent));
 };
-export const sendsTo = (r) => (S.week && S.week.reminded && S.week.reminded[r.token]) || 0;
+// מסמך השבוע נקרא לכולם (דף העובד), והקוד האישי הוא ההרשאה של העובד — לכן המפתח הוא תמצית שלו, לא הקוד.
+const keyOf = (token) => { let h = 2166136261; for (const c of String(token)) h = Math.imul(h ^ c.codePointAt(0), 16777619) >>> 0; return "r" + h.toString(36); };
+export const sendsTo = (r) => (S.week && S.week.reminded && S.week.reminded[keyOf(r.token)]) || 0;
 
 export function message(r, now = new Date()){
   const d = deadline();
@@ -40,7 +42,7 @@ async function saveWeekFields(patch){
 }
 export const setDeadline = (d) => saveWeekFields({ availBy: localIso(d) });
 async function countSend(r){
-  const reminded = { ...((S.week && S.week.reminded) || {}), [r.token]: sendsTo(r) + 1 };
+  const reminded = { ...((S.week && S.week.reminded) || {}), [keyOf(r.token)]: sendsTo(r) + 1 };
   if (S.week) S.week.reminded = reminded;           // שהכפתור יתעדכן מיד, לפני שה-snapshot חוזר
   await saveWeekFields({ reminded });
 }
