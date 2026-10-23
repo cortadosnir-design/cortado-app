@@ -144,9 +144,9 @@ if (f2) process.exitCode = 1;
 
   // הפורמטים חייבים להיות זהים למה שהאפליקציה עצמה כותבת: מריצים את הקוד האמיתי של shifts.js.
   const read = (file) => readFileSync(new URL("../" + file, import.meta.url), "utf8");
-  const core = read("core.js"), shifts = read("shifts.js");
+  const util = read("util.js"), shifts = read("shifts.js");
   const app = new Function("serverTimestamp", "S",
-    (core.slice(core.indexOf("export const DAYS ="), core.indexOf("export const holidayOn"))
+    (util.slice(util.indexOf("export const DAYS ="), util.indexOf("export const holidayOn"))
       + shifts.slice(shifts.indexOf("const parseRange"), shifts.indexOf("export const hoursDoc = ()"))).replace(/^export /gm, "")
     + "\nreturn { hoursByDayOf, hoursDocOf, fromYmd };")(() => "TS", {});
   const data = { hoursOverride: plan.override };

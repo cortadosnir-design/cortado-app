@@ -94,6 +94,7 @@ export function buildFullCore(){
   const helpers = src.indexOf("/* ===== עזרים ===== */");
   const apiStart = src.indexOf("/* ===== השרת ===== */");
   const apiEnd = src.indexOf("/* ===== מצב משותף ===== */");
-  const out = FAKE_HEAD + "\n" + src.slice(helpers, apiStart) + FAKE_API + "\n" + src.slice(apiEnd);
+  // util.js נטען מהשורש: הנתיב היחסי משתנה כשהקוד עובר ל-tests/stubs
+  const out = FAKE_HEAD + "\n" + src.slice(helpers, apiStart).replace('"./util.js"', '"../../util.js"') + FAKE_API + "\n" + src.slice(apiEnd);
   writeFileSync(ROOT + "tests/stubs/core-full.js", out);
 }

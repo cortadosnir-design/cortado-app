@@ -4,34 +4,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig, OWNER_PHONE } from "./config.js";
-// playbook.js הוא העוגן היחיד לחגים, והוא חסר תלויות — אפשר לייבא אותו
-// כאן בלי לגרור את core.js (שמאתחל אימות ו-Firestore עם התמדה, ודף
-// העובד לא צריך אותם). הרשימה שהייתה כאן כבר סטתה: חסרו בה שלושה חגים,
-// והעובד ראה תגי חג אחרים מאלה שבלוח של המנהלת.
-import { HOLIDAYS } from "./playbook.js";
+// העזרים (ותאריכי החגים) מ-util.js, בלי לגרור את core.js — הוא מאתחל אימות
+// ו-Firestore עם התמדה, ודף העובד לא צריך אותם.
 
-const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+import { DAYS, $, pad, ymd, dm, addDays, sundayOf, toMin, holidayOn, el, clear } from "./util.js";
 
 const db = getFirestore(initializeApp(firebaseConfig));
-const $ = (id) => document.getElementById(id);
-const pad = (n) => String(n).padStart(2, "0");
-const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const dm = (d) => `${d.getDate()}.${d.getMonth()+1}`;
-const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
-const sundayOf = (d) => { const s = new Date(d.getFullYear(), d.getMonth(), d.getDate()); s.setDate(s.getDate()-s.getDay()); return s; };
-const toMin = (t) => { const [h,m] = String(t).split(":").map(Number); return h*60+(m||0); };
-const holidayOn = (s) => HOLIDAYS.find(h => h[0] === s);
-function el(tag, attrs = {}, ...kids){
-  const e = document.createElement(tag);
-  for (const [k,v] of Object.entries(attrs)){
-    if (k === "class") e.className = v;
-    else if (k === "text") e.textContent = v;
-    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
-  }
-  for (const k of kids) if (k != null) e.append(typeof k === "string" ? document.createTextNode(k) : k);
-  return e;
-}
 // וואטסאפ לעגלה, עם ההודעה כבר כתובה. 050… → 97250…
 const waOwner = (text) => {
   let p = String(OWNER_PHONE || "").replace(/[^\d]/g, "");
@@ -40,7 +18,6 @@ const waOwner = (text) => {
 };
 // שעת הסגירה לזמינות, כפי שהמנהלת קבעה (weeks.availBy, זמן מקומי "YYYY-MM-DDTHH:MM").
 const deadline = () => { const s = week && week.availBy; const d = s ? new Date(s) : null; return d && !isNaN(d) ? d : null; };
-const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
 const say = (kind, msg) => { const n = $("zstatus"); n.className = "status " + (kind||""); n.textContent = msg || ""; };
 
 /* הקוד מגיע מה-hash כדי שלא יישלח לשרתים בלוגים של referrer.
