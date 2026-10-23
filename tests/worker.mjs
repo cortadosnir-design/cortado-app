@@ -256,6 +256,34 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── עריכת הצוות מהבוט: הוספה, טלפון, עזיבה ── */
+{
+  console.log("\nעריכת הצוות מהבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botTeamSet("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw Object.assign(new Error("x"), { status: 403 }); };
+  const docs = { "abc": { name: "נגה", phone: "0541111111", active: true } }, wrote = [];
+  const fail = (code, message) => Object.assign(new Error(message), { code });
+  const docId = (v) => { if (!/^[A-Za-z0-9_-]{1,60}$/.test(v)) throw new Error("bad id"); return v; };
+  const b64url = (buf) => Buffer.from(buf).toString("base64url");
+  const set = new Function("botAuth", "fsList", "fsPatch", "fail", "docId", "b64url", wsrc.slice(a, z) + "\nreturn botTeamSet;")(auth,
+    async () => Object.entries(docs).map(([_id, d]) => ({ _id, ...d })), async (_e, path, body) => wrote.push({ path, body }), fail, docId, b64url);
+  const req = (key, body) => new Request("https://x/team/bot/set", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify(body) });
+  const r1 = await set({ BOT_KEY: "k" }, req("k", { name: " נגה ", phone: "054-222-2222" }));
+  ok("עובד קיים: מעדכן את אותו מסמך לפי השם", wrote[0].path === "roster/abc" && wrote[0].body.phone === "0542222222" && !r1.created && !("active" in wrote[0].body), JSON.stringify(wrote[0]));
+  const r2 = await set({ BOT_KEY: "k" }, req("k", { name: "דנה", phone: "0503333333" }));
+  ok("עובד חדש: מסמך חדש, פעיל", r2.created && wrote[1].path.startsWith("roster/") && wrote[1].path !== "roster/abc" && wrote[1].body.active === true);
+  await set({ BOT_KEY: "k" }, req("k", { name: "נגה", active: false }));
+  ok("עזיבה: active=false בלי לגעת בטלפון", wrote[2].body.active === false && !("phone" in wrote[2].body));
+  let bad = false; try { await set({ BOT_KEY: "k" }, req("k", { name: "x", phone: "12" })); } catch (e){ bad = e.code === "bad_request"; }
+  ok("טלפון קצר מדי נדחה", bad && wrote.length === 3);
+  let denied = false; try { await set({ BOT_KEY: "k" }, req("nope", { name: "x" })); } catch (e){ denied = e.status === 403; }
+  ok("מפתח שגוי: נדחה בלי לכתוב", denied && wrote.length === 3);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot/set"') > 0 && wsrc.indexOf('"/team/bot/set"') < wsrc.indexOf("await requireUser(request, env)"));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── התור של הבוט לאפליקציה: רק במפתח של הבוט, מנוקה ── */
 {
   console.log("\nהתור של הבוט");

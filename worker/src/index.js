@@ -47,6 +47,7 @@ export default {
       if (url.pathname === "/hours/bot") return json(await botHours(env, request), cors);
       if (url.pathname === "/hours/refresh") return json(await refreshHours(env, request), cors);
       if (url.pathname === "/team/bot") return json(await botTeam(env, request), cors);
+      if (url.pathname === "/team/bot/set") return json(await botTeamSet(env, request), cors);
       if (url.pathname === "/queue/bot") return json(await botQueue(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
@@ -1412,7 +1413,8 @@ async function fsList(env, col){
   const tok = await saToken(env);
   const r = await fetch(`${fsBase(env)}/${col}?pageSize=300`, { headers: { authorization: "Bearer " + tok } });
   if (!r.ok){ console.error("firestore", r.status, (await r.text()).slice(0, 500)); throw fail("firestore", `הקריאה מ-Firestore נכשלה (${r.status}).`, 502); }
-  return ((await r.json()).documents || []).map(d => Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)])));
+  return ((await r.json()).documents || []).map(d => ({ _id: String(d.name || "").split("/").pop(),
+    ...Object.fromEntries(Object.entries(d.fields || {}).map(([k, v]) => [k, fromFs(v)])) }));
 }
 async function fsQuery(env, colName, wheres){
   const tok = await saToken(env);
@@ -1940,6 +1942,22 @@ async function botQueue(env, request){
     .filter(x => x.kind && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(x.at));
   await fsPatch(env, "botqueue/now", { items, at: new Date() });
   return { ok: true, items: items.length };
+}
+// רשימת הצוות נערכת מהבוט: עובד חדש, טלפון שהשתנה, או עובד שעזב (active=false). מזוהה לפי השם.
+async function botTeamSet(env, request){
+  botAuth(env, request);
+  const b = await request.json().catch(() => ({}));
+  const name = String(b.name || "").trim().replace(/\s+/g, " ").slice(0, 60);
+  if (!name) throw fail("bad_request", "צריך שם.");
+  const phone = b.phone === undefined ? undefined : String(b.phone).replace(/\D/g, "");
+  if (phone !== undefined && phone && (phone.length < 9 || phone.length > 15)) throw fail("bad_request", "מספר טלפון לא תקין.");
+  const found = (await fsList(env, "roster")).find(x => String(x.name || "").trim() === name);
+  const id = found ? found._id : b64url(crypto.getRandomValues(new Uint8Array(15)));
+  const patch = { name, at: new Date() };
+  if (phone !== undefined) patch.phone = phone;
+  if (typeof b.active === "boolean") patch.active = b.active; else if (!found) patch.active = true;
+  await fsPatch(env, "roster/" + docId(id), patch);
+  return { ok: true, created: !found, name, phone: phone ?? found?.phone ?? "", active: patch.active ?? found?.active !== false };
 }
 async function status(env){
   const out = { gemini: !!env.GEMINI_API_KEY, facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID };
