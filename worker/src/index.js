@@ -26,6 +26,7 @@ export default {
       if (url.pathname === "/team/bot/set") return json(await botTeamSet(env, request), cors);
       if (url.pathname === "/queue/bot") return json(await botQueue(env, request), cors);
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
+      if (url.pathname === "/insights/bot") return json(await botInsights(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
       if (url.pathname === "/post/bot/carousel") return json(await botCarousel(env, request), cors);
@@ -1296,6 +1297,20 @@ async function refreshHours(env, request){
 
 // פוסט מהבוט, אחרי "כן" של הבעלים על תצוגה מדויקת. check=true רק אומר מה מחובר, כדי שהתצוגה תגיד את האמת.
 // המסמך ב-posts נכתב לפני הפרסום: בלעדיו התור של אינסטגרם לא יודע מה לפרסם בזמן שנקבע.
+// מסך הבית של מרכז השליטה (24.10.2026): עוקבים, נתונים יומיים, פוסטים וביקורות בקריאה אחת. כל חלק נכשל לבד, בלי להפיל את השאר.
+async function botInsights(env, request){
+  botAuth(env, request);
+  const m = await withMeta(env), today = ilToday(), out = {};
+  const run = async (k, fn) => { try { out[k] = await fn(); } catch (e){ out[k] = { error: hebrew(e.message) }; } };
+  await Promise.all([
+    run("account", () => mcpAccount(m)),
+    run("ig", () => mcpInstagramDaily(m, { since: dayShift(today, -13), until: today })),
+    run("fb", () => mcpFacebookDaily(m, { since: dayShift(today, -13), until: today })),
+    run("posts", () => mcpPosts(m, { since: dayShift(today, -29), until: today })),
+    run("reviews", () => gbReviews(env, { unansweredOnly: true, limit: 10 })),
+  ]);
+  return out;
+}
 async function botPost(env, request){
   botAuth(env, request);
   const b = await request.json().catch(() => ({}));

@@ -36,7 +36,38 @@
     </button>
   </header>
 
-  <main id="v-hours" class="view">
+  <main id="v-home" class="view">
+    <section id="today" class="board today" aria-live="polite"></section>
+    <section class="card">
+      <div class="card-head"><h3>כל הערוצים</h3><span id="sync-sum" class="sum"></span></div>
+      <ul id="sync" class="sync"></ul>
+    </section>
+    <section class="card" id="tasks-card" hidden>
+      <h3>מחכה לאישור שלך</h3>
+      <ul id="tasks" class="tasks"></ul>
+    </section>
+    <section class="card">
+      <div class="card-head"><h3>שינוי שעות</h3>
+        <div class="seg mini" role="tablist" aria-label="יום"><button role="tab" data-qd="0" aria-selected="true" type="button">היום</button><button role="tab" data-qd="1" aria-selected="false" type="button">מחר</button></div>
+      </div>
+      <p id="quick-now" class="quick-now"></p>
+      <div class="quick">
+        <button class="btn" type="button" data-q="close">סגורים</button>
+        <div class="q-time"><button class="btn" type="button" data-q="early">סוגרים ב־</button><input id="q-early" inputmode="numeric" maxlength="5" value="18:00" dir="ltr" autocomplete="off" aria-label="שעת סגירה"></div>
+        <div class="q-time"><button class="btn" type="button" data-q="late">פתוחים עד</button><input id="q-late" inputmode="numeric" maxlength="5" value="20:00" dir="ltr" autocomplete="off" aria-label="פתוחים עד"></div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h3>שיווק</h3><button id="mk-refresh" class="icon-btn" type="button" aria-label="רענון הנתונים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
+      <div id="marketing" class="marketing"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h3>השבוע</h3><button class="link plain" type="button" data-go="hours">עריכה</button></div>
+      <div id="week-strip" class="strip"></div>
+    </section>
+  </main>
+
+  <main id="v-hours" class="view" hidden>
     <div class="weeks" role="tablist" aria-label="שבוע">
       <button role="tab" id="tab-cur" data-week="cur" type="button"></button>
       <button role="tab" id="tab-next" data-week="next" type="button"></button>
@@ -109,7 +140,8 @@
   <footer class="bar">
     <button id="preview-btn" class="btn primary wide" type="button">תצוגה לפני פרסום</button>
     <nav class="nav" aria-label="מסכים">
-      <button type="button" data-view="hours" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>שעות</button>
+      <button type="button" data-view="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>בית</button>
+      <button type="button" data-view="hours"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>שעות</button>
       <button type="button" data-view="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>בתור</button>
       <button type="button" data-view="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>עוד</button>
     </nav>

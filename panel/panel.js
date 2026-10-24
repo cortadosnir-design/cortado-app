@@ -197,9 +197,9 @@ $("paste")?.addEventListener("close", () => {
 
 /* ===== תצוגה ===== */
 let view = "public";
-for (const b of document.querySelectorAll(".seg button")) b.addEventListener("click", () => {
+for (const b of document.querySelectorAll(".seg button[data-view]")) b.addEventListener("click", () => {
   view = b.dataset.view;
-  for (const x of document.querySelectorAll(".seg button")) x.setAttribute("aria-selected", String(x === b));
+  for (const x of document.querySelectorAll(".seg button[data-view]")) x.setAttribute("aria-selected", String(x === b));
   $("pv-public").hidden = view !== "public"; $("pv-team").hidden = view !== "team";
 });
 const hrs = (r) => (r.length ? r.map(([a, b]) => `${a}–${b}`).join(", ") : "סגור");
@@ -208,8 +208,11 @@ const teamText = (wk, list) => `סידור ${range(wk)}\n\n` + DAYS.map((n, d) =
   return mine.length ? mine.map((s) => `${n} ${dm(plusDays(wk, d))} · ${s.start}–${s.end} · ${s.people.join(", ") || "אין משובצים"}${s.open ? "" : " (סטנד ביי)"}`).join("\n") : `${n} ${dm(plusDays(wk, d))} · סגור`;
 }).join("\n");
 
-$("preview-btn")?.addEventListener("click", async () => {
+async function openPreview() {
   const wk = weekId(), list = grid();
+  // התצוגה נפתחת תמיד על מה שהלקוחות יראו
+  view = "public"; $("pv-public").hidden = false; $("pv-team").hidden = true;
+  for (const x of document.querySelectorAll(".seg button[data-view]")) x.setAttribute("aria-selected", String(x.dataset.view === "public"));
   const broken = list.find((s) => !tm(s.start) || !tm(s.end) || s.end <= s.start);
   if (broken) { toast(`${DAYS[broken.day]}: שעה לא תקינה`); return; }
   busy(true); $("preview-btn").classList.add("busy");
@@ -232,7 +235,8 @@ $("preview-btn")?.addEventListener("click", async () => {
     $("publish-btn").disabled = !!p.blocked;
     $("preview").showModal();
   } catch (e) { toast(e.message); } finally { busy(false); $("preview-btn").classList.remove("busy"); }
-});
+}
+$("preview-btn")?.addEventListener("click", openPreview);
 $("pv-close")?.addEventListener("click", () => $("preview").close());
 
 /* ===== פרסום ===== */
@@ -249,6 +253,7 @@ $("publish-btn")?.addEventListener("click", async () => {
     if (r.page === "ok") navigator.vibrate?.(18);
     if (r.page === "ok") { store.del(wk); delete grids[wk]; }
     await load();
+    if (viewNow === "home") loadHome();
   } catch (e) {
     toast(e.message);
     $("publish-btn").classList.remove("busy");
@@ -317,7 +322,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   // חמישי עד שבת: בונים את השבוע הבא. ראשון עד רביעי: את השבוע הזה
   which = [4, 5, 6].includes(new Date().getDay()) ? "next" : "cur";
-  try { await load(); }
+  try { await load(); show("home"); }
   catch (e) {
     if (/לא מורשה/.test(e.message)) { await signOut(auth); $("signin-error").textContent = e.message; return; }
     toast(e.message);
@@ -327,16 +332,18 @@ onAuthStateChanged(auth, async (user) => {
 /* ===== שלושה מסכים: שעות · בתור · עוד. כל מה שהבוט יודע לעשות, ככפתור ===== */
 const act = (action, extra = {}) => call("/panel/do", { action, ...extra });
 let viewNow = "hours";
-const TITLES = { hours: "השבוע בעגלה", queue: "מה יוצא בקרוב", more: "עוד" };
+const greet = () => { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : "ערב טוב"; };
+const TITLES = { home: "", hours: "השבוע בעגלה", queue: "מה יוצא בקרוב", more: "עוד" };
 function show(v) {
   viewNow = v;
-  for (const x of ["hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
+  for (const x of ["home", "hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
   for (const b of document.querySelectorAll(".nav button")) b.toggleAttribute("aria-current", b.dataset.view === v), b.dataset.view === v && b.setAttribute("aria-current", "page");
   document.querySelector(".weeks").hidden = v !== "hours";
-  $("view-title").textContent = TITLES[v];
+  $("view-title").textContent = TITLES[v] || greet();
   $("preview-btn").hidden = v !== "hours";
   if (v === "queue") loadQueue();
   if (v === "more") loadMore();
+  if (v === "home") loadHome();
   scrollTo(0, 0);
 }
 for (const b of document.querySelectorAll(".nav button")) b.addEventListener("click", () => S && show(b.dataset.view));
@@ -444,3 +451,167 @@ for (const d of document.querySelectorAll("dialog.sheet")) {
     if (dy > 110) d.close();
   });
 }
+
+/* ===== מסך הבית: מה קורה היום, האם כל הערוצים מסונכרנים, מה מחכה לאישור, ואיך הולך בשיווק ===== */
+let H = null, qd = 0;
+const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+const weekOf = (date) => (date >= S.next ? S.next : date >= S.cur ? S.cur : null);
+const dayOf = (date) => new Date(date + "T12:00:00Z").getUTCDay();
+const shiftsOn = (date) => { const wk = weekOf(date); return wk ? (saved(wk) || []).filter((s) => s.day === dayOf(date)) : []; };
+const openOn = (date) => merged(shiftsOn(date));
+const nf = (n) => (n == null ? "–" : new Intl.NumberFormat("he-IL").format(n));
+
+async function loadHome() {
+  renderToday(); renderStrip(); renderQuick();
+  try { H = await act("home"); } catch (e) { H = { error: e.message }; }
+  renderSync(); renderTasks(); renderMarketing();
+}
+
+function renderToday() {
+  const d = today(), r = openOn(d), people = [...new Set(shiftsOn(d).filter((s) => s.open).flatMap((s) => s.people))];
+  const wx = weatherOf(d), hol = S.holidays?.find(([x]) => x === d);
+  const nowT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" }).format(new Date());
+  const live = r.find(([a, b]) => a <= nowT && nowT < b), next = r.find(([a]) => a > nowT);
+  const state = !weekOf(d) || !S.weeks?.[weekOf(d)] ? "השעות של השבוע עוד לא פורסמו" : live ? `פתוחים עכשיו עד ${live[1]}` : next ? `נפתחים היום ב־${next[0]}` : r.length ? "סגרנו להיום" : "סגורים היום";
+  $("today").innerHTML = `<p class="t-date">${DAYS[dayOf(d)]} ⁦${dm(d)}⁩${hol ? ` · ${esc(hol[1])}` : ""}</p>
+    <h3 class="t-state">${esc(state)}</h3>
+    ${r.length ? `<p class="t-hours">${hrs(r)}</p>` : ""}
+    <div class="t-meta">
+      ${wx ? `<span class="${wx.rain.alert || wx.gust.alert || wx.temp.alert ? "alert" : ""}">${ICON.temp}${wx.temp.v}° ${ICON.rain}${wx.rain.v}% ${ICON.gust}${wx.gust.v}</span>` : ""}
+      ${people.length ? `<span>${people.map(esc).join(", ")}</span>` : ""}
+    </div>`;
+}
+
+function renderStrip() {
+  const wk = S.cur, d0 = today();
+  $("week-strip").innerHTML = DAYS.map((n, d) => {
+    const date = plusDays(wk, d), r = openOn(date);
+    return `<div class="s-day${date === d0 ? " now" : ""}${r.length ? "" : " off"}"><b>${"אבגדהוש"[d]}׳</b><span>${r.length ? r.map(([a, b]) => `${a.replace(/:00$/, "")}–${b.replace(/:00$/, "")}`).join("<br>") : "סגור"}</span></div>`;
+  }).join("");
+}
+
+function syncRows() {
+  const pub = S.weeks?.[S.cur], rows = [];
+  const pageOk = !!pub && !(H?.alert || "").includes("דף הנחיתה");
+  rows.push({ k: pageOk ? "ok" : "bad", t: "דף הנחיתה", s: pageOk ? `מציג ${range(S.cur)}` : "השעות של השבוע עוד לא פורסמו", a: pageOk ? null : ["פרסום השבוע", "publish-cur"] });
+  const fb = H?.facebook;
+  rows.push(!pub ? { k: "bad", t: "פייסבוק", s: "מחכה לפרסום השבוע", a: null } : fb && !fb.ok ? { k: "bad", t: "פייסבוק", s: fb.bad || "לא תואם", a: ["רענון", "refresh"] } : { k: "ok", t: "פייסבוק", s: "7 הימים הקרובים, נבדק כל לילה", a: ["רענון", "refresh"] });
+  rows.push(H?.google ? { k: "todo", t: "גוגל", s: "צריך להדביק את השעות בפרופיל", a: ["העתקה", "g-copy"], b: ["הדבקתי", "g-done"] } : { k: "ok", t: "גוגל", s: "מעודכן", a: null });
+  rows.push(pub ? { k: "ok", t: "אינסטגרם", s: "סטורי \"פתוחים עכשיו\" יוצא לבד בכל טווח", a: null } : { k: "bad", t: "אינסטגרם", s: "הסטוריז מחכים לפרסום השבוע", a: null });
+  return rows;
+}
+function renderSync() {
+  const rows = syncRows(), bad = rows.filter((r) => r.k !== "ok").length;
+  $("sync-sum").textContent = bad ? `${bad} דורשים טיפול` : "הכל מסונכרן";
+  $("sync-sum").className = `sum ${bad ? "bad" : "ok"}`;
+  $("sync").innerHTML = rows.map((r) => `<li class="${r.k}"><span class="mark" aria-hidden="true">${r.k === "ok" ? "✓" : r.k === "bad" ? "!" : "…"}</span>
+    <div><b>${r.t}</b><span>${esc(r.s)}</span></div>
+    <div class="acts">${r.b ? `<button class="btn ghost sm" type="button" data-a="${r.b[1]}">${r.b[0]}</button>` : ""}${r.a ? `<button class="btn ${r.k === "ok" ? "ghost" : ""} sm" type="button" data-a="${r.a[1]}">${r.a[0]}</button>` : ""}</div></li>`).join("");
+}
+
+function tasks() {
+  const out = [], d = today(), dow = dayOf(d);
+  if (!S.weeks?.[S.cur]) out.push({ t: `לפרסם את השעות של ${range(S.cur)}`, s: S.weeks?.[plusDays(S.cur, -7)] ? "הכנתי טיוטה מהשבוע הקודם, רק לבדוק ולאשר" : "פותחים את הטבלה וממלאים", a: ["לבדיקה", "draft-cur"] });
+  if (!S.weeks?.[S.next] && dow >= 4) out.push({ t: `לפרסם את השעות של ${range(S.next)}`, s: S.weeks?.[S.cur] ? "הכנתי טיוטה מהשבוע הזה, רק לבדוק ולאשר" : "פותחים את הטבלה וממלאים", a: ["לבדיקה", "draft-next"] });
+  if (H?.google) out.push({ t: "להדביק את השעות בגוגל", s: "הטקסט מוכן להעתקה", a: ["העתקה ופתיחת גוגל", "g-open"] });
+  for (const k of [0, 1]) {
+    const date = plusDays(d, k), wx = weatherOf(date);
+    if (wx && openOn(date).length && (wx.rain.alert || wx.gust.alert)) out.push({ t: `${wx.rain.alert ? `גשם ${wx.rain.v}%` : `רוח ${wx.gust.v} קמ"ש`} ${k ? "מחר" : "היום"}`, s: "אין סככה. לסגור ולעדכן את כל הערוצים?", a: ["סגירה", `close-${k}`] });
+  }
+  const rev = H?.insights?.reviews?.rows || [];
+  const low = rev.filter((r) => (r.stars || 5) <= 3);
+  if (low.length) out.push({ t: `${low.length} ביקורות בגוגל מחכות לתשובה שלך`, s: low.map((r) => `${r.stars}★ ${r.name}: ${r.text}`).join("\n").slice(0, 160), a: ["פתיחת גוגל", "g-reviews"] });
+  if (H?.alert) out.push({ t: "הפרסום האחרון לא הסתיים נקי", s: H.alert.replace(/\*/g, "").split("\n").slice(1).join(" "), a: ["רענון", "refresh"] });
+  return out;
+}
+function renderTasks() {
+  const t = tasks();
+  $("tasks-card").hidden = !t.length;
+  $("tasks").innerHTML = t.map((x, i) => `<li><div><b>${esc(x.t)}</b><span>${esc(x.s)}</span></div><button class="btn ${i === 0 ? "primary" : ""} sm" type="button" data-a="${x.a[1]}">${esc(x.a[0])}</button></li>`).join("");
+}
+
+function spark(values, label) {
+  const v = values.map((x) => x ?? 0), max = Math.max(1, ...v), w = 280, h = 56, step = w / Math.max(1, v.length - 1);
+  const pts = v.map((y, i) => `${(w - i * step).toFixed(1)},${(h - 4 - (y / max) * (h - 10)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+function renderMarketing() {
+  const I = H?.insights;
+  if (!I || I.error) { $("marketing").innerHTML = `<p class="muted">${esc(I?.error || H?.error || "אין נתונים כרגע")}</p>`; return; }
+  const acc = I.account?.rows || [], ig = acc.find((r) => r.network === "instagram"), fb = acc.find((r) => r.network === "facebook");
+  const days = (I.ig?.rows || []).slice().sort((a, b) => a.day.localeCompare(b.day));
+  const last7 = days.slice(-7), prev7 = days.slice(-14, -7), sum = (a, k) => a.reduce((t, r) => t + (r[k] || 0), 0);
+  const gain = sum(last7, "follower_gain"), goal = 5, views = sum(last7, "views"), viewsPrev = sum(prev7, "views");
+  const delta = viewsPrev ? Math.round(((views - viewsPrev) / viewsPrev) * 100) : null;
+  const posts = (I.posts?.rows || []).filter((p) => p.views != null).sort((a, b) => (b.views || 0) - (a.views || 0));
+  const top = posts[0];
+  const kind = { reel: "ריל", photo: "תמונה", carousel: "קרוסלה", video: "סרטון" };
+  $("marketing").innerHTML = `
+    <div class="mk-row">
+      <div class="mk"><span>אינסטגרם</span><b>${nf(ig?.followers)}</b><small>עוקבים</small></div>
+      <div class="mk"><span>פייסבוק</span><b>${nf(fb?.followers)}</b><small>עוקבים</small></div>
+    </div>
+    <div class="goal">
+      <div class="goal-line"><b>${gain >= 0 ? "+" : ""}${nf(gain)} עוקבים השבוע באינסטגרם</b><span>יעד ${goal}</span></div>
+      <div class="bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${Math.max(0, gain)}"><div class="bar-fill" style="width:${Math.min(100, Math.max(0, (gain / goal) * 100))}%"></div></div>
+    </div>
+    ${days.length ? `<div class="views"><div class="goal-line"><b>${nf(views)} צפיות ב-7 ימים</b>${delta != null ? `<span class="${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}% משבוע שעבר</span>` : ""}</div>${spark(days.map((r) => r.views ?? r.reach), "צפיות יומיות באינסטגרם, 14 ימים")}</div>` : ""}
+    ${top ? `<a class="top-post" href="${esc(top.url || "#")}" target="_blank" rel="noopener"><span>הכי נצפה החודש · ${kind[top.kind] || ""} ב${top.network === "instagram" ? "אינסטגרם" : "פייסבוק"}</span><b>${nf(top.views)} צפיות</b><em>${esc((top.text || "").split("\n")[0].slice(0, 90))}</em></a>` : ""}
+    ${(I.ig?.error || I.account?.error) ? `<p class="muted">${esc(I.ig?.error || I.account?.error)}</p>` : ""}`;
+}
+
+function renderQuick() {
+  const date = plusDays(today(), qd), r = openOn(date);
+  $("quick-now").textContent = `${qd ? "מחר" : "היום"} (${DAYS[dayOf(date)]}): ${weekOf(date) && S.weeks?.[weekOf(date)] ? hrs(r) : "השבוע לא פורסם"}`;
+}
+for (const b of document.querySelectorAll("[data-qd]")) b.addEventListener("click", () => {
+  qd = +b.dataset.qd;
+  for (const x of document.querySelectorAll("[data-qd]")) x.setAttribute("aria-selected", String(x === b));
+  renderQuick();
+});
+
+// שינוי שעות בלחיצה: משנים את היום בשבוע שפורסם, ועוברים לתצוגה. "פרסום" שם מעדכן את כל הערוצים
+function quickChange(kind, k = qd) {
+  const date = plusDays(today(), k), wk = weekOf(date);
+  if (!wk || !S.weeks?.[wk]) { toast("השעות של השבוע הזה עוד לא פורסמו. מפרסמים קודם את השבוע"); return; }
+  const d = dayOf(date), list = (saved(wk) || []).map(clean), mine = list.filter((s) => s.day === d), rest = list.filter((s) => s.day !== d);
+  let out = mine;
+  if (kind === "close" && !mine.some((s) => s.open)) { toast(`${k ? "מחר" : "היום"} כבר סגור`); return; }
+  if (kind === "close") out = [];
+  if (kind === "early") {
+    const t = tm($("q-early").value); if (!t) { toast("שעה לא תקינה"); return; }
+    out = mine.filter((s) => s.start < t).map((s) => ({ ...s, end: s.end > t ? t : s.end }));
+  }
+  if (kind === "late") {
+    const t = tm($("q-late").value); if (!t) { toast("שעה לא תקינה"); return; }
+    const open = mine.filter((s) => s.open);
+    if (!open.length) { toast("ביום הזה אין שעות פתיחה להאריך"); return; }
+    const lastS = open.reduce((a, b) => (a.end > b.end ? a : b));
+    if (t <= lastS.end) { toast(`כבר פתוחים עד ${lastS.end}`); return; }
+    out = mine.map((s) => (s === lastS ? { ...s, end: t } : s));
+  }
+  which = wk === S.next ? "next" : "cur";
+  grids[wk] = sorted([...rest, ...out]); store.set(wk, grids[wk]); draftId = null;
+  render();
+  openPreview();
+}
+$("v-home")?.addEventListener("click", async (e) => {
+  const q = e.target.closest("[data-q]"); if (q) return quickChange(q.dataset.q);
+  const go = e.target.closest("[data-go]"); if (go) return show(go.dataset.go);
+  const b = e.target.closest("[data-a]"); if (!b) return;
+  const a = b.dataset.a;
+  if (a === "refresh") return run(() => act("refresh"), loadHome);
+  if (a === "g-copy") return copy(H.google.text);
+  if (a === "g-done") return run(() => act("google_done"), loadHome);
+  if (a === "g-open") { await copy(H.google.text); open("https://business.google.com/", "_blank", "noopener"); return; }
+  if (a === "g-reviews") return open("https://business.google.com/reviews", "_blank", "noopener");
+  if (a.startsWith("close-")) return quickChange("close", +a.slice(6));
+  if (a === "publish-cur" || a === "draft-cur" || a === "draft-next") {
+    which = a === "draft-next" ? "next" : "cur";
+    const wk = weekId(), prev = S.weeks?.[plusDays(wk, -7)];
+    if (!grid().length && prev) { setGrid(prev.shifts); toast("הכנתי טיוטה מהשבוע הקודם. בודקים ולוחצים תצוגה"); }
+    render();
+    show("hours");
+  }
+});
+$("mk-refresh")?.addEventListener("click", () => run(async () => { H = await act("home", { fresh: true }); renderMarketing(); renderTasks(); }));
