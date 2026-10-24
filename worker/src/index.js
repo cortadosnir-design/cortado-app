@@ -490,6 +490,8 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "posts", description: "Every Facebook post and reel and every Instagram post and reel published in the range, with views, reach, likes, comments, shares, saves and interactions. Range up to 90 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+  { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages), to decide whom to tag: the partner's followers are the cart's new audience. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
+    inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" } }, required: ["usernames"] } },
   { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
     inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
   { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
@@ -602,6 +604,22 @@ async function mcpInstagramDaily(env, a){
   return { since, until, rows: [...days.values()], notes: [...new Set(notes)].slice(0, 10) };
 }
 
+// business_discovery: Meta answers for business and creator accounts only, one request per username.
+async function mcpInstagramAccounts(env, a){
+  if (!env.IG_USER_ID) throw fail("not_configured", "Instagram is not connected to the server (IG_USER_ID missing).");
+  const names = [...new Set((a.usernames || []).map(u => String(u).replace(/^@/, "").trim()).filter(Boolean))].slice(0, 20);
+  const rows = [], notes = [];
+  for (const u of names){
+    try {
+      const r = await graph(env, env.IG_USER_ID, { fields: `business_discovery.username(${u}){username,name,followers_count,media_count}` }, "GET");
+      const b = r.business_discovery || {};
+      rows.push({ username: b.username || u, name: b.name || "", followers: b.followers_count ?? null, media: b.media_count ?? null });
+    } catch (e){ rows.push({ username: u, name: "", followers: null, media: null }); notes.push(`${u}: ${e.message}`); }
+  }
+  rows.sort((x, y) => (y.followers || 0) - (x.followers || 0));
+  return { rows, notes };
+}
+
 async function mcpPosts(env, a){
   const { since, until } = mcpRange(a, 90);
   const from = since + "T00:00:00Z", to = dayShift(until, 1) + "T00:00:00Z";
@@ -694,7 +712,7 @@ async function mcp(env, request, key){
   // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
   const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
     google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
-  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts }[params.name];
+  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts }[params.name];
   if (!run && !google) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
   try {
     if (google){ const out = await google(); return reply({ id, result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out } }); }

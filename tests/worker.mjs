@@ -537,6 +537,10 @@ if (f2) process.exitCode = 1;
       insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }],
       paging: { cursors: { after: "c2" }, next: "https://graph/next" } };
     if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
+    if (path === "ig1" && /business_discovery/.test(params.fields)){
+      if (/private_person/.test(params.fields)) throw new Error("(#110) Cannot query users by their username");
+      return { business_discovery: { username: params.fields.match(/username\((\S+?)\)/)[1], name: "שותף", followers_count: params.fields.includes("big") ? 5000 : 300, media_count: 40 } };
+    }
     if (path === "ig1") return { username: "cortado_snir", followers_count: 672, media_count: 9 };
     throw new Error("unexpected " + path);
   };
@@ -555,7 +559,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("ארבעה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,google_reviews,google_reply");
+  ok("חמישה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,google_reviews,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -581,6 +585,8 @@ if (f2) process.exitCode = 1;
   ok("אינסטגרם: עמוד שני של media נכנס, כריל", byId.m2 && byId.m2.kind === "reel", JSON.stringify(Object.keys(byId)));
   ok("אינסטגרם: הערה כשמטא מחזירה פחות ממה שיש בחשבון", posts.notes.some(n => /2 media items, the account holds 9/.test(n)), JSON.stringify(posts.notes));
 
+  const who = (await tool("instagram_accounts", { usernames: ["@small", "big", "private_person"] })).structuredContent;
+  ok("חשבונות אחרים: ממוינים לפי עוקבים, חשבון פרטי מקבל הערה ולא מפיל", who.rows[0].username === "big" && who.rows[0].followers === 5000 && who.rows[1].username === "small" && who.rows[2].followers === null && who.notes.length === 1, JSON.stringify(who));
   const acc = (await tool("account")).structuredContent;
   ok("חשבון: עוקבים בשתי הרשתות, ומספר הפריטים באינסטגרם", acc.rows[0].followers === 5 && acc.rows[1].followers === 672 && acc.rows[1].media_count === 9);
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);
