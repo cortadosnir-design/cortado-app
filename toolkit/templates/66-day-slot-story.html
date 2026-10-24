@@ -1,0 +1,57 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
+<style>
+/* On-the-day story 9:16 (the owner's rule, 24.10.2026: morning = sandwich, pastries and coffee; afternoon = pizza and coffee).
+   Same frame as 56 with no hours: the slot opens as the story goes out, so it says "פתוח עכשיו". Filled from window.HOURS.story = {day, date, word, sub, line, main, second, sticker}. */
+body{height:1920px}
+.badge{top:250px}
+.p{position:absolute;object-fit:cover;border:14px solid var(--foam);border-radius:30px;box-shadow:0 18px 40px rgba(0,0,0,.36);filter:contrast(1.04) saturate(1.06)}
+.main{right:92px;top:392px;width:560px;height:620px;object-position:50% 50%;transform:rotate(2deg);z-index:2}
+.second{left:64px;top:500px;width:380px;height:460px;object-position:50% 55%;transform:rotate(-3deg);z-index:1}
+/* optional third photo (story.third): the left column splits into two */
+.third{display:none;left:64px;top:736px;width:380px;height:290px;object-position:50% 50%;transform:rotate(2deg);z-index:1}
+.has-third .second{top:408px;height:300px}
+.has-third .third{display:block}
+.sticker{right:56px;top:356px;width:190px;height:190px;transform:rotate(10deg);z-index:3;
+  font-family:"Playpen Sans Hebrew";font-weight:700;font-size:40px;line-height:1.05;color:var(--aida-dark);text-align:center}
+.card{left:64px;right:64px;top:1064px;height:440px;z-index:2}
+.kicker{position:absolute;top:1104px;left:64px;right:64px;font-size:46px;z-index:3}
+.hrs{position:absolute;top:1170px;left:64px;right:64px;text-align:center;z-index:3}
+.hrs .t{font-family:Rubik;font-weight:900;font-size:118px;line-height:1;letter-spacing:-1px;color:var(--cart);white-space:nowrap}
+.sub{position:absolute;top:1330px;left:80px;right:80px;text-align:center;font-weight:700;font-size:44px;line-height:1.15;color:var(--board);z-index:3}
+.sub b{color:var(--aida-dark);font-weight:800}
+.line{position:absolute;top:1396px;left:64px;right:64px;text-align:center;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:36px;line-height:1.2;color:var(--espresso);z-index:3}
+.ribbon{top:1470px;font-size:42px;z-index:4}
+.socials{left:64px;bottom:auto;top:1560px}
+.socials .q img{width:70px;height:70px}
+.foot.r{right:64px;bottom:auto;top:1600px;font-size:27px}
+</style></head><body class="board-bg">
+<img class="doodles" src="../assets/art/doodles-story.svg" alt="">
+<img class="p second" id="second" alt="">
+<img class="p third" id="third" alt="">
+<img class="p main" id="main" alt="">
+<div class="sticker" id="sticker"></div>
+<div class="badge"><img src="../assets/logo.png" alt=""><span>cortado</span></div>
+<div class="card"></div>
+<div class="kicker" id="kicker"></div>
+<div class="hrs" id="hrs"></div>
+<div class="sub" id="sub"></div>
+<div class="line" id="line"></div>
+<div class="ribbon">נתראה בעגלה</div>
+<div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
+<div class="foot r">קיבוץ שניר · על הדשא ליד המרכולית</div>
+<script>
+const s = (window.HOURS || {}).story || {};
+const t = x => `<span class="t">${x}</span>`;
+// kicker "שני · 12.10 · פתוח": the date is LTR-isolated. Hours: one or two ranges.
+document.getElementById('kicker').innerHTML = `${s.day} · <span class="t" style="direction:ltr;unicode-bidi:isolate">${s.date}</span> · ${s.word}`;
+document.getElementById('hrs').innerHTML = t('פתוח עכשיו');
+document.getElementById('sub').innerHTML = s.sub || '';
+document.getElementById('line').textContent = s.line || '';
+document.getElementById('main').src = `../assets/photos/${s.main}`;
+document.getElementById('second').src = `../assets/photos/${s.second}`;
+if (s.third) { document.getElementById('third').src = `../assets/photos/${s.third}`; document.body.classList.add('has-third'); }
+const st = document.getElementById('sticker');
+if (s.sticker) st.textContent = s.sticker; else st.remove();
+</script>
+</body></html>
