@@ -1,0 +1,35 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1350">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="notebook.css">
+<!-- Real-notebook election carousel (24.10.2026), last page: everyone who comes, as a ticked list.
+     Data: window.HOURS.all = {tiles:[{name, what}]}. -->
+<style>
+.sticker{left:96px;top:124px;width:118px;height:118px;transform:rotate(-9deg)}
+.tapew .tape{font-size:56px}
+.list{position:absolute;left:150px;right:200px;top:342px;z-index:3}
+.row{display:flex;align-items:center;gap:18px;height:62px;font-family:"Playpen Sans Hebrew";font-size:42px;color:#2C3E3F;white-space:nowrap}
+.row b{font-weight:600}
+.row small{font-size:34px;opacity:.8}
+.row svg{flex:none}
+.ink.h1{left:110px;right:200px;top:964px;text-align:center;font-weight:600;font-size:52px}
+.ink.h2{left:110px;right:200px;top:1026px;text-align:center;font-size:42px}
+.ribbon{top:1130px}
+</style></head><body data-lined data-clip>
+<div class="tapew"><div class="tape">מי מגיע ביום הבוחר</div></div>
+<div class="sticker"><img src="../assets/logo.png" alt=""></div>
+<div class="list" id="list"></div>
+<div class="ink h1"><span class="hl">שלישי <span class="t">27.10</span> · <span class="t">15:00–19:00</span></span></div>
+<div class="ink h2">קיבוץ שניר, על הדשא ליד המרכולית</div>
+<div class="ribbon">נתראה בעגלה</div>
+<div class="heart" style="left:120px;top:1110px;width:70px;height:62px;transform:rotate(-14deg)"></div>
+<script>
+const box = (i) => `<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M5 6 C14 4,27 5,35 5 C36 14,35 26,35 35 C25 36,14 35,5 35 C4 26,5 15,5 6 Z" fill="none" stroke="#2C3E3F" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M10 ${19 + (i % 2)} L18 29 L37 4" fill="none" stroke="#C26E3E" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+((window.HOURS || {}).all || {}).tiles.forEach((t, i) => {
+  const r = document.createElement("div"); r.className = "row";
+  r.innerHTML = box(i) + "<b></b><small></small>";
+  r.querySelector("b").textContent = t.name; r.querySelector("small").textContent = "· " + t.what;
+  document.getElementById("list").append(r);
+});
+</script>
+<script src="notebook.js"></script>
+</body></html>

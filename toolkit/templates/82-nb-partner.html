@@ -1,0 +1,27 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1350">
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="notebook.css">
+<!-- Real-notebook election carousel (24.10.2026): one page per partner.
+     Data: window.HOURS.partner = {name, line, photo, pos?, rot?, pen?}. Paths relative to this file. -->
+<style>
+.ink.l{left:120px;right:210px;top:350px;text-align:center}
+.pol{left:232px;top:548px;width:560px;height:560px}
+.sticker{left:96px;top:124px;width:118px;height:118px;transform:rotate(-9deg)}
+</style></head><body data-lined data-clip>
+<div class="tapew"><div class="tape" id="name"></div></div>
+<div class="sticker"><img src="../assets/logo.png" alt=""></div>
+<div class="ink l" id="line"></div>
+<div class="pol" id="pol"><img id="photo" alt=""></div>
+<div class="pin" style="left:478px;top:500px"></div>
+<div class="stain" style="left:88px;top:1010px"></div>
+<div class="heart" style="left:800px;top:1060px;width:70px;height:62px;transform:rotate(12deg)"></div>
+<div class="pen" id="pen" style="left:-120px;top:930px" hidden></div>
+<script>
+const p = (window.HOURS || {}).partner || {};
+document.getElementById("name").textContent = p.name || "";
+document.getElementById("line").textContent = p.line || "";
+const ph = document.getElementById("photo"); ph.src = p.photo || ""; if (p.pos) ph.style.objectPosition = p.pos;
+document.getElementById("pol").style.transform = `rotate(${p.rot ?? -2}deg)`;
+if (p.pen) document.getElementById("pen").hidden = false;
+</script>
+<script src="notebook.js"></script>
+</body></html>

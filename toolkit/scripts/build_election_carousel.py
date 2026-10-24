@@ -1,4 +1,4 @@
-"""Render the election-day carousel (12 pages, 1080x1350) with the cart's toolkit templates."""
+"""Render the election-day carousel (12 pages, 1080x1350): real-notebook pages (templates 80-84) in the cart's colors."""
 import pathlib, shutil, sys
 TK = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TK / "scripts"))
@@ -30,15 +30,15 @@ all_tiles = {"date": "שלישי 27.10 · יום הבחירות", "hours": "15:0
 
 base = {"week": "", "days": []}
 pages = []
-render({**base, "all": all_tiles}, ["70", "71", "73", "74"], tmp, False)
-pages += [tmp / "70-ev-cover.png", tmp / "71-ev-together.png"]
+render({**base, "all": all_tiles}, ["80", "81", "83", "84"], tmp, False)
+pages += [tmp / "80-nb-cover.png", tmp / "81-nb-together.png"]
 for i, (name, line, photo, pos, icon) in enumerate(partners, 3):
     render({**base, "partner": {"name": name, "line": line, "photo": P + photo, "pos": pos,
-                                "icon": f"../assets/art/{icon}.svg"}}, ["72"], tmp, False)
+                                "rot": (-2, 2.5, -1.5)[i % 3], "pen": i % 3 == 0}}, ["82"], tmp, False)
     dst = tmp / f"p{i:02d}.png"
-    shutil.move(tmp / "72-ev-partner.png", dst)
+    shutil.move(tmp / "82-nb-partner.png", dst)
     pages.append(dst)
-pages += [tmp / "73-ev-support.png", tmp / "74-ev-all.png"]
+pages += [tmp / "83-nb-support.png", tmp / "84-nb-all.png"]
 assert len(pages) == 12, len(pages)
 for i, f in enumerate(pages, 1):
     shutil.copy(f, OUT / f"{i:02d}.png")
