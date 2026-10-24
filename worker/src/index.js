@@ -28,6 +28,7 @@ export default {
       if (url.pathname === "/post/bot") return json(await botPost(env, request), cors);
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
+      if (url.pathname === "/post/bot/carousel") return json(await botCarousel(env, request), cors);
       // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
       if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
       // חיבור חד-פעמי של פרופיל העסק בגוגל. נשמר רק אם מייסד אישר בגוגל.
@@ -280,10 +281,12 @@ async function igReady(env, id, tries = 1, waitMs = 0){
 // תיוג באינסטגרם (הבעלים, 24.10.2026: בכל פרסום). שמות משתמש בלבד; שם לא תקין לא נכנס
 const cleanTags = v => (Array.isArray(v) ? v : []).map(t => String(t).trim().replace(/^@/, "")).filter(t => /^[\w.]{1,30}$/.test(t)).slice(0, 20);
 // תמונה: user_tags על התמונה, והכיתוב נשאר נקי. תיוג שאינסטגרם דוחה (חשבון שחוסם תיוג, שם שהשתנה) לא מפיל את הפרסום: יוצא בלי, והסיבה מדווחת
-async function igImageContainer(env, params, tags){
+// xy: פריט בקרוסלה חייב מיקום לכל תיוג. התגים נפרשים על התמונה בשורות של 4, כדי שלא ייערמו בנקודה אחת
+async function igImageContainer(env, params, tags, xy = false){
   const out = { tagged: [], tagError: "" };
   let c;
-  if (tags.length) try { c = (await graph(env, `${env.IG_USER_ID}/media`, { ...params, user_tags: JSON.stringify(tags.map(username => ({ username }))) })).id; out.tagged = tags; }
+  const tag = (username, i) => xy ? { username, x: +(0.14 + 0.24 * (i % 4)).toFixed(2), y: +(0.2 + 0.2 * Math.floor(i / 4)).toFixed(2) } : { username };
+  if (tags.length) try { c = (await graph(env, `${env.IG_USER_ID}/media`, { ...params, user_tags: JSON.stringify(tags.map(tag)) })).id; out.tagged = tags; }
     catch (e){ out.tagError = hebrew(e.message); }
   c ||= (await graph(env, `${env.IG_USER_ID}/media`, params)).id;
   return { id: String(c), ...out };
@@ -392,6 +395,53 @@ async function botStory(env, request){
   return { ok: !!(out.fbStoryId || out.igStoryId), ...out };
 }
 
+/* ===== קרוסלה מהבוט (24.10.2026): 2 עד 10 תמונות, אותו סדר בשתי הרשתות (10 = המקסימום של אינסטגרם דרך ה-API).
+   כל תמונה עולה לעמוד בלי פרסום. פייסבוק מקבל פוסט אחד עם כולן, ואינסטגרם את הכתובות שלהן מה-CDN של פייסבוק (אין לנו אחסון).
+   tags[i] = מי מתויג בתמונה i. collaborators = עד 3 שותפים לפוסט באינסטגרם. תיוג או שותף שנדחים לא מפילים: יוצא בלי, והסיבה מדווחת ===== */
+async function botCarousel(env, request){
+  botAuth(env, request);
+  const b = await request.json().catch(() => ({}));
+  env = await withMeta(env);
+  if (!env.FB_PAGE_ID || !env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+  const imgs = (Array.isArray(b.images) ? b.images : []).map(dataUrlToBlob);
+  if (imgs.length < 2 || imgs.length > 10 || imgs.some(x => !x || !/^image\//.test(x.type) || x.size > 8 * 1024 * 1024))
+    throw fail("bad_request", "קרוסלה צריכה 2 עד 10 תמונות, כל אחת עד 8MB.");
+  const text = String(b.text || "").slice(0, 2200);
+  const tags = imgs.map((_, i) => cleanTags(Array.isArray(b.tags) ? b.tags[i] : []));
+  const collab = cleanTags(b.collaborators).slice(0, 3);
+  const photos = [];
+  for (const im of imgs) photos.push(String((await graphUpload(env, `${env.FB_PAGE_ID}/photos`, { published: "false" }, im)).id)); // אחת אחרי השנייה: הסדר נשמר
+  const out = { fbPostId: "", fbError: "", igPostId: "", igSkipped: "", igError: "", igTagged: [], igTagError: "", igCollab: [], igCollabError: "" };
+  await Promise.all([
+    graph(env, `${env.FB_PAGE_ID}/feed`, { message: text, ...Object.fromEntries(photos.map((id, i) => [`attached_media[${i}]`, JSON.stringify({ media_fbid: id })])) })
+      .then(r => { out.fbPostId = String(r.id || ""); }, e => { out.fbError = hebrew(e.message); }),
+    (async () => {
+      if (b.noIg) return void (out.igSkipped = "פייסבוק בלבד");
+      if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
+      try {
+        const kids = [];
+        for (let i = 0; i < photos.length; i++){
+          const ph = await graph(env, photos[i], { fields: "images" }, "GET");
+          const src = (ph.images || []).slice().sort((x, y) => (y.width || 0) - (x.width || 0))[0];
+          if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
+          const c = await igImageContainer(env, { image_url: src.source, is_carousel_item: "true" }, tags[i], true);
+          out.igTagged.push(...c.tagged); out.igTagError ||= c.tagError;
+          kids.push(c.id);
+        }
+        for (const k of kids) if (!(await igReady(env, k, 10, 3000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונות, והקרוסלה לא פורסמה.", 502);
+        const base = { media_type: "CAROUSEL", children: kids.join(","), caption: text };
+        let parent = "";
+        if (collab.length) try { parent = String((await graph(env, `${env.IG_USER_ID}/media`, { ...base, collaborators: JSON.stringify(collab) })).id); out.igCollab = collab; }
+          catch (e){ out.igCollabError = hebrew(e.message); }
+        parent ||= String((await graph(env, `${env.IG_USER_ID}/media`, base)).id);
+        if (!(await igReady(env, parent, 10, 3000))) throw fail("meta_error", "אינסטגרם עוד מעבד את הקרוסלה, והיא לא פורסמה.", 502);
+        out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: parent })).id);
+      } catch (e){ out.igError = hebrew(e.message); out.igTagged = []; out.igCollab = []; }
+    })(),
+  ]);
+  return { ok: !!(out.fbPostId || out.igPostId), ...out };
+}
+
 // מה מהתור הגיע זמנו. נפרד מהרשת כדי שאפשר לבדוק אותו.
 const dueNow = (docs, nowMs = Date.now()) =>
   docs.filter(d => d.fields.igPending === true && Number(d.fields.publishAt || 0) > 0 && Number(d.fields.publishAt) <= nowMs);
@@ -431,7 +481,7 @@ async function publishState(env){
   // המשתמש של העמוד משתנה.
   // reels: השרת יודע לקבל ריל ב-/post/bot/reel. בוט שמדבר עם שרת ישן לא מציע ריל.
   return { facebook: !!(env.FB_PAGE_TOKEN && env.FB_PAGE_ID), instagram: !!env.IG_USER_ID,
-    queue: !!env.FIREBASE_SA, reels: true, pageId: env.FB_PAGE_ID || "", igUser: env.IG_USER_ID || "" };
+    queue: !!env.FIREBASE_SA, reels: true, carousel: true, pageId: env.FB_PAGE_ID || "", igUser: env.IG_USER_ID || "" };
 }
 
 /* ===== מספרים אמיתיים במקום הקלדה =====

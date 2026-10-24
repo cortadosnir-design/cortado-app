@@ -476,6 +476,73 @@ if (f2) process.exitCode = 1;
   if (f) process.exitCode = 1;
 }
 
+/* ── קרוסלה מהבוט: כמה תמונות בסדר, פוסט אחד בכל רשת, תיוג לכל תמונה ושותפים שנדחים לא מפילים ── */
+{
+  console.log("\nקרוסלה מהבוט");
+  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
+  const a = wsrc.indexOf("async function botCarousel("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const tagSrc = wsrc.slice(wsrc.indexOf("const cleanTags"), wsrc.indexOf("/* ===== ריל: וידאו מהבוט"));
+  const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
+  const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
+  const mk = ({ tagFails = false, collabFails = false, fbFails = false } = {}) => {
+    const calls = [], uploads = []; let n = 0, m = 0;
+    const graph = async (_e, path, params = {}, method = "POST") => {
+      calls.push([method, path, params]);
+      if (path.endsWith("/feed")){ if (fbFails) throw new Error("fb no"); return { id: "P_9" }; }
+      if (method === "GET") return { images: [{ width: 1080, source: `https://cdn/${path}` }] };
+      if (path.endsWith("/media")){
+        if (tagFails && params.user_tags) throw new Error("tag no");
+        if (collabFails && params.collaborators) throw new Error("collab no");
+        return { id: params.media_type === "CAROUSEL" ? "parent" : `kid${++m}` };
+      }
+      if (path.endsWith("/media_publish")) return { id: "igC" };
+      throw new Error("unexpected " + path);
+    };
+    const fn = new Function("botAuth", "withMeta", "graph", "graphUpload", "dataUrlToBlob", "igReady", "hebrew", "fail", tagSrc + wsrc.slice(a, z) + "\nreturn botCarousel;")(
+      auth, async (e) => e, graph, async (_e, path, fields, file) => { uploads.push([path, fields, file.type]); return { id: `ph${++n}` }; },
+      (u) => { const r = /^data:([^;]+);base64,(.+)$/.exec(String(u || "")); return r ? new Blob([Buffer.from(r[2], "base64")], { type: r[1] }) : null; },
+      async () => true, (x) => x, fail);
+    return { botCarousel: fn, calls, uploads };
+  };
+  const env = { BOT_KEY: "k", FB_PAGE_ID: "P", FB_PAGE_TOKEN: "T", IG_USER_ID: "I" };
+  const req = (o, key = "k") => new Request("https://x/post/bot/carousel", { method: "POST", headers: { "x-bot-key": key }, body: JSON.stringify(o) });
+  const img = "data:image/jpeg;base64,AQID", imgs = [img, img, img];
+  const body = { text: "קרוסלה", images: imgs, tags: [["galil.elion", "@galilback"], [], ["lalush_dough"]], collaborators: ["capaim_gallery_vintage", "malabiyahu", "galilgolan_travel_culture", "galilback"] };
+
+  const t1 = mk();
+  const out = await t1.botCarousel(env, req(body));
+  ok("פוסט אחד בפייסבוק ואחד באינסטגרם", out.ok && out.fbPostId === "P_9" && out.igPostId === "igC", JSON.stringify(out));
+  ok("כל התמונות עלו לעמוד בלי פרסום, לפי הסדר", t1.uploads.length === 3 && t1.uploads.every(u => u[0] === "P/photos" && u[1].published === "false"));
+  const feed = t1.calls.find(x => x[1] === "P/feed")[2];
+  ok("פייסבוק: הטקסט וכל התמונות בסדר", feed.message === "קרוסלה" && ["ph1", "ph2", "ph3"].every((id, i) => JSON.parse(feed[`attached_media[${i}]`]).media_fbid === id));
+  const kids = t1.calls.filter(x => x[1] === "I/media" && x[2].is_carousel_item === "true").map(x => x[2]);
+  ok("אינסטגרם: פריט לכל תמונה, מהכתובת של פייסבוק, בסדר", kids.length === 3 && kids.map(k => k.image_url).join() === "https://cdn/ph1,https://cdn/ph2,https://cdn/ph3");
+  const t0 = JSON.parse(kids[0].user_tags);
+  ok("תיוג לכל תמונה בנפרד, עם מיקום ובלי @", t0.map(u => u.username).join() === "galil.elion,galilback" && t0.every(u => u.x > 0 && u.x < 1 && u.y > 0 && u.y < 1) && !kids[1].user_tags && JSON.parse(kids[2].user_tags)[0].username === "lalush_dough");
+  const par = t1.calls.find(x => x[2].media_type === "CAROUSEL")[2];
+  ok("הקרוסלה: הילדים בסדר, הכיתוב, ועד 3 שותפים", par.children === "kid1,kid2,kid3" && par.caption === "קרוסלה" && JSON.parse(par.collaborators).join() === "capaim_gallery_vintage,malabiyahu,galilgolan_travel_culture" && out.igCollab.length === 3);
+  ok("מדווח מי תויג", out.igTagged.join() === "galil.elion,galilback,lalush_dough");
+
+  const t2 = mk({ collabFails: true });
+  const solo = await t2.botCarousel(env, req(body));
+  ok("שותפים נדחו: יוצא בלי שותפים, והסיבה מדווחת", solo.igPostId === "igC" && solo.igCollabError === "collab no" && !solo.igCollab.length);
+  const t3 = mk({ tagFails: true });
+  const bare = await t3.botCarousel(env, req(body));
+  ok("תיוג נדחה: יוצא בלי תיוג, והסיבה מדווחת", bare.igPostId === "igC" && bare.igTagError === "tag no" && !bare.igTagged.length);
+  const half = await mk({ fbFails: true }).botCarousel(env, req(body));
+  ok("פייסבוק נכשל: אינסטגרם בכל זאת יוצא", half.fbError === "fb no" && half.igPostId === "igC" && half.ok);
+  for (const [name, imgsX] of [["תמונה אחת", [img]], ["11 תמונות", Array(11).fill(img)], ["כתובת במקום תמונה", [img, "https://x/y.jpg"]]]){
+    const t = mk(); let e = null; try { await t.botCarousel(env, req({ text: "x", images: imgsX })); } catch (x){ e = x; }
+    ok(`${name}: נדחה בלי להעלות`, e && e.code === "bad_request" && !t.uploads.length);
+  }
+  const t4 = mk(); let e2 = null; try { await t4.botCarousel(env, req(body, "nope")); } catch (e){ e2 = e; }
+  ok("מפתח שגוי: נדחה בלי להעלות", e2 && e2.status === 403 && !t4.uploads.length);
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/carousel"') > 0 && wsrc.indexOf('"/post/bot/carousel"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
+  ok("השרת מודיע לבוט שהוא יודע קרוסלה", /carousel: true/.test(wsrc.slice(wsrc.indexOf("async function publishState("), wsrc.indexOf("async function publishState(") + 600)));
+  console.log(`\n${p} עברו · ${f} נכשלו`);
+  if (f) process.exitCode = 1;
+}
+
 /* ── גוגל לפי תאריך (specialHours), עם בדיקה בלי כתיבה ── */
 {
   console.log("\nגוגל לפי תאריך");
