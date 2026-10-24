@@ -1,6 +1,6 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
-<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?, pos?, more?, k?, sticker?}.
+<!-- Election-day partner story 9:16 (22.10.2026), one per partner. Data: window.HOURS.partner = {name, line, photo, logo?, em?, pos?, more?, k?, kbig?, sticker?}.
      Paths are relative to this file. Everything inside y 250–1670 (app chrome above and below). -->
 <style>
 html,body{height:1920px}
@@ -23,6 +23,11 @@ html,body{height:1920px}
 .tall .fl{height:770px}
 .tall .logo{top:960px}
 .tall .card{top:1150px;height:305px}
+.card .k.big{font-size:54px;font-weight:800;line-height:1.15}
+.kbig .card{top:1150px;height:305px}
+.kbig.tall .card{top:1110px;height:345px}
+.kbig.tall .fl{height:700px}
+.kbig.tall .logo{top:900px}
 .card .l.em{font-size:42px;font-weight:800;color:#A9592F}
 .ribbon{top:1478px;font-size:44px}
 .socials{top:1566px;bottom:auto}
@@ -48,6 +53,7 @@ document.getElementById("line").textContent = p.line || "";
 if (p.more) { const m = document.getElementById("more"); m.hidden = false; m.textContent = p.more; document.body.classList.add("tall"); } // a second, smaller line
 if (p.em) document.getElementById("line").classList.add("em"); // the one thing the partner asked to stress
 if (p.k) document.getElementById("k").textContent = p.k; // a partner-specific top line instead of the default
+if (p.kbig) { document.getElementById("k").classList.add("big"); document.body.classList.add("kbig"); } // the top line as a second headline
 if (p.sticker) document.getElementById("sticker").innerHTML = p.sticker.split("|").join("<br>"); // "|" = line break
 if (p.logo) { const l = document.getElementById("logo"); l.hidden = false; l.querySelector("img").src = p.logo; }
 </script>
