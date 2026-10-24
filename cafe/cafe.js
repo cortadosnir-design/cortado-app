@@ -50,14 +50,14 @@ if (hero){
   heroStep();
 }
 
-// מוזיקה: מתחילה לבד. דפדפנים לא מרשים צליל לפני שהמבקר נגע בדף, אז מנסים מיד, ואם נחסם — בנגיעה הראשונה בכל מקום.
-// מי שעצר בכפתור — היא לא חוזרת לבד. נכנסת בהדרגה ונעצרת כשעוזבים את הלשונית.
+// מוזיקה: רק כשלוחצים על הכפתור (21.10.2026). קודם היא התחילה בנגיעה הראשונה, ובטלפון זו הגלילה הראשונה,
+// אז מי שפתח את הדף ברכב או ליד אנשים קיבל צליל בלי שביקש. הקובץ (750KB) נטען רק בלחיצה.
+// נכנסת בהדרגה, נעצרת כשעוזבים את הלשונית וחוזרת כשחוזרים, אם הייתה דלוקה.
 // המוזיקה היא גיטרה ופכפוך מים מסונתזים בקוד, בלי דגימות: אין רישיון לבדוק ואין עלות. הקובץ עצמו שקט, כי באייפון אין שליטה בעוצמה.
 const soundBtn = document.querySelector(".sound");
 if (soundBtn){
-  const audio = new Audio("sc/cafe-music.mp3");
-  audio.loop = true; audio.volume = 0;
-  let fadeT = 0, off = false;
+  let audio = null;
+  let fadeT = 0, off = true;
   const fade = (to, done) => {
     clearInterval(fadeT);
     fadeT = setInterval(() => {
@@ -66,18 +66,13 @@ if (soundBtn){
       else audio.volume = Math.min(1, Math.max(0, v));
     }, 60);
   };
-  const kicks = ["pointerup", "touchend", "click", "keydown"];
-  const kick = e => { if (!soundBtn.contains(e.target)) start(); };
   const start = () => {
-    if (off || !audio.paused) return;
-    audio.play().then(() => {
-      soundBtn.setAttribute("aria-pressed", "true"); fade(0.35);
-      kicks.forEach(t => removeEventListener(t, kick, true));
-    }).catch(() => {});
+    if (off) return;
+    if (!audio){ audio = new Audio("sc/cafe-music.mp3"); audio.loop = true; audio.volume = 0; }
+    if (!audio.paused) return;
+    audio.play().then(() => { soundBtn.setAttribute("aria-pressed", "true"); fade(0.35); }).catch(() => {});
   };
-  const pause = () => { if (!audio.paused) fade(0, () => audio.pause()); };
-  kicks.forEach(t => addEventListener(t, kick, { capture: true, passive: true }));
-  start();
+  const pause = () => { if (audio && !audio.paused) fade(0, () => audio.pause()); };
   soundBtn.addEventListener("click", () => {
     off = soundBtn.getAttribute("aria-pressed") === "true";
     if (off){ soundBtn.setAttribute("aria-pressed", "false"); pause(); } else start();

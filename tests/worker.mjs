@@ -20,6 +20,9 @@ t("מפתח לא תקין", "API key not valid. Please pass a valid API key.", /
 t("אין הרשאה למודל", "PERMISSION_DENIED: caller does not have permission", /הרשאה|מפתח/);
 t("חסימת בטיחות", "Candidate was blocked due to SAFETY", /בטיחות|ניסוח|חסמ/);
 t("מודל נעלם", "models/gemini-3.8-flash is not found for API version v1beta", /מודל/);
+t("מטא: יחס תמונה", "The aspect ratio is not supported.", /תמונה/);
+t("מטא: סוג מדיה", "(#9004) The media type is not supported", /תמונה/);
+t("מטא: קודק", "video codec is not supported", /תמונה/);
 t("טוקן מטא פג", "Error validating access token: Session has expired", /טוקן|פייסבוק|פג/);
 t("שגיאה לא מוכרת", "ECONNRESET socket hang up", /נסה|שוב|רשת|משהו/);
 t("כבר בעברית עובר כמו שהוא", "רק המנהל יכול לבצע את הפעולה הזו.", /^רק המנהל/);
@@ -401,15 +404,19 @@ if (f2) process.exitCode = 1;
 
   // הקרון: ריל בתור מתפרסם רק כשהקונטיינר FINISHED
   const pd = wsrc.slice(wsrc.indexOf("async function publishDue("), wsrc.indexOf("\n}\n", wsrc.indexOf("async function publishDue(")) + 2);
-  const runDue = async (status) => { const g = mk({ igStatus: [status] }); const patches = [];
+  const runDue = async (status, failPatch = () => false) => { const g = mk({ igStatus: [status] }); const patches = [];
     const fn = new Function("fsQuery", "fsPatch", "dueNow", "igReady", "igPublishFromPhoto", "graph", "hebrew", pd + "\nreturn publishDue;")(
-      async () => [{ id: "r1", fields: { igPending: true, publishAt: 1, igContainer: "c1", text: "x" } }], async (_e, path, x) => { patches.push(x); },
+      async () => [{ id: "r1", fields: { igPending: true, publishAt: 1, igContainer: "c1", text: "x" } }],
+      async (_e, path, x) => { if (failPatch(x)) throw new Error("firestore 503"); patches.push(x); },
       (docs) => docs, g.igReady, async () => { throw new Error("photo path"); }, async (...a) => (g.calls.push(a), a[1].endsWith("/media_publish") ? { id: "ig9" } : { status_code: status }), (m) => m);
     return { res: await fn({ FIREBASE_SA: "{}", IG_USER_ID: "I" }), patches }; };
   const wait = await runDue("IN_PROGRESS");
   ok("קרון: ריל שעוד מעבד נשאר בתור בלי לספור ניסיון", wait.patches.length === 0 && wait.res.results[0].waiting === true);
   const done = await runDue("FINISHED");
-  ok("קרון: ריל מוכן מתפרסם ויוצא מהתור", done.patches[0].igPostId === "ig9" && done.patches[0].igPending === false);
+  ok("קרון: ריל מוכן מתפרסם ויוצא מהתור", done.patches[0].igPending === false && done.patches[1].igPostId === "ig9");
+  // כתיבת ה-igPostId נכשלת אחרי שפורסם: הפוסט כבר מחוץ לתור, ואף כתיבה לא מחזירה אותו
+  const flaky = await runDue("FINISHED", (x) => "igPostId" in x);
+  ok("קרון: כתיבה שנכשלת אחרי פרסום לא מחזירה לתור", flaky.patches.length === 1 && flaky.patches[0].igPending === false && flaky.res.results[0].ok === true);
   ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/reel"') > 0 && wsrc.indexOf('"/post/bot/reel"') < wsrc.indexOf("await requireUser(request, env)"));
   ok("השרת מודיע לבוט שהוא יודע ריל", /reels: true/.test(wsrc.slice(wsrc.indexOf("async function publishState("), wsrc.indexOf("async function publishState(") + 600)));
   console.log(`\n${p} עברו · ${f} נכשלו`);

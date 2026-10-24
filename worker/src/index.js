@@ -162,18 +162,18 @@ const ERROR_MAP = [
   [/SAFETY|blocked|content filter|PROHIBITED_CONTENT/i,
     () => "גוגל חסמה את הבקשה בגלל מסנן התוכן. נסה לנסח אחרת."],
   // ── מודל ──
-  [/no longer available|NOT_FOUND|not found|is not supported|deprecated/i,
+  [/(gemini|\bmodels?\b)[\s\S]*(no longer available|not found|is not supported|deprecated)/i,
     // כאן מגיעים רק אחרי שכל MODEL_CHAIN נכשל, ולא בהכרח בגלל הגדרה ידנית.
     () => "אף מודל של Gemini לא נענה — כנראה השתנו שמות המודלים. אם הגדרת GEMINI_MODEL " +
           "ב-Cloudflare, מחק אותו; אחרת צריך לעדכן את רשימת המודלים בשרת."],
   // ── מטא ──
   [/Session has expired|OAuthException|access token|code.*190/i,
-    () => "הטוקן של עמוד הפייסבוק פג. צריך לחבר את העמוד מחדש בלשונית הפצה."],
+    () => "הטוקן של עמוד הפייסבוק פג. צריך לשים טוקן עמוד חדש ב-FB_PAGE_TOKEN בהגדרות של Cloudflare."],
   [/\(#200\)|requires .* permission|insufficient permission/i,
     () => "לאפליקציית הפייסבוק חסרה הרשאה לפעולה הזו. צריך להוסיף אותה ב-Graph API Explorer ולחבר מחדש."],
   [/\(#4\)|\(#17\)|too many calls|request limit reached/i,
     () => "פייסבוק חסמה זמנית בגלל יותר מדי בקשות. נסה שוב בעוד כמה דקות."],
-  [/media|image.*(invalid|unsupported)|Unsupported post request/i,
+  [/media|image.*(invalid|unsupported)|Unsupported post request|aspect ratio|codec/i,
     () => "מטא דחתה את התמונה. נסה תמונה אחרת, רצוי JPG."],
   // ── רשת ──
   [/fetch failed|network|ETIMEDOUT|ECONNRESET|timeout/i,
@@ -196,7 +196,9 @@ async function requireUser(request, env){
   if (!token) throw fail("unauthenticated", "חסר טוקן כניסה.", 401);
   const [h, p, s] = token.split(".");
   if (!h || !p || !s) throw fail("unauthenticated", "טוקן לא תקין.", 401);
-  const header = JSON.parse(b64urlDecode(h)), payload = JSON.parse(b64urlDecode(p));
+  let header, payload;
+  try { header = JSON.parse(b64urlDecode(h)); payload = JSON.parse(b64urlDecode(p)); }
+  catch { throw fail("unauthenticated", "טוקן לא תקין.", 401); }
   const now = Math.floor(Date.now() / 1000);
   if (payload.aud !== env.FIREBASE_PROJECT_ID || payload.iss !== `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`)
     throw fail("unauthenticated", "הטוקן לא שייך לפרויקט הזה.", 401);
@@ -1021,16 +1023,20 @@ async function publishDue(env){
     const text = [d.fields.text || "", (d.fields.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
     try {
       let igPostId;
-      if (d.fields.igContainer){ // ריל שעלה וחיכה לעיבוד. עוד לא מוכן: הקרון הבא יבדוק שוב
-        if (!(await igReady(env, d.fields.igContainer))) { results.push({ id: d.id, ok: false, waiting: true }); continue; }
+      // ריל שעלה וחיכה לעיבוד. עוד לא מוכן: הקרון הבא יבדוק שוב
+      if (d.fields.igContainer && !(await igReady(env, d.fields.igContainer))) { results.push({ id: d.id, ok: false, waiting: true }); continue; }
+      // יוצא מהתור לפני הפרסום: כתיבה שנכשלת אחרי הפרסום לא תפרסם אותו שוב בקרון הבא
+      await fsPatch(env, `posts/${d.id}`, { igPending: false });
+      if (d.fields.igContainer)
         igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: d.fields.igContainer })).id);
-      } else igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
-      await fsPatch(env, `posts/${d.id}`, { igPending: false, igPostId, igError: "" });
+      else igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
+      await fsPatch(env, `posts/${d.id}`, { igPostId, igError: "" }).catch(() => {});
       results.push({ id: d.id, ok: true });
     } catch (e){
       // עוד ניסיון או שניים בעשר הדקות הבאות; אחרי זה יוצא מהתור, והסיבה גלויה באפליקציה
       const tries = Number(d.fields.igTries || 0) + 1;
-      await fsPatch(env, `posts/${d.id}`, { igTries: tries, igError: hebrew(e.message), igPending: tries < 3 });
+      // נכשל כאן? הפוסט מדולג ולא נעצרים שאר הפוסטים בתור
+      await fsPatch(env, `posts/${d.id}`, { igTries: tries, igError: hebrew(e.message), igPending: tries < 3 }).catch(() => {});
       results.push({ id: d.id, ok: false, error: e.message });
     }
   }

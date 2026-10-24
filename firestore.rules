@@ -84,7 +84,7 @@ service cloud.firestore {
     // ── זמינות ──
     match /availability/{id} {
       allow get: if true;              // צריך לדעת את הקוד המדויק
-      allow list: if allowed();
+      allow list: if isOwner();   // רשימה מלאה חושפת קודים אישיים של עובדים
       allow create, update: if
         request.resource.data.keys().hasOnly(['week','token','uid','name','days','note','at'])
         && weekOk(request.resource.data.week)
@@ -112,7 +112,7 @@ service cloud.firestore {
     // לפי מזהה שהוא מרכיב מהקוד שלו — מי שאין לו את הקוד לא יכול להגיע אליו.
     match /signups/{id} {
       allow get: if true;
-      allow list: if allowed();
+      allow list: if isOwner();   // רשימה מלאה חושפת קודים אישיים של עובדים
       allow create: if
         request.resource.data.keys().hasOnly(['week','shift','token','uid','name','at'])
         && (!('name' in request.resource.data) || request.resource.data.name.size() < 80)
@@ -168,7 +168,7 @@ service cloud.firestore {
     }
     match /log/{id} {
       allow get: if true;              // המזהה מכיל uid או קוד אישי. בלעדיהם אין דרך להגיע אליו.
-      allow list: if allowed();
+      allow list: if isOwner();   // רשימה מלאה חושפת קודים אישיים של עובדים
       allow create, update: if
         request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && (!('customers' in request.resource.data) || request.resource.data.customers == null
