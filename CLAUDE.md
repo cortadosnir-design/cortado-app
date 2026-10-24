@@ -47,10 +47,8 @@ Cloud Storage **לא זמין**. לכן:
 
 - **אסור** להשתמש ב-`uploadBytes`, `getDownloadURL`, `ref` של Storage,
   או בכל פונקציה אחרת מ-`firebase-storage.js`. קוד כזה ייכשל בזמן ריצה.
-- **תמונות נשלחות ל-AI כ-data URL**: הדפדפן קורא את הקובץ
-  (`FileReader.readAsDataURL`) ושולח את המחרוזת `data:image/...;base64,...`
-  ישירות ל-Worker. ה-Worker ממיר אותה ל-`inlineData` עבור Gemini —
-  ראה `imageParts()` ב-`worker/src/index.js`.
+- **תמונות עוברות בגוף הבקשה**: הבוט שולח לשרת את התמונה או הסרטון עצמם
+  (`/post/bot`, `/post/bot/reel`, `/post/bot/story`), והשרת מעלה אותם ישר למטא.
 - לא מעלים שום קובץ לאחסון ולא שומרים כתובות הורדה.
 - `storage.rules` נשאר במאגר לתיעוד ולעתיד, אבל **לא נפרס**:
   `.github/workflows/deploy.yml` פורס רק `hosting,firestore:rules`.
