@@ -532,10 +532,12 @@ if (f2) process.exitCode = 1;
     if (path === "p1/video_reels") return { data: [
       { id: "99", description: "4 עצירות", created_time: "2026-10-08T09:03:45+0000", permalink_url: "/reel/99/", video_insights: { data: [{ name: "blue_reels_play_count", values: [{ value: 119 }] }, { name: "post_video_likes_by_reaction_type", values: [{ value: { REACTION_LIKE: 2, REACTION_LOVE: 1 } }] }] } },
       { id: "50", description: "ישן", created_time: "2026-09-01T09:00:00+0000", permalink_url: "/reel/50/" } ] };
+    if (path === "ig1/media" && params.after === "c2") return { data: [{ id: "m2", caption: "ריל ישן", media_type: "VIDEO", media_product_type: "REELS", timestamp: "2026-10-09T05:00:00+0000", permalink: "https://ig/m2", like_count: 1, comments_count: 0 }] };
     if (path === "ig1/media") return { data: [{ id: "m1", caption: "דוכנים", media_type: "IMAGE", media_product_type: "FEED", timestamp: "2026-10-10T06:02:26+0000", permalink: "https://ig/m1", like_count: 8, comments_count: 0,
-      insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }] };
+      insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }],
+      paging: { cursors: { after: "c2" }, next: "https://graph/next" } };
     if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
-    if (path === "ig1") return { username: "cortado_snir", followers_count: 672 };
+    if (path === "ig1") return { username: "cortado_snir", followers_count: 672, media_count: 9 };
     throw new Error("unexpected " + path);
   };
   const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", block + "\nreturn { mcp };")(
@@ -576,9 +578,11 @@ if (f2) process.exitCode = 1;
   ok("ריל מחוץ לטווח לא נכנס", !byId["50"]);
   ok("אינסטגרם: צפיות והגעה", byId.m1.views === 376 && byId.m1.reach === 169 && byId.m1.at === "2026-10-10T06:02:26.000Z");
   ok("ממוין מהחדש לישן", posts.rows[0].id === "m1");
+  ok("אינסטגרם: עמוד שני של media נכנס, כריל", byId.m2 && byId.m2.kind === "reel", JSON.stringify(Object.keys(byId)));
+  ok("אינסטגרם: הערה כשמטא מחזירה פחות ממה שיש בחשבון", posts.notes.some(n => /2 media items, the account holds 9/.test(n)), JSON.stringify(posts.notes));
 
   const acc = (await tool("account")).structuredContent;
-  ok("חשבון: עוקבים בשתי הרשתות", acc.rows[0].followers === 5 && acc.rows[1].followers === 672);
+  ok("חשבון: עוקבים בשתי הרשתות, ומספר הפריטים באינסטגרם", acc.rows[0].followers === 5 && acc.rows[1].followers === 672 && acc.rows[1].media_count === 9);
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);
   const nb = await noIg.json();
   ok("בלי אינסטגרם בשרת → שגיאה ברורה, לא קריסה", nb.result.isError && /IG_USER_ID/.test(nb.result.content[0].text));

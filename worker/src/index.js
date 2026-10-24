@@ -510,10 +510,23 @@ const insightDay = (endTime) => new Date(Date.parse(endTime) - 864e5).toISOStrin
 async function graphFirst(env, path, variants, base){
   const errors = [];
   for (const fields of variants){
-    try { return { data: await graph(env, path, { ...base, fields }, "GET"), fields, errors }; }
+    try { return { data: await graphPages(env, path, { ...base, fields }), fields, errors }; }
     catch (e){ errors.push(e.message); }
   }
   throw new Error(errors[errors.length - 1]);
+}
+// Graph returns 25–100 items a page; a 90-day range of posts can run past one page, and a page that is cut
+// silently drops the oldest posts from the dashboard. Follows the cursor, at most 5 pages.
+async function graphPages(env, path, params, maxPages = 5){
+  const first = await graph(env, path, params, "GET");
+  const all = first.data || [];
+  let after = first.paging && first.paging.cursors && first.paging.next ? first.paging.cursors.after : null;
+  for (let i = 1; after && i < maxPages; i++){
+    const page = await graph(env, path, { ...params, after }, "GET");
+    all.push(...(page.data || []));
+    after = page.paging && page.paging.cursors && page.paging.next ? page.paging.cursors.after : null;
+  }
+  return { ...first, data: all };
 }
 const insightVal = (ins, name) => {
   const row = ((ins && ins.data) || []).find(m => m.name === name);
@@ -529,7 +542,7 @@ async function mcpAccount(env){
   if (!env.IG_USER_ID) out.notes.push("Instagram is not connected to the server (IG_USER_ID missing). Reconnect the page in the app to link it.");
   else {
     const ig = await graph(env, env.IG_USER_ID, { fields: "username,followers_count,follows_count,media_count" }, "GET");
-    out.rows.push({ network: "instagram", name: ig.username, followers: ig.followers_count ?? null, url: "https://www.instagram.com/" + ig.username + "/" });
+    out.rows.push({ network: "instagram", name: ig.username, followers: ig.followers_count ?? null, media_count: ig.media_count ?? null, url: "https://www.instagram.com/" + ig.username + "/" });
   }
   return out;
 }
@@ -616,7 +629,7 @@ async function mcpPosts(env, a){
   } catch (e){ notes.push("facebook posts: " + e.message); }
 
   try {
-    const r = await graph(env, `${env.FB_PAGE_ID}/video_reels`, { fields: "id,description,created_time,permalink_url,video_insights", limit: "50" }, "GET");
+    const r = await graphPages(env, `${env.FB_PAGE_ID}/video_reels`, { fields: "id,description,created_time,permalink_url,video_insights", limit: "50" });
     for (const v of r.data || []){
       if (!inRange(v.created_time)) continue;
       const vi = v.video_insights;
@@ -637,6 +650,11 @@ async function mcpPosts(env, a){
     const { data, fields } = await graphFirst(env, `${env.IG_USER_ID}/media`,
       [core + ",insights.metric(reach,views,saved,shares,total_interactions)", core + ",insights.metric(reach,saved,shares)", core], base);
     if (!fields.includes("insights")) notes.push("instagram posts: Meta refused media insights, so reach and views are missing");
+    // What Meta lists against what the account holds: a gap here means media the API does not return
+    // (deleted, or cross-posted from Facebook), not a dashboard bug.
+    const total = (data.data || []).length;
+    const ig = await graph(env, env.IG_USER_ID, { fields: "media_count" }, "GET").catch(() => ({}));
+    if (typeof ig.media_count === "number" && total < ig.media_count) notes.push(`instagram posts: Meta lists ${total} media items, the account holds ${ig.media_count}; the rest are not returned by the API (deleted or cross-posted from Facebook)`);
     for (const m of data.data || []){
       if (!inRange(m.timestamp)) continue;
       const likes = m.like_count ?? 0, comments = m.comments_count ?? 0;
