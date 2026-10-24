@@ -2,8 +2,16 @@
   "hosting": {
     "public": ".",
     "redirects": [
-      { "source": "/cafe", "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/", "type": 301 },
-      { "source": "/cafe/:path*", "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/:path", "type": 301 }
+      {
+        "source": "/cafe",
+        "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/",
+        "type": 301
+      },
+      {
+        "source": "/cafe/:path*",
+        "destination": "https://cortadosnir-design.github.io/cortado-app/cafe/:path",
+        "type": 301
+      }
     ],
     "ignore": [
       "firebase.json",
@@ -55,6 +63,15 @@
           {
             "key": "Cache-Control",
             "value": "max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "panel/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
           }
         ]
       }

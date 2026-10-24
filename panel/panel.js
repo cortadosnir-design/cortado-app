@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS, hm } from "./parse.js";
+import { parseWeek, DAYS, hm } from "./parse.js?v=20261024c";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -335,6 +335,12 @@ let viewNow = "hours";
 const greet = () => { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : "ערב טוב"; };
 const TITLES = { home: "", hours: "השבוע בעגלה", queue: "מה יוצא בקרוב", more: "עוד" };
 function show(v) {
+  // דף ישן מהמטמון עם קוד חדש (קרה בטלפון, 24.10.2026): טוענים מחדש פעם אחת, בלי מטמון
+  if (!$(`v-${v}`) || !$("v-home")) {
+    try { if (!sessionStorage.getItem("panel:reloaded")) { sessionStorage.setItem("panel:reloaded", "1"); location.replace(`${location.pathname}?r=${Date.now()}`); return; } } catch {}
+    toast("יש גרסה חדשה. סוגרים ופותחים את האפליקציה מחדש"); return;
+  }
+  try { sessionStorage.removeItem("panel:reloaded"); } catch {}
   viewNow = v;
   for (const x of ["home", "hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
   for (const b of document.querySelectorAll(".nav button")) b.toggleAttribute("aria-current", b.dataset.view === v), b.dataset.view === v && b.setAttribute("aria-current", "page");
