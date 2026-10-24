@@ -1,7 +1,8 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="size" content="1080x1920">
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
 <style>
-/* Next-day story 9:16. Filled from window.HOURS.story = {kicker, hours, sub, line, main, second, sticker}.
+/* Next-day story 9:16. Filled from window.HOURS.story = {kicker, hours, sub, line, main, second, sticker, closed?, foot?}.
+   closed: true = a closed day (week_day_stories.py): "סגורים" instead of hours, sub says when we open next.
    main = the big photo (pizza on evening days), second = the rotating small one. Safe zone y 250–1670. */
 body{height:1920px}
 .badge{top:250px}
@@ -19,6 +20,7 @@ body{height:1920px}
 .hrs{position:absolute;top:1170px;left:64px;right:64px;text-align:center;z-index:3}
 .hrs .t{font-family:Rubik;font-weight:900;font-size:130px;line-height:1;letter-spacing:-1px;color:var(--cart);direction:ltr;unicode-bidi:isolate;white-space:nowrap}
 .hrs.two .t{font-size:72px;line-height:1}
+.hrs.closed .t{direction:rtl}
 .sub{position:absolute;top:1330px;left:80px;right:80px;text-align:center;font-weight:700;font-size:44px;line-height:1.15;color:var(--board);z-index:3}
 .sub b{color:var(--aida-dark);font-weight:800}
 .line{position:absolute;top:1396px;left:64px;right:64px;text-align:center;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:36px;line-height:1.2;color:var(--espresso);z-index:3}
@@ -45,8 +47,10 @@ body{height:1920px}
 const s = (window.HOURS || {}).story || {};
 const t = x => `<span class="t">${x}</span>`;
 // kicker "שני · 12.10 · פתוח": the date is LTR-isolated. Hours: one or two ranges.
-document.getElementById('kicker').innerHTML = `${s.day} · ${t(s.date)} · פתוח`;
-document.getElementById('hrs').innerHTML = (s.hours || []).map(t).join('<br>');
+document.getElementById('kicker').innerHTML = `${s.day} · ${t(s.date)}` + (s.closed ? '' : ' · פתוח');
+document.getElementById('hrs').innerHTML = s.closed ? t('סגורים') : (s.hours || []).map(t).join('<br>');
+if (s.closed) document.getElementById('hrs').classList.add('closed');
+if (s.foot) document.querySelector('.foot').textContent = s.foot;
 if ((s.hours || []).length > 1) document.getElementById('hrs').classList.add('two');
 document.getElementById('sub').innerHTML = s.sub || '';
 document.getElementById('line').textContent = s.line || '';
@@ -54,6 +58,6 @@ document.getElementById('main').src = `../assets/photos/${s.main}`;
 document.getElementById('second').src = `../assets/photos/${s.second}`;
 if (s.third) { document.getElementById('third').src = `../assets/photos/${s.third}`; document.body.classList.add('has-third'); }
 const st = document.getElementById('sticker');
-if (s.sticker) st.textContent = s.sticker; else st.remove();
+if (s.sticker) st.innerHTML = s.sticker.split('|').join('<br>'); else st.remove();  // "|" = new line
 </script>
 </body></html>
