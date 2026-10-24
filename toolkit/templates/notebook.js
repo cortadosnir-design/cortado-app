@@ -30,14 +30,23 @@
     <linearGradient id="wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b6f74"/><stop offset="1" stop-color="#2e3134"/></linearGradient>
   </defs>${g}</svg>`);
 
-  if ("clip" in b.dataset) add(`<svg class="clip" width="180" height="170" viewBox="0 0 180 170"><defs>
-    <linearGradient id="cb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f5f6"/><stop offset=".3" stop-color="#d4d7da"/><stop offset=".62" stop-color="#8f959a"/><stop offset=".85" stop-color="#c9cdd1"/><stop offset="1" stop-color="#9aa0a5"/></linearGradient>
-    <linearGradient id="cw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7b8187"/><stop offset=".5" stop-color="#eef0f2"/><stop offset="1" stop-color="#6d7379"/></linearGradient></defs>
-    <path d="M56 92 V40 a34 34 0 0 1 68 0 V92" fill="none" stroke="url(#cw)" stroke-width="10" stroke-linecap="round"/>
-    <path d="M64 90 V44 a26 26 0 0 1 52 0 V90" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-    <path d="M18 92 h144 a8 8 0 0 1 8 9 l-10 52 a10 10 0 0 1 -10 8 h-110 a10 10 0 0 1 -10 -8 l-10 -52 a8 8 0 0 1 8 -9z" fill="url(#cb)"/>
-    <path d="M22 96 h136" stroke="rgba(255,255,255,.85)" stroke-width="3" stroke-linecap="round"/>
-    <path d="M26 150 h128" stroke="rgba(0,0,0,.18)" stroke-width="2"/></svg>`);
+  // binder clip biting the top edge of the paper: back jaw on the desk, rolled lip on the edge (svg y 84 = paper top), front plate on the page
+  if ("clip" in b.dataset) add(`<svg class="clip" width="240" height="240" viewBox="0 0 200 200"><defs>
+    <filter id="cl1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="cl2" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <linearGradient id="cp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4c50"/><stop offset=".18" stop-color="#1c1d20"/><stop offset=".7" stop-color="#121315"/><stop offset="1" stop-color="#2a2b2e"/></linearGradient>
+    <linearGradient id="cl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16171a"/><stop offset=".45" stop-color="#7c7f84"/><stop offset=".6" stop-color="#3a3c40"/><stop offset="1" stop-color="#0e0f11"/></linearGradient>
+    <linearGradient id="cj" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f1012"/><stop offset="1" stop-color="#2b2c30"/></linearGradient>
+    <linearGradient id="cw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#80868c"/><stop offset=".5" stop-color="#f2f4f6"/><stop offset="1" stop-color="#727880"/></linearGradient></defs>
+    <path d="M60 74 L60 22 a40 13 0 0 1 80 0 L140 74" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="7" filter="url(#cl2)" transform="translate(5 6)"/>
+    <path d="M42 88 h116 l-8 64 h-100z" fill="rgba(0,0,0,.5)" filter="url(#cl1)" transform="translate(6 9)"/>
+    <path d="M38 62 h124 l-4 24 h-116z" fill="url(#cj)"/>
+    <path d="M60 74 L60 22 a40 13 0 0 1 80 0 L140 74" fill="none" stroke="url(#cw)" stroke-width="6.5" stroke-linecap="round"/>
+    <path d="M36 84 h128 l-9 62 a8 8 0 0 1 -8 7 h-94 a8 8 0 0 1 -8 -7z" fill="url(#cp)"/>
+    <path d="M44 100 h112" stroke="rgba(255,255,255,.16)" stroke-width="2"/>
+    <rect x="31" y="74" width="138" height="18" rx="9" fill="url(#cl)"/>
+    <rect x="40" y="78" width="120" height="3" rx="1.5" fill="rgba(255,255,255,.45)"/>
+    <path d="M52 154 h96" stroke="rgba(0,0,0,.35)" stroke-width="3" stroke-linecap="round" filter="url(#cl2)"/></svg>`);
 
   const fill = (sel, svg) => document.querySelectorAll(sel).forEach((e, i) => { e.innerHTML = svg(i, e); });
   fill(".pin", (i) => `<svg width="70" height="84" viewBox="0 0 70 84"><defs><radialGradient id="pn${i}" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#F6C3A0"/><stop offset=".35" stop-color="#D98B5C"/><stop offset=".8" stop-color="#A9592F"/><stop offset="1" stop-color="#7a3d1e"/></radialGradient><filter id="pb${i}"><feGaussianBlur stdDeviation="3"/></filter></defs>
@@ -51,4 +60,10 @@
     <g filter="url(#st${i})"><circle cx="115" cy="115" r="92" fill="rgba(150,95,45,.05)"/><circle cx="115" cy="115" r="92" fill="none" stroke="rgba(130,80,35,.24)" stroke-width="7"/><path d="M40 90 a80 80 0 0 1 110 -60" fill="none" stroke="rgba(120,70,30,.18)" stroke-width="4"/></g></svg>`);
   fill(".heart", (i, e) => `<svg width="100%" height="100%" viewBox="0 0 70 62" fill="none" stroke="${e.dataset.c || "#D9858F"}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M35 56 C10 38 4 26 6 17 C9 5 26 3 35 17 C44 3 61 5 64 17 C66 26 60 38 35 56 Z"/><path d="M31 50 C13 36 9 26 10 19" opacity=".6"/></svg>`);
   fill(".paperclip", () => `<svg width="70" height="190" viewBox="0 0 70 190"><path d="M44 30 V150 a14 14 0 0 1 -28 0 V40 a22 22 0 0 1 44 0 V160 a28 28 0 0 1 -56 0 V60" fill="none" stroke="#b9bec3" stroke-width="5" stroke-linecap="round"/><path d="M44 30 V150 a14 14 0 0 1 -28 0 V40" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6"/></svg>`);
+  // phone-photo look: the notebook sits slightly askew on the desk, light falls from the top left, a little sensor grain
+  const stage = document.createElement("div"); stage.className = "stage";
+  for (const n of [...b.children]) if (!n.matches("script,.doodles,.desk-noise,.desk-vig")) stage.appendChild(n);
+  b.appendChild(stage);
+  add('<div class="light"></div>');
+  add('<svg class="grain-all" viewBox="0 0 1080 1350" preserveAspectRatio="none"><filter id="sn"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="11"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .5 0"/></filter><rect width="1080" height="1350" filter="url(#sn)"/></svg>');
 })();
