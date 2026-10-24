@@ -24,8 +24,8 @@
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1125x2436.png">
 <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-828x1792.png">
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-750x1334.png">
-<link rel="stylesheet" href="panel.css?v=20261024d">
-<script type="module" src="panel.js?v=20261024d"></script>
+<link rel="stylesheet" href="panel.css?v=20261024e">
+<script type="module" src="panel.js?v=20261024e"></script>
 </head>
 <body>
 <div id="signin" class="signin" hidden>
@@ -87,10 +87,11 @@
   </main>
 
   <main id="v-more" class="view" hidden>
+    <button type="button" id="install-open" class="group install-row" hidden><img src="img/icon-192.png" alt="" width="44" height="44"><span>התקנה במסך הבית</span></button>
+
     <div class="sec-h"><h2>שעות</h2></div>
     <div class="group menu">
       <button type="button" data-do="refresh">רענון השעות בפייסבוק עכשיו</button>
-      <button type="button" data-do="undo">חזרה לגרסה הקודמת</button>
       <button type="button" data-do="cancel_week" id="cancel-week" class="red" hidden>ביטול הפרסום המתוזמן</button>
     </div>
 
@@ -133,7 +134,6 @@
     </section>
 
     <div class="group menu gap">
-      <button type="button" id="install-open" hidden>התקנה במסך הבית</button>
       <button type="button" id="signout" class="red">יציאה</button>
     </div>
   </main>

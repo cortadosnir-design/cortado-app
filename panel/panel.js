@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS, hm } from "./parse.js?v=20261024d";
+import { parseWeek, DAYS, hm } from "./parse.js?v=20261024e";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -419,12 +419,6 @@ $("v-more")?.addEventListener("click", (e) => {
   if (b.dataset.list) run(() => act("list_remove", { list: b.dataset.list, n: +b.dataset.n }), loadMore);
   if (b.dataset.do === "refresh") run(() => act("refresh"));
   if (b.dataset.do === "cancel_week" && confirm("לבטל את הפרסום המתוזמן?")) run(() => act("cancel_week"), async () => { S = await call("/panel/state"); loadMore(); });
-  if (b.dataset.do === "undo") run(() => act("undo"), (r) => {
-    which = r.week === S.next ? "next" : "cur";
-    grids[r.week] = sorted(r.shifts.map(clean)); store.set(r.week, grids[r.week]);
-    show("hours");
-    toast("הגרסה הקודמת בטבלה. בודקים ומפרסמים");
-  });
   if (b.dataset.info) {
     const t = { brief: "בריף להיום", stats: "איך הלכו הפוסטים", status: "מצב המערכת" }[b.dataset.info];
     run(() => act(b.dataset.info), (r) => { $("info-title").textContent = t; $("info-text").textContent = String(r.text || "").replace(/\*/g, ""); $("info").showModal(); });
@@ -463,6 +457,7 @@ function openInstall() {
   $("install-webview").hidden = !iosWebview;
   $("install-android").hidden = ios || !!installEvt;
   $("install").showModal();
+  document.activeElement?.blur(); // בלי טבעת מיקוד על "אחר כך" כשהגיליון נפתח לבד
 }
 function askInstall() {
   if (standalone || $("install").open) return;
