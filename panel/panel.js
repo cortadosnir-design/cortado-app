@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS } from "./parse.js";
+import { parseWeek, DAYS, hm } from "./parse.js";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -21,7 +21,7 @@ const weekId = () => (which === "next" ? S.next : S.cur);
 // בידוד משמאל לימין, אחרת בעברית "25.10–31.10" מתהפך ל-"31.10–25.10"
 const range = (wk) => `\u2066${dm(wk)}–${dm(plusDays(wk, 6))}\u2069`;
 // "17", "9.30", "1730" → "17:00", "09:30", "17:30". לא שעה → ריק
-const tm = (v) => { const m = /^(\d{1,2})(?:[:.]?(\d{2}))?$/.exec(String(v || "").trim()); return m && +m[1] < 24 && +(m[2] || 0) < 60 ? `${m[1].padStart(2, "0")}:${m[2] || "00"}` : ""; };
+const tm = (v) => { const m = /^(\d{1,2})(?:[:.]?(\d{2}))?$/.exec(String(v || "").trim()); return m && +m[1] < 24 && +(m[2] || 0) < 60 ? hm(m[1], m[2]) : ""; };
 
 /* ===== רשת ===== */
 async function call(path, body) {
@@ -38,16 +38,22 @@ async function call(path, body) {
 const KEY = (wk) => `panel:grid:${wk}`;
 const store = {
   get(wk) { try { return JSON.parse(localStorage.getItem(KEY(wk)) || "null"); } catch { return null; } },
-  set(wk, v) { try { localStorage.setItem(KEY(wk), JSON.stringify(v)); } catch {} },
+  set(wk, v) { try { localStorage.setItem(KEY(wk), JSON.stringify({ base: JSON.stringify(saved(wk) || []), shifts: v })); } catch {} },
   del(wk) { try { localStorage.removeItem(KEY(wk)); } catch {} },
 };
-const clean = (s) => ({ day: s.day, start: s.start, end: s.end, people: [...(s.people || [])], open: s.open !== false });
+const clean = (s) => ({ day: s.day, start: s.start, end: s.end, people: [...(s.people || [])], open: s.open !== false, ...(s.note ? { note: s.note } : {}) });
 const sorted = (list) => [...list].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
 const saved = (wk) => S.weeks?.[wk]?.shifts?.map(clean) || null;
 const same = (a, b) => JSON.stringify(sorted(a || [])) === JSON.stringify(sorted(b || []));
 function grid() {
   const wk = weekId();
-  if (!grids[wk]) grids[wk] = store.get(wk) || saved(wk) || [];
+  if (!grids[wk]) {
+    // טיוטה במכשיר תקפה רק אם בינתיים לא פורסמה גרסה אחרת (למשל מהטלפון של שותף/ה, או בוואטסאפ)
+    const d = store.get(wk), pub = saved(wk) || [];
+    const fresh = d && Array.isArray(d.shifts) && d.base === JSON.stringify(pub);
+    if (d && !fresh) { store.del(wk); setTimeout(() => toast("בינתיים פורסמה גרסה חדשה. הטבלה מציגה אותה"), 0); }
+    grids[wk] = fresh ? d.shifts : pub;
+  }
   return grids[wk];
 }
 function setGrid(list) { const wk = weekId(); grids[wk] = sorted(list.map(clean)); store.set(wk, grids[wk]); draftId = null; render(); }
@@ -128,8 +134,8 @@ function dayHtml(name, d, wk, list) {
       ${hol ? `<span class="holiday">${esc(hol[1])}</span>` : ""}
       ${mine.length ? "" : '<p class="closed-label">סגור</p>'}
       ${mine.map((s) => `<div class="shift${s.open ? "" : " off"}" data-i="${s.i}">
-        <div class="times"><input inputmode="numeric" maxlength="5" autocomplete="off" value="${s.start}" data-f="start" aria-label="${name} מ-"><span>–</span><input inputmode="numeric" maxlength="5" autocomplete="off" value="${s.end}" data-f="end" aria-label="${name} עד"></div>
-        <input class="names${s.open && !s.people.length ? " empty" : ""}" value="${esc(s.people.join(", "))}" data-f="people" placeholder="מי עובד…" autocomplete="off" spellcheck="false" aria-label="${name} ${s.start} מי עובד">
+        <div class="times"><input inputmode="numeric" maxlength="5" autocomplete="off" value="${esc(s.start)}" data-f="start" aria-label="${name} מ-"><span>–</span><input inputmode="numeric" maxlength="5" autocomplete="off" value="${esc(s.end)}" data-f="end" aria-label="${name} עד"></div>
+        <input class="names${s.open && !s.people.length ? " empty" : ""}" value="${esc(s.people.join(", "))}" data-f="people" placeholder="מי עובד…" autocomplete="off" spellcheck="false" aria-label="${name} ${esc(s.start)} מי עובד">
         <button class="standby" type="button" data-f="open" aria-pressed="${!s.open}">סטנד ביי</button>
         <button class="remove" type="button" data-f="remove" aria-label="הסרת המשמרת">×</button>
       </div>`).join("")}
@@ -150,7 +156,7 @@ $("days")?.addEventListener("input", (e) => {
   renderStatus();
 });
 // ביציאה משדה שעה: מציגים אותה בצורה המלאה, וממיינים מחדש
-$("days")?.addEventListener("change", (e) => { const f = e.target.dataset.f; if ((f === "start" || f === "end") && tm(e.target.value)) setGrid(grid()); });
+$("days")?.addEventListener("change", (e) => { const f = e.target.dataset.f; if ((f === "start" || f === "end") && tm(e.target.value)) e.target.value = tm(e.target.value); });
 $("days")?.addEventListener("click", (e) => {
   const btn = e.target.closest("button"); if (!btn) return;
   const list = grid().map(clean), f = btn.dataset.f;
@@ -166,7 +172,7 @@ $("days")?.addEventListener("click", (e) => {
   if (f === "open") { list[i].open = !list[i].open; setGrid(list); }
 });
 
-for (const b of document.querySelectorAll(".weeks button")) b.addEventListener("click", () => { which = b.dataset.week; draftId = null; render(); });
+for (const b of document.querySelectorAll(".weeks button")) b.addEventListener("click", () => { if (!S) return; which = b.dataset.week; draftId = null; render(); });
 
 $("copy-prev")?.addEventListener("click", () => {
   const wk = weekId(), prev = S.weeks?.[plusDays(wk, -7)];
@@ -177,7 +183,7 @@ $("copy-prev")?.addEventListener("click", () => {
 });
 
 /* ===== הדבקה ===== */
-$("paste-open")?.addEventListener("click", () => { $("paste-skipped").textContent = ""; $("paste").showModal(); $("paste-text").focus(); });
+$("paste-open")?.addEventListener("click", () => { $("paste-skipped").textContent = ""; $("paste").returnValue = ""; $("paste").showModal(); $("paste-text").focus(); });
 $("paste")?.addEventListener("close", () => {
   if ($("paste").returnValue !== "fill") return;
   const r = parseWeek($("paste-text").value);
@@ -208,7 +214,7 @@ $("preview-btn")?.addEventListener("click", async () => {
   if (broken) { toast(`${DAYS[broken.day]}: שעה לא תקינה`); return; }
   busy(true);
   try {
-    const p = await call("/panel/preview", { next_week: which === "next", shifts: list });
+    const p = await call("/panel/preview", { next_week: which === "next", shifts: sorted(list.map(clean)) });
     if (p.week !== wk) throw new Error("השבוע התחלף בינתיים. מרעננים את הדף");
     draftId = p.id;
     $("pv-public").innerHTML = `<h3>השעות של העגלה ${range(wk)}</h3><ol>${p.days.map((r, d) => `<li><span class="d">${DAYS[d]} ${dm(plusDays(wk, d))}</span><span class="${r.length ? "h" : "x"}">${hrs(r)}</span></li>`).join("")}</ol>`;
@@ -249,6 +255,13 @@ $("publish-btn")?.addEventListener("click", async () => {
 
 function showResult(r, wk) {
   const later = wk !== S.cur, rows = [];
+  if (r.page === undefined) {
+    $("rs-title").textContent = `לא פורסם ${range(wk)}`;
+    $("rs-channels").innerHTML = `<li class="bad"><span class="mark">!</span><div><b>הבוט</b><span>${esc((r.text || "לא התקבלה תשובה").replace(/\*/g, ""))}</span></div></li>`;
+    $("rs-actions").innerHTML = "";
+    $("result").showModal();
+    return;
+  }
   const okp = r.page === "ok" && (r.pageCheck ?? "ok") === "ok";
   rows.push([okp ? "ok" : "bad", "דף הנחיתה", okp ? (later ? `נשמר. יוצג מיום ראשון ${dm(wk)}` : "עודכן ונבדק") : (r.page === "ok" ? r.pageCheck : r.page || "לא עודכן")]);
   const okf = r.facebook === "ok" && (r.facebookCheck ?? "ok") === "ok";
