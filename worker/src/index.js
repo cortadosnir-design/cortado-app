@@ -227,8 +227,9 @@ async function schedulePost(env, b){
   const fb = image
     ? await graphUpload(env, `${env.FB_PAGE_ID}/photos`, { caption: text, ...sched }, image)
     : await graph(env, `${env.FB_PAGE_ID}/feed`, { message: text, ...sched });
+  const tags = cleanTags(b.tags);
   const out = { fbPostId: fb.post_id || fb.id || "", fbPhotoId: image ? (fb.id || "") : "",
-    publishAt: (when || now) * 1000, igPending: false, igPostId: "", igSkipped: "", igError: "" };
+    publishAt: (when || now) * 1000, igPending: false, igPostId: "", igSkipped: "", igError: "", igTagged: [], igTagError: "", tags };
 
   // 2. אינסטגרם — עכשיו, או בתור לקרון
   // noIg: הלקוח ביקש פייסבוק בלבד. נבדק ראשון, לפני כל סיבה אחרת לדלג,
@@ -237,7 +238,7 @@ async function schedulePost(env, b){
   else if (!image) out.igSkipped = "אינסטגרם דורש תמונה";
   else if (!env.IG_USER_ID) out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת";
   else if (!when){
-    try { out.igPostId = await igPublishFromPhoto(env, out.fbPhotoId, text); }
+    try { const ig = await igPublishFromPhoto(env, out.fbPhotoId, text, tags); Object.assign(out, { igPostId: ig.id, igTagged: ig.igTagged, igTagError: ig.igTagError }); }
     catch (e){ out.igError = hebrew(e.message); }
   } else if (!env.FIREBASE_SA) out.igSkipped = "תזמון לאינסטגרם דורש את FIREBASE_SA בשרת";
   else out.igPending = true;
@@ -252,16 +253,16 @@ async function schedulePost(env, b){
 
 // כתובת CDN טרייה של תמונה שכבר בעמוד → קונטיינר → פרסום. הכתובת חתומה ופגה,
 // לכן שולפים אותה ברגע הפרסום ולא בזמן התזמון.
-async function igPublishFromPhoto(env, photoId, caption){
+async function igPublishFromPhoto(env, photoId, caption, tags = []){
   if (!photoId) throw fail("bad_request", "אין תמונה לאינסטגרם.");
   const ph = await graph(env, photoId, { fields: "images" }, "GET");
   const src = (ph.images || []).slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0];
   if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
-  const c = await graph(env, `${env.IG_USER_ID}/media`, { image_url: src.source, caption: caption || "" });
+  const c = await igImageContainer(env, { image_url: src.source, caption: caption || "" }, tags);
   // מטא מבקשת לחכות ל-FINISHED לפני הפרסום. בלי זה, לפעמים "Media ID is not available".
   if (!(await igReady(env, c.id, 6, 2000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונה. ננסה שוב בעוד כמה דקות.", 502);
   const p = await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id });
-  return p.id;
+  return { id: String(p.id), igTagged: c.tagged, igTagError: c.tagError };
 }
 
 // קונטיינר של אינסטגרם מוכן לפרסום? FINISHED = כן, IN_PROGRESS = עוד לא, ERROR/EXPIRED = לא יהיה.
@@ -275,6 +276,20 @@ async function igReady(env, id, tries = 1, waitMs = 0){
   }
   return false;
 }
+
+// תיוג באינסטגרם (הבעלים, 24.10.2026: בכל פרסום). שמות משתמש בלבד; שם לא תקין לא נכנס
+const cleanTags = v => (Array.isArray(v) ? v : []).map(t => String(t).trim().replace(/^@/, "")).filter(t => /^[\w.]{1,30}$/.test(t)).slice(0, 20);
+// תמונה: user_tags על התמונה, והכיתוב נשאר נקי. תיוג שאינסטגרם דוחה (חשבון שחוסם תיוג, שם שהשתנה) לא מפיל את הפרסום: יוצא בלי, והסיבה מדווחת
+async function igImageContainer(env, params, tags){
+  const out = { tagged: [], tagError: "" };
+  let c;
+  if (tags.length) try { c = (await graph(env, `${env.IG_USER_ID}/media`, { ...params, user_tags: JSON.stringify(tags.map(username => ({ username }))) })).id; out.tagged = tags; }
+    catch (e){ out.tagError = hebrew(e.message); }
+  c ||= (await graph(env, `${env.IG_USER_ID}/media`, params)).id;
+  return { id: String(c), ...out };
+}
+// וידאו: אין user_tags, ולכן התיוג הוא שורת @ בסוף הכיתוב של אינסטגרם בלבד (פייסבוק נשאר נקי)
+const withMentions = (caption, tags) => tags.length ? `${caption || ""}\n\n${tags.map(t => "@" + t).join(" ")}`.trim() : (caption || "");
 
 /* ===== ריל: וידאו מהבוט, ישר לפייסבוק ולאינסטגרם =====
    אין לנו אחסון, ולכן הקובץ עצמו עולה למטא (resumable upload), לכל רשת בנפרד.
@@ -317,12 +332,12 @@ async function botReel(env, request){
   const bytes = await request.arrayBuffer();
   if (!bytes.byteLength) throw fail("bad_request", "אין קובץ וידאו.");
   if (bytes.byteLength > MAX_REEL_BYTES) throw fail("bad_request", "הסרטון גדול מ-40MB.");
-  const text = String(meta.text || "").slice(0, 2200);
+  const text = String(meta.text || "").slice(0, 2200), tags = cleanTags(meta.tags);
   const id = "r" + Date.now().toString(36);
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date());
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", kind: "reel", status: "ready", hasMedia: true });
 
-  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "" };
+  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [] };
   // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
   await Promise.all([
     fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
@@ -330,7 +345,8 @@ async function botReel(env, request){
       if (meta.noIg) return void (out.igSkipped = "פייסבוק בלבד, לפי הבחירה");
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
       try {
-        const c = await igReelContainer(env, bytes, text);
+        const c = await igReelContainer(env, bytes, withMentions(text, tags).slice(0, 2200));
+        out.igTagged = tags;
         // עד 3 דקות כאן. עוד לא מוכן: נכנס לתור, והקרון מפרסם כשיהיה FINISHED (קונטיינר פג אחרי 24 שעות)
         if (await igReady(env, c, 18, 10000)) out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
         else Object.assign(out, { igPending: true, igContainer: c });
@@ -354,7 +370,7 @@ async function botStory(env, request){
   const image = dataUrlToBlob(b.image);
   if (!image || !/^image\//.test(image.type)) throw fail("bad_request", "אין תמונה לסטורי.");
   if (image.size > 8 * 1024 * 1024) throw fail("bad_request", "התמונה גדולה מ-8MB.");
-  const tags = (Array.isArray(b.tags) ? b.tags : []).map(t => String(t).trim().replace(/^@/, "")).filter(t => /^[\w.]{1,30}$/.test(t)).slice(0, 20);
+  const tags = cleanTags(b.tags);
   const photo = String((await graphUpload(env, `${env.FB_PAGE_ID}/photos`, { published: "false" }, image)).id);
   const out = { fbStoryId: "", fbError: "", igStoryId: "", igSkipped: "", igError: "", igTagged: [], igTagError: "" };
   await Promise.all([
@@ -366,14 +382,10 @@ async function botStory(env, request){
         const ph = await graph(env, photo, { fields: "images" }, "GET");
         const src = (ph.images || []).slice().sort((x, y) => (y.width || 0) - (x.width || 0))[0];
         if (!src || !src.source) throw fail("meta_error", "פייסבוק לא החזיר כתובת לתמונה.", 502);
-        const container = async (withTags) => (await graph(env, `${env.IG_USER_ID}/media`, { image_url: src.source, media_type: "STORIES",
-          ...(withTags ? { user_tags: JSON.stringify(tags.map(username => ({ username }))) } : {}) })).id;
-        let c;
-        // תיוג שאינסטגרם דוחה (חשבון שלא מאפשר תיוג, שם שהשתנה) לא מפיל את הסטורי: יוצא בלי תיוג, והסיבה מדווחת
-        if (tags.length) try { c = await container(true); out.igTagged = tags; } catch (e){ out.igTagError = hebrew(e.message); }
-        c ||= await container(false);
-        if (!(await igReady(env, c, 10, 3000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונה, והסטורי לא פורסם.", 502);
-        out.igStoryId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
+        const c = await igImageContainer(env, { image_url: src.source, media_type: "STORIES" }, tags);
+        Object.assign(out, { igTagged: c.tagged, igTagError: c.tagError });
+        if (!(await igReady(env, c.id, 10, 3000))) throw fail("meta_error", "אינסטגרם עוד מעבד את התמונה, והסטורי לא פורסם.", 502);
+        out.igStoryId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id })).id);
       } catch (e){ out.igError = hebrew(e.message); out.igTagged = []; }
     })(),
   ]);
@@ -399,7 +411,7 @@ async function publishDue(env){
       await fsPatch(env, `posts/${d.id}`, { igPending: false });
       if (d.fields.igContainer)
         igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: d.fields.igContainer })).id);
-      else igPostId = await igPublishFromPhoto(env, d.fields.fbPhotoId, text);
+      else { const ig = await igPublishFromPhoto(env, d.fields.fbPhotoId, text, cleanTags(d.fields.tags)); igPostId = ig.id; await fsPatch(env, `posts/${d.id}`, { igTagged: ig.igTagged, igTagError: ig.igTagError }).catch(() => {}); }
       await fsPatch(env, `posts/${d.id}`, { igPostId, igError: "" }).catch(() => {});
       results.push({ id: d.id, ok: true });
     } catch (e){
@@ -1255,7 +1267,7 @@ async function botPost(env, request){
   const id = "b" + Date.now().toString(36);
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date(at || Date.now()));
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", status: "ready", hasMedia: !!b.image });
-  try { return { ok: true, id, ...(await schedulePost(env, { postId: id, text, image: b.image || "", at, noIg: !!b.noIg })) }; }
+  try { return { ok: true, id, ...(await schedulePost(env, { postId: id, text, image: b.image || "", at, noIg: !!b.noIg, tags: b.tags })) }; }
   catch (e){ // לא יצא: המסמך לא נשאר "מוכן" באפליקציה ולא תופס משבצת
     await fsPatch(env, `posts/${id}`, { status: "cancelled", igPending: false }).catch(() => {});
     throw e;

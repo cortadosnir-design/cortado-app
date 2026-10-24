@@ -292,9 +292,24 @@ if (f2) process.exitCode = 1;
   const st = await botPost({ BOT_KEY: "k" }, req({ check: true }));
   ok("check: רק מה מחובר, בלי לפרסם", st.facebook === true && st.instagram === false && !writes.length && !sched.length);
   const at = Date.parse("2026-10-09T05:00:00Z");
-  const out = await botPost({ BOT_KEY: "k" }, req({ text: "בוקר בשניר", image: "data:image/jpeg;base64,AQID", at }));
+  const out = await botPost({ BOT_KEY: "k" }, req({ text: "בוקר בשניר", image: "data:image/jpeg;base64,AQID", at, tags: ["galilback"] }));
   ok("מסמך הפוסט נכתב לפני הפרסום, עם התאריך בשעון ישראל", writes.length === 1 && /^posts\/b/.test(writes[0][0]) && writes[0][1].date === "2026-10-09" && writes[0][1].time === "08:00" && writes[0][1].source === "bot", JSON.stringify(writes[0]));
-  ok("הפרסום מקבל את אותו מזהה, טקסט, תמונה וזמן", sched[0].postId === writes[0][0].slice(6) && sched[0].text === "בוקר בשניר" && sched[0].image === "data:image/jpeg;base64,AQID" && sched[0].at === at && out.fbPostId === "1_2");
+  ok("הפרסום מקבל את אותו מזהה, טקסט, תמונה, זמן ותיוג", sched[0].postId === writes[0][0].slice(6) && sched[0].text === "בוקר בשניר" && sched[0].image === "data:image/jpeg;base64,AQID" && sched[0].at === at && out.fbPostId === "1_2" && JSON.stringify(sched[0].tags) === '["galilback"]');
+
+  // תיוג על התמונה באינסטגרם: user_tags, והכיתוב נשאר נקי. תיוג שנדחה: יוצא בלי, והסיבה חוזרת
+  {
+    const src = wsrc.slice(wsrc.indexOf("const cleanTags"), wsrc.indexOf("/* ===== ריל: וידאו מהבוט")) + wsrc.slice(wsrc.indexOf("async function igPublishFromPhoto("), wsrc.indexOf("\n}\n", wsrc.indexOf("async function igPublishFromPhoto(")) + 2);
+    const run = async (tagFails) => { const calls = [];
+      const fn = new Function("graph", "igReady", "hebrew", "fail", src + "\nreturn igPublishFromPhoto;")(async (_e, path, params = {}, method = "POST") => { calls.push([path, params]);
+        if (method === "GET") return { images: [{ width: 1080, source: "https://cdn/big" }] };
+        if (path.endsWith("/media")){ if (tagFails && params.user_tags) throw new Error("tag no"); return { id: "c1" }; }
+        return { id: "ig9" }; }, async () => true, (m) => m, (code, m) => Object.assign(new Error(m), { code }));
+      return { out: await fn({ IG_USER_ID: "I" }, "ph1", "בוקר", ["galilback", "galil.elion"]), calls }; };
+    const good = await run(false), c = good.calls.find(x => x[0] === "I/media")[1];
+    ok("פוסט תמונה: user_tags על התמונה והכיתוב נקי", good.out.id === "ig9" && c.caption === "בוקר" && JSON.parse(c.user_tags).map(u => u.username).join() === "galilback,galil.elion" && good.out.igTagged.length === 2);
+    const bad = await run(true);
+    ok("תיוג נדחה: הפוסט יוצא בלי תיוג, והסיבה מדווחת", bad.out.id === "ig9" && bad.out.igTagError === "tag no" && !bad.out.igTagged.length && bad.calls.filter(x => x[0] === "I/media").length === 2);
+  }
   let denied = false; try { await botPost({ BOT_KEY: "k" }, req({ text: "x" }, "nope")); } catch (e){ denied = e.status === 403; }
   ok("מפתח שגוי: נדחה בלי לכתוב", denied && writes.length === 1);
   const failing = new Function("botAuth", "withMeta", "publishState", "fsPatch", "schedulePost", wsrc.slice(a, z) + "\nreturn botPost;")(
@@ -358,6 +373,12 @@ if (f2) process.exitCode = 1;
   ok("פייסבוק מסיים ב-PUBLISHED עם הטקסט", t1.calls.some(c => c[2].upload_phase === "finish" && c[2].video_state === "PUBLISHED" && c[2].description === "בוקר בשניר ☕"));
   ok("מסמך הפוסט: נכתב לפני, ובסוף done", t1.writes[0][1].status === "ready" && t1.writes[0][1].kind === "reel" && t1.writes.at(-1)[1].status === "done");
 
+  const tg = mk();
+  const tagged = await tg.botReel(env, req({ text: "בוקר", tags: ["@galilback", "galil.elion", "bad name!"] }));
+  ok("תיוג בריל: שורת @ בסוף הכיתוב של אינסטגרם בלבד, פייסבוק נקי, שם לא תקין לא נכנס",
+    tg.calls.find(c => c[1] === "I/media")[2].caption === "בוקר\n\n@galilback @galil.elion" && tg.calls.some(c => c[2].upload_phase === "finish" && c[2].description === "בוקר")
+    && JSON.stringify(tagged.igTagged) === JSON.stringify(["galilback", "galil.elion"]));
+
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
   const slow = await t2.botReel(env, req({ text: "x" }));
   ok("אינסטגרם עוד מעבד: נכנס לתור עם הקונטיינר, ולא מפורסם", slow.igPending === true && slow.igContainer === "c1" && !slow.igPostId && t2.writes.at(-1)[1].status === "scheduled" && t2.writes.at(-1)[1].publishAt > 0);
@@ -405,6 +426,7 @@ if (f2) process.exitCode = 1;
   console.log("\nסטורי מהבוט");
   let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
   const a = wsrc.indexOf("async function botStory("), z = wsrc.indexOf("\n}\n", a) + 2;
+  const tagSrc = wsrc.slice(wsrc.indexOf("const cleanTags"), wsrc.indexOf("/* ===== ריל: וידאו מהבוט")); // עוזרי התיוג המשותפים לפוסט, ריל וסטורי
   const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
   const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
   const mk = ({ tagFails = false, fbFails = false } = {}) => {
@@ -417,7 +439,7 @@ if (f2) process.exitCode = 1;
       if (path.endsWith("/media_publish")) return { id: "ig9" };
       throw new Error("unexpected " + path);
     };
-    const fn = new Function("botAuth", "withMeta", "graph", "graphUpload", "dataUrlToBlob", "igReady", "hebrew", "fail", wsrc.slice(a, z) + "\nreturn botStory;")(
+    const fn = new Function("botAuth", "withMeta", "graph", "graphUpload", "dataUrlToBlob", "igReady", "hebrew", "fail", tagSrc + wsrc.slice(a, z) + "\nreturn botStory;")(
       auth, async (e) => e, graph, async (_e, path, fields, file) => { uploads.push([path, fields, file.type]); return { id: "ph1" }; },
       (u) => { const m = /^data:([^;]+);base64,(.+)$/.exec(String(u || "")); return m ? new Blob([Buffer.from(m[2], "base64")], { type: m[1] }) : null; },
       async () => true, (m) => m, fail);
