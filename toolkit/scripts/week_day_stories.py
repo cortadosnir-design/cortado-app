@@ -1,4 +1,4 @@
-"""One story per day of a week, posted on the morning of that day (owner, 24.10.2026):
+"""One story per day of a week, posted the evening before at 18:30, like "מחר בעגלה" (owner, 24.10.2026):
 open days show the day's hours (template 56, same photo rotation as "מחר בעגלה"),
 closed days say "סגורים" with the cart photo and when we open next.
 
@@ -24,7 +24,7 @@ def build(days, start, state):
             s = {"day": d["day"], "date": f"{date.day}.{date.month}", "closed": True,
                  "main": "cart.jpg", "second": "evening.jpg",
                  "sub": f"נפתחים שוב ב{nxt[0]['day']}, <span class=\"t\">{nxt[0]['times'][0]}</span>" if nxt else "",
-                 "line": "העגלה נחה היום"}
+                 "line": "יום מנוחה לעגלה"}  # no "today": it goes up the evening before
         else:
             s = story(date, d["times"], state)
             s["line"] = s["line"].replace("על הדשא", "בעגלה")
