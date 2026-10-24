@@ -1,0 +1,307 @@
+// מרכז השליטה: השבוע בעגלה. הדף רק עורך ומציג. התצוגה והפרסום קורים בבוט קורטדו (‎/panel/*‎),
+// באותו מסלול כמו "כן" בוואטסאפ, כך שיש דרך אחת לפרסם שעות והבוט תמיד יודע מה בחוץ.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { firebaseConfig } from "../config.js";
+import { parseWeek, DAYS } from "./parse.js";
+
+const API = "https://agala-bot.cortado-snir.workers.dev";
+const $ = (id) => document.getElementById(id);
+const auth = getAuth(initializeApp(firebaseConfig));
+
+let S = null;            // מצב מהבוט: שבועות שפורסמו, צוות, תחזית, חגים
+let which = "next";      // cur | next
+const grids = {};        // week -> [{ day, start, end, people[], open }]
+let draftId = null;
+
+/* ===== תאריכים ===== */
+const plusDays = (ymd, n) => { const d = new Date(ymd + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const dm = (ymd) => `${+ymd.slice(8, 10)}.${+ymd.slice(5, 7)}`;
+const weekId = () => (which === "next" ? S.next : S.cur);
+// בידוד משמאל לימין, אחרת בעברית "25.10–31.10" מתהפך ל-"31.10–25.10"
+const range = (wk) => `\u2066${dm(wk)}–${dm(plusDays(wk, 6))}\u2069`;
+// "17", "9.30", "1730" → "17:00", "09:30", "17:30". לא שעה → ריק
+const tm = (v) => { const m = /^(\d{1,2})(?:[:.]?(\d{2}))?$/.exec(String(v || "").trim()); return m && +m[1] < 24 && +(m[2] || 0) < 60 ? `${m[1].padStart(2, "0")}:${m[2] || "00"}` : ""; };
+
+/* ===== רשת ===== */
+async function call(path, body) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("צריך להתחבר מחדש");
+  const r = await fetch(API + path, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${await user.getIdToken()}` }, body: JSON.stringify(body || {}) });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) throw new Error(d.error === "החשבון הזה לא מורשה" ? "החשבון הזה לא מורשה. נכנסים עם המייל של העגלה" : "צריך להתחבר מחדש");
+  if (!r.ok) throw new Error(d.error || `שגיאה ${r.status}`);
+  return d;
+}
+
+/* ===== טיוטה במכשיר ===== */
+const KEY = (wk) => `panel:grid:${wk}`;
+const store = {
+  get(wk) { try { return JSON.parse(localStorage.getItem(KEY(wk)) || "null"); } catch { return null; } },
+  set(wk, v) { try { localStorage.setItem(KEY(wk), JSON.stringify(v)); } catch {} },
+  del(wk) { try { localStorage.removeItem(KEY(wk)); } catch {} },
+};
+const clean = (s) => ({ day: s.day, start: s.start, end: s.end, people: [...(s.people || [])], open: s.open !== false });
+const sorted = (list) => [...list].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
+const saved = (wk) => S.weeks?.[wk]?.shifts?.map(clean) || null;
+const same = (a, b) => JSON.stringify(sorted(a || [])) === JSON.stringify(sorted(b || []));
+function grid() {
+  const wk = weekId();
+  if (!grids[wk]) grids[wk] = store.get(wk) || saved(wk) || [];
+  return grids[wk];
+}
+function setGrid(list) { const wk = weekId(); grids[wk] = sorted(list.map(clean)); store.set(wk, grids[wk]); draftId = null; render(); }
+
+/* ===== בדיקות לכל יום ===== */
+const merged = (list) => {
+  const out = [];
+  for (const s of sorted(list).filter((x) => x.open)) {
+    const last = out[out.length - 1];
+    if (last && s.start <= last[1]) last[1] = s.end > last[1] ? s.end : last[1]; else out.push([s.start, s.end]);
+  }
+  return out;
+};
+function known(name) {
+  if (!S.team?.length) return true;
+  return S.team.some((t) => t === name || t.split(/\s+/)[0] === name);
+}
+function warningsOf(list) {
+  const w = [];
+  if (merged(list).length > 2) w.push("יותר משני טווחי שעות. פייסבוק וגוגל מחזיקים רק שניים");
+  for (const s of list) {
+    if (!tm(s.start) || !tm(s.end) || s.end <= s.start) w.push(`שעה לא תקינה ${s.start || "?"}–${s.end || "?"}`);
+    else if (s.open && !s.people.length) w.push(`${s.start}–${s.end} בלי משובצים`);
+    for (const p of s.people) if (!known(p)) w.push(`${p} לא ברשימת הצוות`);
+  }
+  return [...new Set(w)];
+}
+function weatherOf(date) {
+  const f = S.forecast?.[date], L = S.limits || {};
+  if (!f) return null;
+  return {
+    rain: { v: f.rain, alert: f.rain >= (L.rainProb ?? 50) && f.mm >= (L.rainMm ?? 1) },
+    gust: { v: f.gust, alert: f.gust >= (L.gust ?? 40) },
+    temp: { v: f.tmax, alert: f.tmax >= (L.hot ?? 37) },
+  };
+}
+const ICON = {
+  rain: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15a4 4 0 0 1 .5-8A5 5 0 0 1 17 8a3.5 3.5 0 0 1 0 7H7M9 18l-1 2M13 18l-1 2M17 18l-1 2"/></svg>',
+  gust: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h8"/></svg>',
+  temp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0z"/></svg>',
+};
+
+/* ===== ציור ===== */
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function render() {
+  const wk = weekId(), list = grid();
+  for (const [id, w] of [["tab-cur", S.cur], ["tab-next", S.next]]) {
+    const b = $(id);
+    b.innerHTML = `${b.dataset.week === "cur" ? "השבוע" : "שבוע הבא"}<small>${range(w)}</small>`;
+    b.setAttribute("aria-selected", String(b.dataset.week === which));
+  }
+  renderStatus();
+  $("days").innerHTML = DAYS.map((name, d) => dayHtml(name, d, wk, list)).join("");
+}
+function renderStatus() {
+  const wk = weekId(), list = grid();
+  const chips = [];
+  const pub = S.weeks?.[wk];
+  if (S.alert) chips.push(`<span class="chip bad">${esc(S.alert.split("\n")[0].replace(/^⚠️\s*/, ""))}</span>`);
+  chips.push(pub ? '<span class="chip ok">פורסם</span>' : '<span class="chip bad">עוד לא פורסם</span>');
+  if (pub && !same(list, saved(wk))) chips.push('<span class="chip bad">יש שינויים שלא פורסמו</span>');
+  if (!pub && list.length) chips.push('<span class="chip">טיוטה במכשיר</span>');
+  if (S.scheduled?.week === wk) chips.push(`<span class="chip">מתוזמן לפרסום ${esc(S.scheduled.due.replace("T", " "))}</span>`);
+  $("status").innerHTML = chips.join("");
+  $("copy-prev").disabled = !S.weeks?.[plusDays(wk, -7)];
+}
+function warnHtml(d, wk, list) {
+  const date = plusDays(wk, d), mine = list.filter((s) => s.day === d), open = mine.some((s) => s.open), wx = weatherOf(date);
+  const warns = warningsOf(mine), bad = wx && open && (wx.rain.alert || wx.gust.alert || wx.temp.alert);
+  return warns.length || bad ? `${bad ? `<li>מזג אוויר: ${[wx.rain.alert && `גשם ${wx.rain.v}%`, wx.gust.alert && `רוח ${wx.gust.v} קמ"ש`, wx.temp.alert && `חום ${wx.temp.v}°`].filter(Boolean).join(", ")}. אין סככה, לשקול סגירה</li>` : ""}${warns.map((x) => `<li>${esc(x)}</li>`).join("")}` : "";
+}
+function dayHtml(name, d, wk, list) {
+    const date = plusDays(wk, d), mine = list.map((s, i) => ({ ...s, i })).filter((s) => s.day === d);
+    const open = mine.some((s) => s.open), wx = weatherOf(date), hol = S.holidays?.find(([x]) => x === date);
+    const wxHtml = wx ? `<div class="wx">${wx.rain.v > 0 ? `<span class="${wx.rain.alert ? "alert" : ""}" title="גשם">${ICON.rain}${wx.rain.v}%</span>` : ""}<span class="${wx.gust.alert ? "alert" : ""}" title="משבי רוח">${ICON.gust}${wx.gust.v}</span><span class="${wx.temp.alert ? "alert" : ""}" title="חום">${ICON.temp}${wx.temp.v}°</span></div>` : "";
+    return `<section class="day${open ? "" : " closed"}" data-day="${d}">
+      <div class="day-head"><span class="day-name">${name}</span><span class="day-date">${dm(date)}</span>${wxHtml}</div>
+      ${hol ? `<span class="holiday">${esc(hol[1])}</span>` : ""}
+      ${mine.length ? "" : '<p class="closed-label">סגור</p>'}
+      ${mine.map((s) => `<div class="shift${s.open ? "" : " off"}" data-i="${s.i}">
+        <div class="times"><input inputmode="numeric" maxlength="5" autocomplete="off" value="${s.start}" data-f="start" aria-label="${name} מ-"><span>–</span><input inputmode="numeric" maxlength="5" autocomplete="off" value="${s.end}" data-f="end" aria-label="${name} עד"></div>
+        <input class="names${s.open && !s.people.length ? " empty" : ""}" value="${esc(s.people.join(", "))}" data-f="people" placeholder="מי עובד…" autocomplete="off" spellcheck="false" aria-label="${name} ${s.start} מי עובד">
+        <button class="standby" type="button" data-f="open" aria-pressed="${!s.open}">סטנד ביי</button>
+        <button class="remove" type="button" data-f="remove" aria-label="הסרת המשמרת">×</button>
+      </div>`).join("")}
+      <ul class="day-warn">${warnHtml(d, wk, list)}</ul>
+      <button class="add" type="button" data-f="add">+ משמרת</button>
+    </section>`;
+}
+
+/* ===== עריכה ===== */
+$("days")?.addEventListener("input", (e) => {
+  const row = e.target.closest(".shift"); if (!row) return;
+  const list = grid().map(clean), s = list[+row.dataset.i], f = e.target.dataset.f;
+  if (f === "start" || f === "end") s[f] = tm(e.target.value) || e.target.value.trim();
+  if (f === "people") s.people = e.target.value.split(/[,،]/).map((x) => x.trim()).filter(Boolean);
+  const wk = weekId(); grids[wk] = list; store.set(wk, list); draftId = null;
+  if (f === "people") e.target.classList.toggle("empty", s.open && !s.people.length);
+  const day = row.closest(".day"); day.querySelector(".day-warn").innerHTML = warnHtml(+day.dataset.day, wk, list);
+  renderStatus();
+});
+// ביציאה משדה שעה: מציגים אותה בצורה המלאה, וממיינים מחדש
+$("days")?.addEventListener("change", (e) => { const f = e.target.dataset.f; if ((f === "start" || f === "end") && tm(e.target.value)) setGrid(grid()); });
+$("days")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  const list = grid().map(clean), f = btn.dataset.f;
+  if (f === "add") {
+    const d = +btn.closest(".day").dataset.day, prev = list.filter((s) => s.day === d).at(-1);
+    list.push(prev ? { day: d, start: prev.end, end: prev.end < "19:00" ? "19:00" : prev.end, people: [], open: true } : { day: d, start: "17:00", end: "19:00", people: [], open: true });
+    setGrid(list);
+    requestAnimationFrame(() => { const rows = document.querySelectorAll(`.day[data-day="${d}"] .names`); rows[rows.length - 1]?.focus(); });
+  }
+  const row = btn.closest(".shift"); if (!row) return;
+  const i = +row.dataset.i;
+  if (f === "remove") { list.splice(i, 1); setGrid(list); }
+  if (f === "open") { list[i].open = !list[i].open; setGrid(list); }
+});
+
+for (const b of document.querySelectorAll(".weeks button")) b.addEventListener("click", () => { which = b.dataset.week; draftId = null; render(); });
+
+$("copy-prev")?.addEventListener("click", () => {
+  const wk = weekId(), prev = S.weeks?.[plusDays(wk, -7)];
+  if (!prev) return;
+  if (grid().length && !confirm(`להחליף את הטבלה בסידור של ${range(plusDays(wk, -7))}?`)) return;
+  setGrid(prev.shifts);
+  toast(`הסידור של ${range(plusDays(wk, -7))} הועתק. משנים רק מה שאחרת`);
+});
+
+/* ===== הדבקה ===== */
+$("paste-open")?.addEventListener("click", () => { $("paste-skipped").textContent = ""; $("paste").showModal(); $("paste-text").focus(); });
+$("paste")?.addEventListener("close", () => {
+  if ($("paste").returnValue !== "fill") return;
+  const r = parseWeek($("paste-text").value);
+  if (!r.shifts.length && !r.closed.length) { toast("לא מצאתי משמרות. שורה לכל משמרת: יום, שעות, שמות"); return; }
+  const days = new Set([...r.shifts.map((s) => s.day), ...r.closed]);
+  // ימים שלא הוזכרו נשארים כמו שהיו בטבלה
+  setGrid([...grid().filter((s) => !days.has(s.day)), ...r.shifts]);
+  $("paste-text").value = "";
+  toast(r.skipped.length ? `מולא. לא הבנתי ${r.skipped.length} שורות: ${r.skipped.join(" | ").slice(0, 120)}` : "הטבלה מולאה. בודקים ולוחצים על תצוגה");
+});
+
+/* ===== תצוגה ===== */
+let view = "public";
+for (const b of document.querySelectorAll(".seg button")) b.addEventListener("click", () => {
+  view = b.dataset.view;
+  for (const x of document.querySelectorAll(".seg button")) x.setAttribute("aria-selected", String(x === b));
+  $("pv-public").hidden = view !== "public"; $("pv-team").hidden = view !== "team";
+});
+const hrs = (r) => (r.length ? r.map(([a, b]) => `${a}–${b}`).join(", ") : "סגור");
+const teamText = (wk, list) => `סידור ${range(wk)}\n\n` + DAYS.map((n, d) => {
+  const mine = sorted(list).filter((s) => s.day === d);
+  return mine.length ? mine.map((s) => `${n} ${dm(plusDays(wk, d))} · ${s.start}–${s.end} · ${s.people.join(", ") || "אין משובצים"}${s.open ? "" : " (סטנד ביי)"}`).join("\n") : `${n} ${dm(plusDays(wk, d))} · סגור`;
+}).join("\n");
+
+$("preview-btn")?.addEventListener("click", async () => {
+  const wk = weekId(), list = grid();
+  const broken = list.find((s) => !tm(s.start) || !tm(s.end) || s.end <= s.start);
+  if (broken) { toast(`${DAYS[broken.day]}: שעה לא תקינה`); return; }
+  busy(true);
+  try {
+    const p = await call("/panel/preview", { next_week: which === "next", shifts: list });
+    if (p.week !== wk) throw new Error("השבוע התחלף בינתיים. מרעננים את הדף");
+    draftId = p.id;
+    $("pv-public").innerHTML = `<h3>השעות של העגלה ${range(wk)}</h3><ol>${p.days.map((r, d) => `<li><span class="d">${DAYS[d]} ${dm(plusDays(wk, d))}</span><span class="${r.length ? "h" : "x"}">${hrs(r)}</span></li>`).join("")}</ol>`;
+    $("pv-team").textContent = teamText(wk, list);
+    // מה השתנה ומה לבדוק: אותן שורות שהבוט היה שולח בוואטסאפ
+    const lines = p.text.split("\n").map((l) => l.replace(/\*/g, "").trim());
+    const checks = lines.filter((l) => /^(⛔|⚠️|📅|ירד:|נוסף:|שעות \S+: היה)/.test(l) && !/לא השתנה כלום/.test(l));
+    for (let d = 0; d < 7; d++) {
+      const wx = weatherOf(plusDays(wk, d));
+      if (wx && p.days[d].length && (wx.rain.alert || wx.gust.alert || wx.temp.alert))
+        checks.push(`🌧️ ${[wx.rain.alert && `גשם ${wx.rain.v}%`, wx.gust.alert && `רוח ${wx.gust.v} קמ"ש`, wx.temp.alert && `חום ${wx.temp.v}°`].filter(Boolean).join(", ")} ביום ${DAYS[d]} \u2066${dm(plusDays(wk, d))}\u2069. אין סככה`);
+    }
+    $("pv-checks").innerHTML = checks.map((c) => `<li class="${c.startsWith("⛔") ? "block" : ""}">${esc(c)}</li>`).join("");
+    $("publish-btn").textContent = `פרסום ${range(wk)}`;
+    $("publish-btn").disabled = !!p.blocked;
+    $("preview").showModal();
+  } catch (e) { toast(e.message); } finally { busy(false); }
+});
+$("pv-close")?.addEventListener("click", () => $("preview").close());
+
+/* ===== פרסום ===== */
+$("publish-btn")?.addEventListener("click", async () => {
+  if (!draftId) return;
+  const wk = weekId();
+  $("publish-btn").disabled = true; $("publish-btn").textContent = "מפרסם…";
+  try {
+    const r = await call("/panel/publish", { id: draftId });
+    draftId = null;
+    $("preview").close();
+    showResult(r, wk);
+    if (r.page === "ok") { store.del(wk); delete grids[wk]; }
+    await load();
+  } catch (e) {
+    toast(e.message);
+    $("publish-btn").disabled = false; $("publish-btn").textContent = `פרסום ${range(wk)}`;
+  }
+});
+
+function showResult(r, wk) {
+  const later = wk !== S.cur, rows = [];
+  const okp = r.page === "ok" && (r.pageCheck ?? "ok") === "ok";
+  rows.push([okp ? "ok" : "bad", "דף הנחיתה", okp ? (later ? `נשמר. יוצג מיום ראשון ${dm(wk)}` : "עודכן ונבדק") : (r.page === "ok" ? r.pageCheck : r.page || "לא עודכן")]);
+  const okf = r.facebook === "ok" && (r.facebookCheck ?? "ok") === "ok";
+  rows.push([r.facebook === "skip" ? "todo" : okf ? "ok" : "bad", "פייסבוק", r.facebook === "skip" ? "לא עודכן: השבוע הנוכחי עוד לא פורסם" : okf ? `7 הימים הקרובים עודכנו ונבדקו${r.unknown?.length ? `\nלימים ${r.unknown.map((d) => DAYS[d]).join(", ")} עוד אין שעות, ובינתיים מוצגות השעות של השבוע הנוכחי` : ""}` : r.facebook === "ok" ? r.facebookCheck : r.facebook || "לא עודכן"]);
+  const g = r.google;
+  rows.push([g === "ok" ? "ok" : g === "manual" || g === "dry" ? "todo" : g === "skip" ? "todo" : "bad", "גוגל", g === "ok" ? "עודכן לפי תאריך" : g === "manual" || g === "dry" ? "להדביק בפרופיל בגוגל" : g === "skip" ? "לא עודכן" : g || "לא עודכן"]);
+  if (okp) rows.push(["ok", "סטוריז", "סטורי \"פתוחים עכשיו\" יוצא לבד בתחילת כל טווח שעות"]);
+  $("rs-title").textContent = `${rows.some(([k]) => k === "bad") ? "הפרסום לא הסתיים נקי" : "פורסם"} ${range(wk)}`;
+  $("rs-channels").innerHTML = rows.map(([k, t, s]) => `<li class="${k}"><span class="mark">${k === "ok" ? "✓" : k === "bad" ? "!" : "…"}</span><div><b>${t}</b><span>${esc(s)}</span></div></li>`).join("");
+  const acts = [];
+  if (r.googleText && g !== "ok") acts.push(`<button class="btn" type="button" data-copy="google">העתקת השעות לגוגל</button><a class="btn ghost" href="https://business.google.com/" target="_blank" rel="noopener">פתיחת הפרופיל בגוגל</a>`);
+  if (r.team) acts.push('<button class="btn" type="button" data-copy="team">העתקת הסידור לקבוצת הצוות</button>');
+  for (const m of (r.links || "").matchAll(/^(.+?): (https:\/\/wa\.me\/\S+)$/gm)) acts.push(`<a class="btn ghost" href="${esc(m[2])}" target="_blank" rel="noopener">שליחה ל${esc(m[1])}</a>`);
+  $("rs-actions").innerHTML = acts.join("");
+  $("rs-actions").onclick = (e) => { const c = e.target.closest("[data-copy]"); if (c) copy(c.dataset.copy === "google" ? r.googleText : r.team); };
+  $("result").showModal();
+}
+$("rs-close")?.addEventListener("click", () => $("result").close());
+
+/* ===== עזרים ===== */
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement("textarea"); t.value = text; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); }
+  toast("הועתק");
+}
+let tt;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 4200); }
+function busy(on) { document.body.classList.toggle("loading", on); }
+
+async function load() {
+  S = await call("/panel/state");
+  render();
+}
+
+/* ===== כניסה ===== */
+$("signin-btn")?.addEventListener("click", async () => {
+  $("signin-error").textContent = "";
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch (e) {
+    $("signin-error").textContent = e.code === "auth/popup-blocked" ? "הדפדפן חסם את החלון. מאשרים חלונות קופצים ומנסים שוב"
+      : e.code === "auth/unauthorized-domain" ? "הכתובת הזאת לא מורשית לכניסה. נכנסים מ-cortado-ops.web.app/panel"
+      : e.code === "auth/popup-closed-by-user" ? "" : "הכניסה לא הצליחה. מנסים שוב";
+  }
+});
+$("signout")?.addEventListener("click", () => signOut(auth));
+onAuthStateChanged(auth, async (user) => {
+  $("signin").hidden = !!user; $("app").hidden = !user;
+  if (!user) return;
+  // חמישי עד שבת: בונים את השבוע הבא. ראשון עד רביעי: את השבוע הזה
+  which = [4, 5, 6].includes(new Date().getDay()) ? "next" : "cur";
+  try { await load(); }
+  catch (e) {
+    if (/לא מורשה/.test(e.message)) { await signOut(auth); $("signin-error").textContent = e.message; return; }
+    toast(e.message);
+  }
+});

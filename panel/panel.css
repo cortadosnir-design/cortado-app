@@ -1,0 +1,140 @@
+@font-face{font-family:"Frank Ruhl Libre";font-weight:300 900;font-display:swap;src:url(../cafe/fonts/frank-ruhl-libre-hebrew-wght-normal.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+FB1D-FB4F}
+@font-face{font-family:"Frank Ruhl Libre";font-weight:300 900;font-display:swap;src:url(../cafe/fonts/frank-ruhl-libre-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-weight:400;font-display:swap;src:url(../cafe/fonts/ibm-plex-sans-hebrew-hebrew-400-normal.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+FB1D-FB4F}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-weight:400;font-display:swap;src:url(../cafe/fonts/ibm-plex-sans-hebrew-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-weight:500;font-display:swap;src:url(../cafe/fonts/ibm-plex-sans-hebrew-hebrew-500-normal.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+FB1D-FB4F}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-weight:500;font-display:swap;src:url(../cafe/fonts/ibm-plex-sans-hebrew-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-weight:600;font-display:swap;src:url(../cafe/fonts/ibm-plex-sans-hebrew-hebrew-600-normal.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+FB1D-FB4F}
+
+/* השפה של דף הנחיתה: חלב וקפה. הדבר היחיד שבולט הוא הלוח הירוק, כמו הלוח בעגלה */
+:root{
+  --bone:#F6F2EB; --milk:#FDFBF7; --ink:#1A1611; --ink-soft:#6E655A; --hair:#E2DBD0;
+  --board:#2D4438; --board-ink:#F3EFE4; --board-dim:#A9B8AD;
+  --rust:#7F381B; --rust-soft:#F4E2D8; --apricot:#F2AF74; --ok:#2F6B4A; --ok-soft:#E1ECE4;
+  --serif:"Frank Ruhl Libre",David,Georgia,serif; --sans:"IBM Plex Sans Hebrew","Segoe UI",Arial,sans-serif;
+  --r:18px; --r-sm:12px; --pill:999px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-bottom:96px}
+button,input,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bone);color:var(--ink);font:400 16px/1.5 var(--sans)}
+[hidden]{display:none!important}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--rust);outline-offset:2px}
+
+/* כניסה */
+.signin{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:20px;padding:24px;text-align:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.signin h1{font:500 2rem/1.1 var(--serif);margin:0}
+.error{color:var(--rust);min-height:1.5em;margin:0}
+
+/* מבנה */
+.app{max-width:640px;margin:0 auto;padding:12px 16px 112px}
+.top{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;gap:12px;padding:4px 0 12px}
+.top img{border-radius:50%}
+.weeks{display:grid;grid-template-columns:1fr 1fr;background:var(--milk);border:1px solid var(--hair);border-radius:var(--pill);padding:4px}
+.weeks button{border:0;background:none;border-radius:var(--pill);padding:8px 6px;font-weight:500;cursor:pointer;line-height:1.2}
+.weeks button small{display:block;font-weight:400;font-size:.8rem;color:var(--ink-soft)}
+.weeks button[aria-selected="true"]{background:var(--board);color:var(--board-ink)}
+.weeks button[aria-selected="true"] small{color:var(--board-dim)}
+.icon-btn{width:40px;height:40px;border:0;background:none;border-radius:50%;cursor:pointer;display:grid;place-items:center}
+.icon-btn svg{width:22px;height:22px;fill:none;stroke:var(--ink-soft);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.status{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--pill);background:var(--milk);border:1px solid var(--hair);font-size:.9rem}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink-soft)}
+.chip.ok::before{background:var(--ok)}
+.chip.bad{background:var(--rust-soft);border-color:transparent;color:var(--rust)}
+.chip.bad::before{background:var(--rust)}
+
+.tools{display:flex;gap:8px;margin-bottom:16px}
+.tools .btn{flex:1}
+
+.btn{border:1px solid var(--hair);background:var(--milk);border-radius:var(--pill);padding:12px 18px;font-weight:500;cursor:pointer;min-height:48px}
+.btn.primary{background:var(--board);color:var(--board-ink);border-color:var(--board)}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+@media (hover:hover){.btn:not(:disabled):hover{border-color:var(--ink-soft)}.btn.primary:not(:disabled):hover{background:#243A2F}.add:hover,.standby:hover{text-decoration:underline}}
+.btn:active:not(:disabled){transform:translateY(1px)}
+
+/* הימים */
+.days{display:grid;gap:10px}
+.day{background:var(--milk);border:1px solid var(--hair);border-radius:var(--r);padding:14px 14px 10px}
+.day.closed{background:transparent}
+.day-head{display:flex;align-items:baseline;gap:10px}
+.day-name{font:500 1.35rem/1 var(--serif)}
+.day-date{color:var(--ink-soft);font-size:.9rem}
+.wx{margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.wx span{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;color:var(--ink-soft);direction:ltr}
+.wx span.alert{color:var(--rust);font-weight:600}
+.wx svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.holiday{display:block;margin-top:6px;font-size:.85rem;color:var(--rust)}
+.closed-label{color:var(--ink-soft);font-size:.95rem;margin:8px 0 2px}
+
+.shift{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;margin-top:10px}
+.times{display:flex;align-items:center;gap:4px;direction:ltr}
+.times input{width:4.2em;padding:8px 6px;border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--bone);text-align:center;font-variant-numeric:tabular-nums}
+.names{width:100%;min-width:0;padding:8px 10px;border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--bone)}
+.names.empty{border-color:var(--rust);background:var(--rust-soft)}
+.standby{border:1px solid var(--hair);background:none;border-radius:var(--pill);padding:6px 10px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.standby[aria-pressed="true"]{background:var(--ink);color:var(--milk);border-color:var(--ink)}
+.shift.off .times input,.shift.off .names{opacity:.6}
+.remove{width:32px;height:32px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--ink-soft);font-size:1.2rem;line-height:1}
+.add{margin-top:8px;border:0;background:none;color:var(--board);font-weight:500;cursor:pointer;padding:6px 0}
+.day-warn{margin:6px 0 0;padding:0;list-style:none;font-size:.85rem;color:var(--rust)}
+
+@media (max-width:420px){
+  .shift{grid-template-columns:1fr auto auto;grid-template-areas:"t s r" "n n n"}
+  .times{grid-area:t}.standby{grid-area:s}.remove{grid-area:r}.names{grid-area:n}
+}
+
+/* הפס התחתון */
+.bar{position:fixed;inset-inline:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bone) 70%,transparent)}
+.bar .btn{max-width:608px;margin:0 auto;display:block}
+
+/* גיליונות */
+.sheet{border:0;padding:0;margin:auto auto 0;width:100%;max-width:640px;max-height:92dvh;border-radius:var(--r) var(--r) 0 0;background:var(--bone);color:var(--ink);overflow:auto;overscroll-behavior:contain}
+.sheet::backdrop{background:rgba(26,22,17,.45)}
+.sheet[open]{animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet[open]{animation:none}}
+.sheet-body{padding:20px 16px calc(20px + env(safe-area-inset-bottom));display:grid;gap:14px}
+.sheet h2{font:500 1.5rem/1.2 var(--serif);margin:0}
+.sheet textarea{width:100%;padding:12px;border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--milk);resize:vertical;line-height:1.6}
+.warn-text{margin:0;color:var(--rust);font-size:.9rem;white-space:pre-line}
+.row{display:flex;gap:8px}
+.row .btn{flex:1}
+.row .btn.primary{flex:1.6;white-space:nowrap}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--milk);border:1px solid var(--hair);border-radius:var(--pill);padding:4px}
+.seg button{border:0;background:none;border-radius:var(--pill);padding:8px;font-weight:500;cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--ink);color:var(--milk)}
+
+/* הלוח: מה שהלקוחות יראו */
+.board{background:var(--board);color:var(--board-ink);border-radius:var(--r);padding:20px 20px 16px;box-shadow:inset 0 0 0 6px #243A2F,inset 0 0 0 7px #3B5547}
+.board h3{font:500 1.3rem/1.2 var(--serif);margin:0 0 12px;text-align:center}
+.board ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.board li{display:flex;justify-content:space-between;gap:12px;font-size:1.05rem;border-bottom:1px dashed rgba(243,239,228,.18);padding-bottom:6px}
+.board li:last-child{border:0}
+.board .d{font-family:var(--serif);font-size:1.15rem}
+.board .h{direction:ltr;font-variant-numeric:tabular-nums}
+.board .x{color:var(--board-dim)}
+.team-text{margin:0;background:var(--milk);border:1px solid var(--hair);border-radius:var(--r);padding:14px;white-space:pre-wrap;font:inherit;line-height:1.7;max-height:50dvh;overflow:auto}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.checks li{background:var(--milk);border-radius:var(--r-sm);padding:10px 12px;font-size:.92rem;white-space:pre-line}
+.checks li.block{background:var(--rust-soft);color:var(--rust);font-weight:500}
+
+.channels{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.channels li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;background:var(--milk);border-radius:var(--r-sm);padding:12px}
+.channels .mark{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:600;background:var(--ok-soft);color:var(--ok)}
+.channels li.bad .mark{background:var(--rust-soft);color:var(--rust)}
+.channels li.todo .mark{background:#F5EBDD;color:#8A5A1E}
+.channels b{display:block}
+.channels span{color:var(--ink-soft);font-size:.9rem;white-space:pre-line}
+.actions{display:grid;gap:8px}
+.actions a.btn{text-decoration:none;text-align:center;display:block;color:inherit}
+
+.toast{position:fixed;inset-inline:16px;bottom:88px;margin:0 auto;max-width:560px;background:var(--ink);color:var(--milk);padding:12px 16px;border-radius:var(--r-sm);text-align:center;z-index:10}
+.loading{opacity:.6;pointer-events:none}
+.day-warn:empty{display:none}

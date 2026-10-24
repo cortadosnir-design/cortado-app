@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F6F2EB">
+<title>השבוע בעגלה</title>
+<link rel="icon" href="../cafe/img/logo.png">
+<link rel="apple-touch-icon" href="../cafe/img/logo.png">
+<link rel="stylesheet" href="panel.css">
+<script type="module" src="panel.js"></script>
+</head>
+<body>
+<div id="signin" class="signin" hidden>
+  <img src="../cafe/img/logo.png" alt="קפה קורטדו" width="96" height="96">
+  <h1>השבוע בעגלה</h1>
+  <button id="signin-btn" class="btn primary" type="button">כניסה עם Google</button>
+  <p id="signin-error" class="error" role="alert"></p>
+</div>
+
+<div id="app" class="app" hidden>
+  <h1 class="sr">השבוע בעגלה</h1>
+  <header class="top">
+    <img src="../cafe/img/logo.png" alt="קפה קורטדו" width="40" height="40">
+    <div class="weeks" role="tablist" aria-label="שבוע">
+      <button role="tab" id="tab-cur" data-week="cur" type="button"></button>
+      <button role="tab" id="tab-next" data-week="next" type="button"></button>
+    </div>
+    <button id="signout" class="icon-btn" type="button" aria-label="יציאה">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10"/></svg>
+    </button>
+  </header>
+
+  <section class="status" id="status" aria-live="polite"></section>
+
+  <div class="tools">
+    <button id="paste-open" class="btn" type="button">הדבקת סידור</button>
+    <button id="copy-prev" class="btn ghost" type="button">שכפול שבוע קודם</button>
+  </div>
+
+  <main id="days" class="days"></main>
+
+  <footer class="bar">
+    <button id="preview-btn" class="btn primary wide" type="button">תצוגה לפני פרסום</button>
+  </footer>
+</div>
+
+<dialog id="paste" class="sheet">
+  <form method="dialog" class="sheet-body">
+    <h2>הדבקת סידור</h2>
+    <textarea id="paste-text" rows="10" dir="rtl" autocomplete="off" spellcheck="false" placeholder="שני 17:00–19:00 נוגה&#10;שלישי 9:00–13:00 אלה, ליה&#10;ראשון ורביעי סגור"></textarea>
+    <p id="paste-skipped" class="warn-text"></p>
+    <div class="row">
+      <button class="btn ghost" value="cancel" type="submit">ביטול</button>
+      <button id="paste-fill" class="btn primary" value="fill" type="submit">מילוי הטבלה</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="preview" class="sheet">
+  <div class="sheet-body">
+    <div class="seg" role="tablist" aria-label="תצוגה">
+      <button role="tab" data-view="public" aria-selected="true" type="button">לקוחות</button>
+      <button role="tab" data-view="team" aria-selected="false" type="button">צוות</button>
+    </div>
+    <div id="pv-public" class="board"></div>
+    <pre id="pv-team" class="team-text" hidden></pre>
+    <ul id="pv-checks" class="checks"></ul>
+    <div class="row">
+      <button id="pv-close" class="btn ghost" type="button">חזרה לעריכה</button>
+      <button id="publish-btn" class="btn primary" type="button"></button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="result" class="sheet">
+  <div class="sheet-body">
+    <h2 id="rs-title"></h2>
+    <ul id="rs-channels" class="channels"></ul>
+    <div id="rs-actions" class="actions"></div>
+    <div class="row">
+      <button id="rs-close" class="btn primary wide" type="button">סגירה</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
