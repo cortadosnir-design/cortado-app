@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS, hm } from "./parse.js?v=20261024c";
+import { parseWeek, DAYS, hm } from "./parse.js?v=20261024d";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -90,6 +90,12 @@ function weatherOf(date) {
     temp: { v: f.tmax, alert: f.tmax >= (L.hot ?? 37) },
   };
 }
+// סמלי מצב בסגנון SF Symbols: ✓ לתקין, ! לתקלה, שעון למה שמחכה לבעלים
+const MARK = {
+  ok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v7M12 17.5v.01"/></svg>',
+  todo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2"/></svg>',
+};
 const ICON = {
   rain: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15a4 4 0 0 1 .5-8A5 5 0 0 1 17 8a3.5 3.5 0 0 1 0 7H7M9 18l-1 2M13 18l-1 2M17 18l-1 2"/></svg>',
   gust: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h8"/></svg>',
@@ -129,7 +135,7 @@ function dayHtml(name, d, wk, list) {
     const date = plusDays(wk, d), mine = list.map((s, i) => ({ ...s, i })).filter((s) => s.day === d);
     const open = mine.some((s) => s.open), wx = weatherOf(date), hol = S.holidays?.find(([x]) => x === date);
     const wxHtml = wx ? `<div class="wx">${wx.rain.v > 0 ? `<span class="${wx.rain.alert ? "alert" : ""}" title="גשם">${ICON.rain}${wx.rain.v}%</span>` : ""}<span class="${wx.gust.alert ? "alert" : ""}" title="משבי רוח">${ICON.gust}${wx.gust.v}</span><span class="${wx.temp.alert ? "alert" : ""}" title="חום">${ICON.temp}${wx.temp.v}°</span></div>` : "";
-    return `<section class="day${open ? "" : " closed"}" data-day="${d}">
+    return `<section class="day${mine.length ? "" : " closed"}" data-day="${d}">
       <div class="day-head"><span class="day-name">${name}</span><span class="day-date">${dm(date)}</span>${wxHtml}</div>
       ${hol ? `<span class="holiday">${esc(hol[1])}</span>` : ""}
       ${mine.length ? "" : '<p class="closed-label">סגור</p>'}
@@ -140,7 +146,7 @@ function dayHtml(name, d, wk, list) {
         <button class="remove" type="button" data-f="remove" aria-label="הסרת המשמרת">×</button>
       </div>`).join("")}
       <ul class="day-warn">${warnHtml(d, wk, list)}</ul>
-      <button class="add" type="button" data-f="add">+ משמרת</button>
+      <button class="add" type="button" data-f="add" aria-label="הוספת משמרת ב${name}">משמרת</button>
     </section>`;
 }
 
@@ -265,7 +271,7 @@ function showResult(r, wk) {
   const later = wk !== S.cur, rows = [];
   if (r.page === undefined) {
     $("rs-title").textContent = `לא פורסם ${range(wk)}`;
-    $("rs-channels").innerHTML = `<li class="bad"><span class="mark">!</span><div><b>הבוט</b><span>${esc((r.text || "לא התקבלה תשובה").replace(/\*/g, ""))}</span></div></li>`;
+    $("rs-channels").innerHTML = `<li class="bad"><span class="mark">${MARK.bad}</span><div><b>הבוט</b><span>${esc((r.text || "לא התקבלה תשובה").replace(/\*/g, ""))}</span></div></li>`;
     $("rs-actions").innerHTML = "";
     $("result").showModal();
     return;
@@ -278,7 +284,7 @@ function showResult(r, wk) {
   rows.push([g === "ok" ? "ok" : g === "manual" || g === "dry" ? "todo" : g === "skip" ? "todo" : "bad", "גוגל", g === "ok" ? "עודכן לפי תאריך" : g === "manual" || g === "dry" ? "להדביק בפרופיל בגוגל" : g === "skip" ? "לא עודכן" : g || "לא עודכן"]);
   if (okp) rows.push(["ok", "סטוריז", "סטורי \"פתוחים עכשיו\" יוצא לבד בתחילת כל טווח שעות"]);
   $("rs-title").textContent = `${rows.some(([k]) => k === "bad") ? "הפרסום לא הסתיים נקי" : "פורסם"} ${range(wk)}`;
-  $("rs-channels").innerHTML = rows.map(([k, t, s]) => `<li class="${k}"><span class="mark">${k === "ok" ? "✓" : k === "bad" ? "!" : "…"}</span><div><b>${t}</b><span>${esc(s)}</span></div></li>`).join("");
+  $("rs-channels").innerHTML = rows.map(([k, t, s]) => `<li class="${k}"><span class="mark">${MARK[k]}</span><div><b>${t}</b><span>${esc(s)}</span></div></li>`).join("");
   const acts = [];
   if (r.googleText && g !== "ok") acts.push(`<button class="btn" type="button" data-copy="google">העתקת השעות לגוגל</button><a class="btn ghost" href="https://business.google.com/" target="_blank" rel="noopener">פתיחת הפרופיל בגוגל</a>`);
   if (r.team) acts.push('<button class="btn" type="button" data-copy="team">העתקת הסידור לקבוצת הצוות</button>');
@@ -322,7 +328,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   // חמישי עד שבת: בונים את השבוע הבא. ראשון עד רביעי: את השבוע הזה
   which = [4, 5, 6].includes(new Date().getDay()) ? "next" : "cur";
-  try { await load(); show("home"); }
+  try { await load(); show("home"); askInstall(); }
   catch (e) {
     if (/לא מורשה/.test(e.message)) { await signOut(auth); $("signin-error").textContent = e.message; return; }
     toast(e.message);
@@ -333,7 +339,9 @@ onAuthStateChanged(auth, async (user) => {
 const act = (action, extra = {}) => call("/panel/do", { action, ...extra });
 let viewNow = "hours";
 const greet = () => { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : "ערב טוב"; };
-const TITLES = { home: "", hours: "השבוע בעגלה", queue: "מה יוצא בקרוב", more: "עוד" };
+const TITLES = { home: "", hours: "השבוע בעגלה", queue: "בתור", more: "עוד" };
+// הכותרת הגדולה גוללת החוצה, ואז הכותרת הקטנה מופיעה בסרגל העליון מזכוכית
+new IntersectionObserver(([e]) => document.body.classList.toggle("scrolled", !e.isIntersecting), { rootMargin: "-48px 0px 0px 0px" }).observe($("view-title"));
 function show(v) {
   // דף ישן מהמטמון עם קוד חדש (קרה בטלפון, 24.10.2026): טוענים מחדש פעם אחת, בלי מטמון
   if (!$(`v-${v}`) || !$("v-home")) {
@@ -345,7 +353,7 @@ function show(v) {
   for (const x of ["home", "hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
   for (const b of document.querySelectorAll(".nav button")) b.toggleAttribute("aria-current", b.dataset.view === v), b.dataset.view === v && b.setAttribute("aria-current", "page");
   document.querySelector(".weeks").hidden = v !== "hours";
-  $("view-title").textContent = TITLES[v] || greet();
+  $("view-title").textContent = $("mini-title").textContent = TITLES[v] || greet();
   $("preview-btn").hidden = v !== "hours";
   if (v === "queue") loadQueue();
   if (v === "more") loadMore();
@@ -438,12 +446,41 @@ $("sched-btn")?.addEventListener("click", async () => {
   });
 });
 
-/* התקנה בטלפון */
+/* התקנה בטלפון: שואלים בעצמנו, פעם בשלושה ימים עד שמתקינים. אנדרואיד מקבל כפתור, אייפון את שני הצעדים בספארי,
+   ודפדפן בתוך אפליקציה (וואטסאפ, אינסטגרם), שלא יודע להתקין, מקבל קישור לפתיחה בספארי */
 let installEvt = null;
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; $("install-card").hidden = false; $("install-btn").hidden = false; });
-if (!standalone && /iphone|ipad/i.test(navigator.userAgent)) { $("install-card").hidden = false; $("install-ios").hidden = false; }
-$("install-btn")?.addEventListener("click", async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("install-card").hidden = true; });
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+const iosWebview = ios && !/Safari\//.test(ua);
+const LATER = "panel:install-later";
+navigator.serviceWorker?.register("sw.js").catch(() => {});
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; $("install-open").hidden = false; });
+addEventListener("appinstalled", () => { installEvt = null; $("install-open").hidden = true; $("install").open && $("install").close(); });
+if (!standalone && (ios || /android/i.test(ua))) $("install-open").hidden = false;
+function openInstall() {
+  $("install-btn").hidden = !installEvt;
+  $("install-ios").hidden = !ios || iosWebview;
+  $("install-webview").hidden = !iosWebview;
+  $("install-android").hidden = ios || !!installEvt;
+  $("install").showModal();
+}
+function askInstall() {
+  if (standalone || $("install").open) return;
+  let later = 0; try { later = +localStorage.getItem(LATER) || 0; } catch {}
+  if (Date.now() - later < 3 * 864e5) return;
+  // אנדרואיד: מחכים רגע שהדפדפן יציע להתקין, ואז שואלים. בלי הצעה, אין מה לשאול במחשב
+  setTimeout(() => { if (!standalone && (installEvt || ios || /android/i.test(ua)) && !document.querySelector("dialog[open]")) openInstall(); }, 1200);
+}
+$("install-open")?.addEventListener("click", openInstall);
+$("install-btn")?.addEventListener("click", async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  const { outcome } = await installEvt.userChoice;
+  installEvt = null;
+  if (outcome === "accepted") $("install").close();
+});
+$("install-later")?.addEventListener("click", () => { try { localStorage.setItem(LATER, String(Date.now())); } catch {} $("install").close(); });
+$("install-copy")?.addEventListener("click", () => copy(location.href));
 
 /* גיליונות: נגיעה ברקע או משיכה למטה סוגרות, כמו בטלפון */
 for (const d of document.querySelectorAll("dialog.sheet")) {
@@ -502,7 +539,7 @@ function syncRows() {
   rows.push({ k: pageOk ? "ok" : "bad", t: "דף הנחיתה", s: pageOk ? `מציג ${range(S.cur)}` : "השעות של השבוע עוד לא פורסמו", a: pageOk ? null : ["פרסום השבוע", "publish-cur"] });
   const fb = H?.facebook;
   rows.push(!pub ? { k: "bad", t: "פייסבוק", s: "מחכה לפרסום השבוע", a: null } : fb && !fb.ok ? { k: "bad", t: "פייסבוק", s: fb.bad || "לא תואם", a: ["רענון", "refresh"] } : { k: "ok", t: "פייסבוק", s: "7 הימים הקרובים, נבדק כל לילה", a: ["רענון", "refresh"] });
-  rows.push(H?.google ? { k: "todo", t: "גוגל", s: "צריך להדביק את השעות בפרופיל", a: ["העתקה", "g-copy"], b: ["הדבקתי", "g-done"] } : { k: "ok", t: "גוגל", s: "מעודכן", a: null });
+  rows.push(H?.google ? { k: "todo", t: "גוגל", s: "להדבקה בפרופיל", a: ["העתקה", "g-open"], b: ["הדבקתי", "g-done"] } : { k: "ok", t: "גוגל", s: "מעודכן", a: null });
   rows.push(pub ? { k: "ok", t: "אינסטגרם", s: "סטורי \"פתוחים עכשיו\" יוצא לבד בכל טווח", a: null } : { k: "bad", t: "אינסטגרם", s: "הסטוריז מחכים לפרסום השבוע", a: null });
   return rows;
 }
@@ -510,7 +547,7 @@ function renderSync() {
   const rows = syncRows(), bad = rows.filter((r) => r.k !== "ok").length;
   $("sync-sum").textContent = bad ? `${bad} דורשים טיפול` : "הכל מסונכרן";
   $("sync-sum").className = `sum ${bad ? "bad" : "ok"}`;
-  $("sync").innerHTML = rows.map((r) => `<li class="${r.k}"><span class="mark" aria-hidden="true">${r.k === "ok" ? "✓" : r.k === "bad" ? "!" : "…"}</span>
+  $("sync").innerHTML = rows.map((r) => `<li class="${r.k}"><span class="mark">${MARK[r.k]}</span>
     <div><b>${r.t}</b><span>${esc(r.s)}</span></div>
     <div class="acts">${r.b ? `<button class="btn ghost sm" type="button" data-a="${r.b[1]}">${r.b[0]}</button>` : ""}${r.a ? `<button class="btn ${r.k === "ok" ? "ghost" : ""} sm" type="button" data-a="${r.a[1]}">${r.a[0]}</button>` : ""}</div></li>`).join("");
 }
@@ -519,7 +556,6 @@ function tasks() {
   const out = [], d = today(), dow = dayOf(d);
   if (!S.weeks?.[S.cur]) out.push({ t: `לפרסם את השעות של ${range(S.cur)}`, s: S.weeks?.[plusDays(S.cur, -7)] ? "הכנתי טיוטה מהשבוע הקודם, רק לבדוק ולאשר" : "פותחים את הטבלה וממלאים", a: ["לבדיקה", "draft-cur"] });
   if (!S.weeks?.[S.next] && dow >= 4) out.push({ t: `לפרסם את השעות של ${range(S.next)}`, s: S.weeks?.[S.cur] ? "הכנתי טיוטה מהשבוע הזה, רק לבדוק ולאשר" : "פותחים את הטבלה וממלאים", a: ["לבדיקה", "draft-next"] });
-  if (H?.google) out.push({ t: "להדביק את השעות בגוגל", s: "הטקסט מוכן להעתקה", a: ["העתקה ופתיחת גוגל", "g-open"] });
   for (const k of [0, 1]) {
     const date = plusDays(d, k), wx = weatherOf(date);
     if (wx && openOn(date).length && (wx.rain.alert || wx.gust.alert)) out.push({ t: `${wx.rain.alert ? `גשם ${wx.rain.v}%` : `רוח ${wx.gust.v} קמ"ש`} ${k ? "מחר" : "היום"}`, s: "אין סככה. לסגור ולעדכן את כל הערוצים?", a: ["סגירה", `close-${k}`] });
@@ -539,7 +575,7 @@ function renderTasks() {
 function spark(values, label) {
   const v = values.map((x) => x ?? 0), max = Math.max(1, ...v), w = 280, h = 56, step = w / Math.max(1, v.length - 1);
   const pts = v.map((y, i) => `${(w - i * step).toFixed(1)},${(h - 4 - (y / max) * (h - 10)).toFixed(1)}`).join(" ");
-  return `<svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><polygon points="${w},${h} ${pts} 0,${h}" fill="url(#sg)"/><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
 }
 function renderMarketing() {
   const I = H?.insights;

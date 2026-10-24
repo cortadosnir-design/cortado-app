@@ -4,71 +4,72 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#F6F2EB" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#15110D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3EFE9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0C0A" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
-<title>השבוע בעגלה</title>
-<link rel="icon" href="../cafe/img/logo.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<title>קורטדו</title>
+<link rel="icon" href="img/icon-192.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="קורטדו">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="panel.css?v=20261024c">
-<script type="module" src="panel.js?v=20261024c"></script>
+<link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1320x2868.png">
+<link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1206x2622.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="img/launch-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-750x1334.png">
+<link rel="stylesheet" href="panel.css?v=20261024d">
+<script type="module" src="panel.js?v=20261024d"></script>
 </head>
 <body>
 <div id="signin" class="signin" hidden>
-  <img src="icon-512.png" alt="קפה קורטדו" width="104" height="104">
-  <h1>השבוע בעגלה</h1>
+  <img class="app-icon" src="img/icon-512.png" alt="" width="112" height="112">
+  <h1>קורטדו</h1>
   <button id="signin-btn" class="btn primary" type="button">כניסה עם Google</button>
   <p id="signin-error" class="error" role="alert"></p>
 </div>
 
 <div id="app" class="app" hidden>
-  <h1 class="sr">השבוע בעגלה</h1>
-  <header class="top">
-    <img src="icon-192.png" alt="קפה קורטדו" width="36" height="36">
-    <h2 id="view-title" class="view-title">השבוע בעגלה</h2>
-    <button id="signout" class="icon-btn" type="button" aria-label="יציאה">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10"/></svg>
-    </button>
-  </header>
+  <header class="topbar" aria-hidden="true"><span id="mini-title"></span></header>
+  <h1 id="view-title" class="large-title">השבוע בעגלה</h1>
 
   <main id="v-home" class="view">
     <section id="today" class="board today" aria-live="polite"></section>
-    <section class="card">
-      <div class="card-head"><h3>כל הערוצים</h3><span id="sync-sum" class="sum"></span></div>
-      <ul id="sync" class="sync"></ul>
-    </section>
-    <section class="card" id="tasks-card" hidden>
-      <h3>מחכה לאישור שלך</h3>
-      <ul id="tasks" class="tasks"></ul>
-    </section>
-    <section class="card">
-      <div class="card-head"><h3>שינוי שעות</h3>
-        <div class="seg mini" role="tablist" aria-label="יום"><button role="tab" data-qd="0" aria-selected="true" type="button">היום</button><button role="tab" data-qd="1" aria-selected="false" type="button">מחר</button></div>
-      </div>
+
+    <div class="sec-h"><h2>כל הערוצים</h2><span id="sync-sum" class="sum"></span></div>
+    <ul id="sync" class="group sync"></ul>
+
+    <div id="tasks-card" hidden>
+      <div class="sec-h"><h2>מחכה לאישור שלך</h2></div>
+      <ul id="tasks" class="group tasks"></ul>
+    </div>
+
+    <div class="sec-h"><h2>שינוי שעות</h2></div>
+    <section class="group pad">
+      <div class="seg" role="tablist" aria-label="יום"><button role="tab" data-qd="0" aria-selected="true" type="button">היום</button><button role="tab" data-qd="1" aria-selected="false" type="button">מחר</button></div>
       <p id="quick-now" class="quick-now"></p>
       <div class="quick">
-        <button class="btn" type="button" data-q="close">סגורים</button>
+        <button class="btn danger" type="button" data-q="close">סגורים</button>
         <div class="q-time"><button class="btn" type="button" data-q="early">סוגרים ב־</button><input id="q-early" inputmode="numeric" maxlength="5" value="18:00" dir="ltr" autocomplete="off" aria-label="שעת סגירה"></div>
         <div class="q-time"><button class="btn" type="button" data-q="late">פתוחים עד</button><input id="q-late" inputmode="numeric" maxlength="5" value="20:00" dir="ltr" autocomplete="off" aria-label="פתוחים עד"></div>
       </div>
     </section>
-    <section class="card">
-      <div class="card-head"><h3>שיווק</h3><button id="mk-refresh" class="icon-btn" type="button" aria-label="רענון הנתונים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
-      <div id="marketing" class="marketing"></div>
-    </section>
-    <section class="card">
-      <div class="card-head"><h3>השבוע</h3><button class="link plain" type="button" data-go="hours">עריכה</button></div>
-      <div id="week-strip" class="strip"></div>
-    </section>
+
+    <div class="sec-h"><h2>שיווק</h2><button id="mk-refresh" class="icon-btn" type="button" aria-label="רענון הנתונים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
+    <div id="marketing" class="group pad marketing"></div>
+
+    <div class="sec-h"><h2>השבוע</h2><button class="link plain" type="button" data-go="hours">עריכה</button></div>
+    <div id="week-strip" class="strip"></div>
   </main>
 
   <main id="v-hours" class="view" hidden>
-    <div class="weeks" role="tablist" aria-label="שבוע">
+    <div class="weeks seg" role="tablist" aria-label="שבוע">
       <button role="tab" id="tab-cur" data-week="cur" type="button"></button>
       <button role="tab" id="tab-next" data-week="next" type="button"></button>
     </div>
@@ -81,69 +82,69 @@
   </main>
 
   <main id="v-queue" class="view" hidden>
-    <button id="stop-auto" class="btn ghost wide" type="button">עצירת כל הרילים והפוסטים האוטומטיים</button>
     <div id="queue" class="queue"></div>
+    <button id="stop-auto" class="btn danger wide" type="button">עצירת כל הרילים והפוסטים האוטומטיים</button>
   </main>
 
   <main id="v-more" class="view" hidden>
-    <section class="card">
-      <h3>שעות</h3>
-      <div class="actions">
-        <button class="btn" type="button" data-do="refresh">רענון השעות בפייסבוק עכשיו</button>
-        <button class="btn" type="button" data-do="undo">חזרה לגרסה הקודמת</button>
-        <button class="btn" type="button" data-do="cancel_week" id="cancel-week" hidden>ביטול הפרסום המתוזמן</button>
-      </div>
-    </section>
-    <section class="card">
-      <h3>צוות</h3>
+    <div class="sec-h"><h2>שעות</h2></div>
+    <div class="group menu">
+      <button type="button" data-do="refresh">רענון השעות בפייסבוק עכשיו</button>
+      <button type="button" data-do="undo">חזרה לגרסה הקודמת</button>
+      <button type="button" data-do="cancel_week" id="cancel-week" class="red" hidden>ביטול הפרסום המתוזמן</button>
+    </div>
+
+    <div class="sec-h"><h2>מידע</h2></div>
+    <div class="group menu">
+      <button type="button" data-info="brief">בריף להיום</button>
+      <button type="button" data-info="stats">איך הלכו הפוסטים</button>
+      <button type="button" data-info="status">מצב המערכת</button>
+    </div>
+
+    <div class="sec-h"><h2>צוות</h2></div>
+    <section class="group">
       <div id="team" class="rows"></div>
       <form id="team-add" class="add-row">
-        <input name="name" placeholder="שם…" autocomplete="off" aria-label="שם" required>
-        <input name="phone" placeholder="טלפון…" inputmode="tel" autocomplete="off" aria-label="טלפון" dir="ltr">
-        <button class="btn" type="submit">הוספה</button>
+        <input name="name" placeholder="שם" autocomplete="off" aria-label="שם" required>
+        <input name="phone" placeholder="טלפון" inputmode="tel" autocomplete="off" aria-label="טלפון" dir="ltr">
+        <button class="btn sm" type="submit">הוספה</button>
       </form>
     </section>
-    <section class="card">
-      <h3>תזכורות</h3>
+
+    <div class="sec-h"><h2>תזכורות</h2></div>
+    <section class="group">
       <div id="reminders" class="rows"></div>
       <form id="remind-add" class="add-row">
-        <input name="text" placeholder="על מה להזכיר…" autocomplete="off" aria-label="על מה להזכיר" required>
+        <input name="text" placeholder="על מה להזכיר" autocomplete="off" aria-label="על מה להזכיר" required>
         <input name="at" type="datetime-local" aria-label="מתי" required>
-        <button class="btn" type="submit">הוספה</button>
+        <button class="btn sm" type="submit">הוספה</button>
       </form>
     </section>
-    <section class="card">
-      <h3>רשימות</h3>
+
+    <div class="sec-h"><h2>רשימות</h2></div>
+    <section class="group">
       <div id="lists" class="rows"></div>
       <form id="list-add" class="add-row">
-        <input name="list" placeholder="רשימה…" list="list-names" autocomplete="off" aria-label="שם הרשימה" required>
-        <input name="text" placeholder="מה להוסיף…" autocomplete="off" aria-label="פריט" required>
-        <button class="btn" type="submit">הוספה</button>
+        <input name="list" placeholder="רשימה" list="list-names" autocomplete="off" aria-label="שם הרשימה" required>
+        <input name="text" placeholder="מה להוסיף" autocomplete="off" aria-label="פריט" required>
+        <button class="btn sm" type="submit">הוספה</button>
         <datalist id="list-names"></datalist>
       </form>
     </section>
-    <section class="card">
-      <h3>מידע</h3>
-      <div class="actions">
-        <button class="btn" type="button" data-info="brief">בריף להיום</button>
-        <button class="btn" type="button" data-info="stats">איך הלכו הפוסטים</button>
-        <button class="btn" type="button" data-info="status">מצב המערכת</button>
-      </div>
-    </section>
-    <section class="card" id="install-card" hidden>
-      <h3>התקנה בטלפון</h3>
-      <button id="install-btn" class="btn primary wide" type="button" hidden>התקנה</button>
-      <p id="install-ios" hidden>בספארי: כפתור השיתוף ← "הוספה למסך הבית"</p>
-    </section>
+
+    <div class="group menu gap">
+      <button type="button" id="install-open" hidden>התקנה במסך הבית</button>
+      <button type="button" id="signout" class="red">יציאה</button>
+    </div>
   </main>
 
   <footer class="bar">
     <button id="preview-btn" class="btn primary wide" type="button">תצוגה לפני פרסום</button>
     <nav class="nav" aria-label="מסכים">
-      <button type="button" data-view="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>בית</button>
-      <button type="button" data-view="hours"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>שעות</button>
-      <button type="button" data-view="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>בתור</button>
-      <button type="button" data-view="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>עוד</button>
+      <button type="button" data-view="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.2 3.3a1.2 1.2 0 0 1 1.6 0l8 7.1c.8.7.3 2-.8 2H19v7.3c0 .7-.6 1.3-1.3 1.3H15a1 1 0 0 1-1-1v-4.5a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1V20a1 1 0 0 1-1 1H6.3c-.7 0-1.3-.6-1.3-1.3v-7.3H4c-1.1 0-1.6-1.3-.8-2z"/></svg>בית</button>
+      <button type="button" data-view="hours"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a1 1 0 0 1 1 1V5h6V3.5a1 1 0 1 1 2 0V5h.5A3.5 3.5 0 0 1 21 8.5v9a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5H7V3.5a1 1 0 0 1 1-1zM5 10v7.5c0 .8.7 1.5 1.5 1.5h11c.8 0 1.5-.7 1.5-1.5V10zm2.5 2h2v2h-2zm3.5 0h2v2h-2zm3.5 0h2v2h-2zm-7 3.5h2v2h-2zm3.5 0h2v2h-2z"/></svg>שעות</button>
+      <button type="button" data-view="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 4a1 1 0 0 0-1 1v5.4c0 .3.1.6.4.8l3.3 2.6a1 1 0 0 0 1.2-1.6L13 12V7a1 1 0 0 0-1-1z"/></svg>בתור</button>
+      <button type="button" data-view="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM7.5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>עוד</button>
     </nav>
   </footer>
 </div>
@@ -183,11 +184,9 @@
 <dialog id="result" class="sheet">
   <div class="sheet-body"><span class="grabber" aria-hidden="true"></span>
     <h2 id="rs-title"></h2>
-    <ul id="rs-channels" class="channels"></ul>
+    <ul id="rs-channels" class="group channels"></ul>
     <div id="rs-actions" class="actions"></div>
-    <div class="row">
-      <button id="rs-close" class="btn primary wide" type="button">סגירה</button>
-    </div>
+    <button id="rs-close" class="btn primary wide" type="button">סגירה</button>
   </div>
 </dialog>
 
@@ -196,6 +195,27 @@
     <h2 id="info-title"></h2>
     <pre id="info-text" class="team-text"></pre>
     <button id="info-close" class="btn primary wide" type="button">סגירה</button>
+  </div>
+</dialog>
+
+<dialog id="install" class="sheet">
+  <div class="sheet-body install"><span class="grabber" aria-hidden="true"></span>
+    <img class="app-icon" src="img/icon-512.png" alt="" width="88" height="88">
+    <h2>קורטדו במסך הבית</h2>
+    <button id="install-btn" class="btn primary wide" type="button" hidden>התקנה</button>
+    <ol id="install-ios" class="steps" hidden>
+      <li><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg></span>כפתור השיתוף בספארי</li>
+      <li><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span>הוספה למסך הבית</li>
+    </ol>
+    <ol id="install-android" class="steps" hidden>
+      <li><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></span>התפריט של כרום</li>
+      <li><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M12 8v6M9 11l3 3 3-3"/></svg></span>התקנת האפליקציה</li>
+    </ol>
+    <div id="install-webview" hidden>
+      <p class="lead">פותחים את הקישור בספארי</p>
+      <button id="install-copy" class="btn wide" type="button">העתקת הקישור</button>
+    </div>
+    <button id="install-later" class="btn ghost wide" type="button">אחר כך</button>
   </div>
 </dialog>
 
