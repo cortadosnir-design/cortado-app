@@ -636,7 +636,8 @@ async function mcpPosts(env, a){
       const likes = insightVal(vi, "post_video_likes_by_reaction_type") ?? 0;
       const url = v.permalink_url ? (v.permalink_url.startsWith("http") ? v.permalink_url : "https://www.facebook.com" + v.permalink_url) : "";
       // ריל מופיע לפעמים גם בפוסטים של העמוד: מחליפים את השורה הכפולה בשורת הריל, שיש לה את מספרי הצפייה.
-      const dup = rows.findIndex(x => x.network === "facebook" && x.id.endsWith("_" + v.id));
+      // the wrapping post carries a different id but the same permalink
+      const dup = rows.findIndex(x => x.network === "facebook" && (x.id.endsWith("_" + v.id) || (url && x.url === url)));
       if (dup >= 0) rows.splice(dup, 1);
       rows.push({ id: v.id, network: "facebook", kind: "reel", at: v.created_time, text: String(v.description || "").slice(0, 300), url,
         views: insightVal(vi, "blue_reels_play_count"), reach: insightVal(vi, "post_total_media_view_unique") ?? insightVal(vi, "post_impressions_unique"),
