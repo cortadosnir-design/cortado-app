@@ -2,7 +2,7 @@
 <link rel="stylesheet" href="base.css"><link rel="stylesheet" href="board.css">
 <!-- Weekly hours story with one event day highlighted (24.10.2026, election-day week).
      Safe zone y 250–1670. The cart is the hero (owner: "show the cart, not the lawn").
-     A day with "mark" in hours.json gets the terracotta row; "detail" is one short line under it. -->
+     A day with "mark" (appended to the day name) or "detail" in hours.json gets the terracotta row; "detail" is one short line under it. -->
 <style>
 html,body{width:1080px;height:1920px;overflow:hidden}
 .doodles{height:1920px;opacity:.55}
@@ -40,7 +40,7 @@ html,body{width:1080px;height:1920px;overflow:hidden}
 <div class="card"></div>
 <div class="head">השבוע בעגלה</div>
 <div class="kicker" data-week>{week}</div>
-<div class="list" data-hours="a"></div>
+<div class="list" data-hours="a" data-join=" · "></div>
 <div class="ribbon">נתראה בעגלה</div>
 <div class="socials"><div class="s"><span class="q"><img src="../assets/qr-instagram.svg" alt="QR לאינסטגרם"></span><span>אינסטגרם</span></div><div class="s"><span class="q"><img src="../assets/qr-facebook.svg" alt="QR לפייסבוק"></span><span>פייסבוק</span></div><div class="s"><span class="q"><img src="../assets/qr-whatsapp.svg" alt="QR לקבוצת הוואטסאפ"></span><span>וואטסאפ</span></div></div>
 <div class="foot r">קיבוץ שניר · העגלה ליד המרכולית</div>
@@ -51,9 +51,9 @@ html,body{width:1080px;height:1920px;overflow:hidden}
   const H = window.HOURS; if (!H) return;
   const rows = document.querySelectorAll('[data-hours="a"] .row');
   H.days.forEach((d, i) => {
-    if (!d.mark) return;
+    if (!d.mark && !d.detail) return;
     const r = rows[i]; r.classList.add("ev");
-    r.querySelector("b").textContent = d.day + " · " + d.mark;
+    if (d.mark) r.querySelector("b").textContent = d.day + " · " + d.mark;
     if (d.detail) r.insertAdjacentHTML("beforeend", `<i>${d.detail}</i>`);
   });
   document.querySelector("[data-sticker]").innerHTML = H.sticker || "";
