@@ -1,0 +1,53 @@
+"""Render the election-day carousel (12 pages, 1080x1350) with the cart's toolkit templates."""
+import pathlib, shutil, sys
+TK = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TK / "scripts"))
+from render import render  # noqa: E402
+
+OUT = TK.parent / "2026-10-24/election-carousel"
+import tempfile
+tmp = pathlib.Path(tempfile.mkdtemp())  # renders land here; only the 12 pages go into OUT
+P = "../../"  # templates/ -> repo root
+
+partners = [
+    ("ללוש", "מאפייה ביתית בגליל, מחמצת ושמרים", "2026-10-23/partners/lalush-cinnabon.jpg", "50% 50%", "line-cinnabon"),
+    ("Secret", "תכשיטים בעבודת יד מכפר בלום, מאז 2006", "2026-10-24/partners/secret-card.jpg", "50% 50%", "line-jewelry"),
+    ("ilo", "גלידה מחומרים טבעיים", "2026-10-23/partners/ilo-poster.jpg", "50% 50%", "line-icecream"),
+    ("בירליך", "בירה משפחתית מקיבוץ מנרה", "2026-10-24/election-carousel/beerlich.jpg", "50% 50%", "line-beer"),
+    ("מלביהו", "מלבי ביתי מדפנה, חלבי וטבעוני", "2026-10-24/partners/malabiahu.jpg", "50% 70%", "line-malabi"),
+    ("צמר גפן ופופקורן", "שני חברים שהתחילו בדוכן לימונדה במלחמה", "2026-10-25/partners/popcorn.jpg", "50% 50%", "line-cotton"),
+    ("YNL", "קהילת הברייקדאנס של הגליל העליון", "2026-10-25/partners/ynl-logo.jpg", "50% 50%", "line-dance"),
+    ("ספורט עם יאיר", "עמדות משחק ספורטיביות לכל המשפחה", "2026-10-24/election-carousel/yair.jpg", "50% 50%", "line-sport"),
+]
+all_tiles = {"date": "שלישי 27.10 · יום הבחירות", "hours": "15:00–19:00",
+             "more": "ברייקדאנס מ-16:30 · עמדות משחק · גן שעשועים",
+             "tiles": [{"photo": f"{P}2026-10-26/all/{k}.jpg", "name": n, "what": w} for k, n, w in [
+                 ("lalush", "ללוש", "סינבונים"), ("secret", "Secret", "תכשיטים בעבודת יד"),
+                 ("ilo", "ilo", "גלידה מחומרים טבעיים"), ("beerlich", "בירליך", "בירה מהחבית"),
+                 ("malabiahu", "מלביהו", "מלבי ביתי"), ("popcorn", "צמר גפן ופופקורן", "דוכן של שני חברים"),
+                 ("ynl", "YNL", "מעגל ברייקדאנס"), ("yair", "ספורט עם יאיר", "עמדות משחק"),
+                 ("cortado", "קורטדו", "פיצות, קפה ומאפים")]]}
+
+base = {"week": "", "days": []}
+pages = []
+render({**base, "all": all_tiles}, ["70", "71", "73", "74"], tmp, False)
+pages += [tmp / "70-ev-cover.png", tmp / "71-ev-together.png"]
+for i, (name, line, photo, pos, icon) in enumerate(partners, 3):
+    render({**base, "partner": {"name": name, "line": line, "photo": P + photo, "pos": pos,
+                                "icon": f"../assets/art/{icon}.svg"}}, ["72"], tmp, False)
+    dst = tmp / f"p{i:02d}.png"
+    shutil.move(tmp / "72-ev-partner.png", dst)
+    pages.append(dst)
+pages += [tmp / "73-ev-support.png", tmp / "74-ev-all.png"]
+assert len(pages) == 12, len(pages)
+for i, f in enumerate(pages, 1):
+    shutil.copy(f, OUT / f"{i:02d}.png")
+
+from PIL import Image
+cols, w, h = 4, 360, 450
+c = Image.new("RGB", (cols * w + 5 * 12, 3 * h + 4 * 12), "#DDD8CC")
+for i in range(12):
+    im = Image.open(OUT / f"{i+1:02d}.png").convert("RGB"); im.thumbnail((w, h))
+    c.paste(im, (12 + (i % cols) * (w + 12), 12 + (i // cols) * (h + 12)))
+c.save(tmp / "sheet.jpg", quality=88)
+print("done", OUT, "sheet:", tmp / "sheet.jpg")
