@@ -116,7 +116,7 @@ function renderStatus() {
   chips.push(pub ? '<span class="chip ok">פורסם</span>' : '<span class="chip bad">עוד לא פורסם</span>');
   if (pub && !same(list, saved(wk))) chips.push('<span class="chip bad">יש שינויים שלא פורסמו</span>');
   if (!pub && list.length) chips.push('<span class="chip">טיוטה במכשיר</span>');
-  if (S.scheduled?.week === wk) chips.push(`<span class="chip">מתוזמן לפרסום ${esc(S.scheduled.due.replace("T", " "))}</span>`);
+  if (S.scheduled?.week === wk) chips.push(`<span class="chip">יתפרסם ב${esc(when(S.scheduled.due))}</span>`);
   $("status").innerHTML = chips.join("");
   $("copy-prev").disabled = !S.weeks?.[plusDays(wk, -7)];
 }
@@ -212,7 +212,7 @@ $("preview-btn")?.addEventListener("click", async () => {
   const wk = weekId(), list = grid();
   const broken = list.find((s) => !tm(s.start) || !tm(s.end) || s.end <= s.start);
   if (broken) { toast(`${DAYS[broken.day]}: שעה לא תקינה`); return; }
-  busy(true);
+  busy(true); $("preview-btn").classList.add("busy");
   try {
     const p = await call("/panel/preview", { next_week: which === "next", shifts: sorted(list.map(clean)) });
     if (p.week !== wk) throw new Error("השבוע התחלף בינתיים. מרעננים את הדף");
@@ -231,7 +231,7 @@ $("preview-btn")?.addEventListener("click", async () => {
     $("publish-btn").textContent = `פרסום ${range(wk)}`;
     $("publish-btn").disabled = !!p.blocked;
     $("preview").showModal();
-  } catch (e) { toast(e.message); } finally { busy(false); }
+  } catch (e) { toast(e.message); } finally { busy(false); $("preview-btn").classList.remove("busy"); }
 });
 $("pv-close")?.addEventListener("click", () => $("preview").close());
 
@@ -239,16 +239,19 @@ $("pv-close")?.addEventListener("click", () => $("preview").close());
 $("publish-btn")?.addEventListener("click", async () => {
   if (!draftId) return;
   const wk = weekId();
-  $("publish-btn").disabled = true; $("publish-btn").textContent = "מפרסם…";
+  $("publish-btn").disabled = true; $("publish-btn").classList.add("busy"); $("publish-btn").textContent = "מפרסם…";
   try {
     const r = await call("/panel/publish", { id: draftId });
     draftId = null;
+    $("publish-btn").classList.remove("busy");
     $("preview").close();
     showResult(r, wk);
+    if (r.page === "ok") navigator.vibrate?.(18);
     if (r.page === "ok") { store.del(wk); delete grids[wk]; }
     await load();
   } catch (e) {
     toast(e.message);
+    $("publish-btn").classList.remove("busy");
     $("publish-btn").disabled = false; $("publish-btn").textContent = `פרסום ${range(wk)}`;
   }
 });
@@ -288,7 +291,7 @@ async function copy(text) {
   toast("הועתק");
 }
 let tt;
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 4200); }
+function toast(msg) { const t = $("toast"); t.hidden = true; void t.offsetWidth; t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 4200); }
 function busy(on) { document.body.classList.toggle("loading", on); }
 
 async function load() {
@@ -324,13 +327,13 @@ onAuthStateChanged(auth, async (user) => {
 /* ===== שלושה מסכים: שעות · בתור · עוד. כל מה שהבוט יודע לעשות, ככפתור ===== */
 const act = (action, extra = {}) => call("/panel/do", { action, ...extra });
 let viewNow = "hours";
-const TITLES = { queue: "מה יוצא בקרוב", more: "עוד" };
+const TITLES = { hours: "השבוע בעגלה", queue: "מה יוצא בקרוב", more: "עוד" };
 function show(v) {
   viewNow = v;
   for (const x of ["hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
   for (const b of document.querySelectorAll(".nav button")) b.toggleAttribute("aria-current", b.dataset.view === v), b.dataset.view === v && b.setAttribute("aria-current", "page");
   document.querySelector(".weeks").hidden = v !== "hours";
-  $("view-title").hidden = v === "hours"; $("view-title").textContent = TITLES[v] || "";
+  $("view-title").textContent = TITLES[v];
   $("preview-btn").hidden = v !== "hours";
   if (v === "queue") loadQueue();
   if (v === "more") loadMore();
@@ -428,3 +431,16 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; $("install-card").hidden = false; $("install-btn").hidden = false; });
 if (!standalone && /iphone|ipad/i.test(navigator.userAgent)) { $("install-card").hidden = false; $("install-ios").hidden = false; }
 $("install-btn")?.addEventListener("click", async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("install-card").hidden = true; });
+
+/* גיליונות: נגיעה ברקע או משיכה למטה סוגרות, כמו בטלפון */
+for (const d of document.querySelectorAll("dialog.sheet")) {
+  d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
+  let y0 = null;
+  d.addEventListener("touchstart", (e) => { y0 = d.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+  d.addEventListener("touchmove", (e) => { if (y0 === null) return; const dy = e.touches[0].clientY - y0; if (dy > 0) d.style.transform = `translateY(${dy}px)`; }, { passive: true });
+  d.addEventListener("touchend", (e) => {
+    if (y0 === null) return;
+    const dy = e.changedTouches[0].clientY - y0; y0 = null; d.style.transform = "";
+    if (dy > 110) d.close();
+  });
+}

@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#F6F2EB">
+<meta name="theme-color" content="#F6F2EB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15110D" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <title>השבוע בעגלה</title>
 <link rel="icon" href="../cafe/img/logo.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -18,7 +20,7 @@
 </head>
 <body>
 <div id="signin" class="signin" hidden>
-  <img src="../cafe/img/logo.png" alt="קפה קורטדו" width="96" height="96">
+  <img src="icon-512.png" alt="קפה קורטדו" width="104" height="104">
   <h1>השבוע בעגלה</h1>
   <button id="signin-btn" class="btn primary" type="button">כניסה עם Google</button>
   <p id="signin-error" class="error" role="alert"></p>
@@ -27,18 +29,18 @@
 <div id="app" class="app" hidden>
   <h1 class="sr">השבוע בעגלה</h1>
   <header class="top">
-    <img src="../cafe/img/logo.png" alt="קפה קורטדו" width="40" height="40">
-    <h2 id="view-title" class="view-title" hidden></h2>
-    <div class="weeks" role="tablist" aria-label="שבוע">
-      <button role="tab" id="tab-cur" data-week="cur" type="button"></button>
-      <button role="tab" id="tab-next" data-week="next" type="button"></button>
-    </div>
+    <img src="icon-192.png" alt="קפה קורטדו" width="36" height="36">
+    <h2 id="view-title" class="view-title">השבוע בעגלה</h2>
     <button id="signout" class="icon-btn" type="button" aria-label="יציאה">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10"/></svg>
     </button>
   </header>
 
   <main id="v-hours" class="view">
+    <div class="weeks" role="tablist" aria-label="שבוע">
+      <button role="tab" id="tab-cur" data-week="cur" type="button"></button>
+      <button role="tab" id="tab-next" data-week="next" type="button"></button>
+    </div>
     <section class="status" id="status" aria-live="polite"></section>
     <div class="tools">
       <button id="paste-open" class="btn" type="button">הדבקת סידור</button>
@@ -115,7 +117,7 @@
 </div>
 
 <dialog id="paste" class="sheet">
-  <form method="dialog" class="sheet-body">
+  <form method="dialog" class="sheet-body"><span class="grabber" aria-hidden="true"></span>
     <h2>הדבקת סידור</h2>
     <textarea id="paste-text" rows="10" dir="rtl" autocomplete="off" spellcheck="false" placeholder="שני 17:00–19:00 נוגה&#10;שלישי 9:00–13:00 אלה, ליה&#10;ראשון ורביעי סגור"></textarea>
     <p id="paste-skipped" class="warn-text"></p>
@@ -127,7 +129,7 @@
 </dialog>
 
 <dialog id="preview" class="sheet">
-  <div class="sheet-body">
+  <div class="sheet-body"><span class="grabber" aria-hidden="true"></span>
     <div class="seg" role="tablist" aria-label="תצוגה">
       <button role="tab" data-view="public" aria-selected="true" type="button">לקוחות</button>
       <button role="tab" data-view="team" aria-selected="false" type="button">צוות</button>
@@ -147,7 +149,7 @@
 </dialog>
 
 <dialog id="result" class="sheet">
-  <div class="sheet-body">
+  <div class="sheet-body"><span class="grabber" aria-hidden="true"></span>
     <h2 id="rs-title"></h2>
     <ul id="rs-channels" class="channels"></ul>
     <div id="rs-actions" class="actions"></div>
@@ -158,7 +160,7 @@
 </dialog>
 
 <dialog id="info" class="sheet">
-  <div class="sheet-body">
+  <div class="sheet-body"><span class="grabber" aria-hidden="true"></span>
     <h2 id="info-title"></h2>
     <pre id="info-text" class="team-text"></pre>
     <button id="info-close" class="btn primary wide" type="button">סגירה</button>
