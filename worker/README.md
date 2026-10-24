@@ -6,15 +6,14 @@
 
 ## מה צריך להיות מוגדר
 
+מ-24.10.2026 אין בשרת נתיבים שדורשים התחברות (הממשק בדפדפן הוסר, commit `1c53ba1`). `GEMINI_API_KEY`, `FB_APP_ID`, `FB_APP_SECRET` ו-`PLACES_API_KEY` כבר לא נקראים, ואפשר למחוק אותם מהלוח.
+
 | שם | סוג | בשביל |
 |---|---|---|
-| `FIREBASE_PROJECT_ID` | var | אימות המשתמש (`cortado-ops`) |
+| `FIREBASE_PROJECT_ID` | var | נתיב ה-Firestore (`cortado-ops`) |
 | `ALLOWED_ORIGINS` | var | מאיזה אתרים מותר לקרוא |
-| `GEMINI_API_KEY` | secret | כתיבה עם AI |
-| `FB_APP_ID`, `FB_APP_SECRET` | secret | החלפת טוקן זמני בטוקן עמוד ארוך (`/setup/pages`) |
 | `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `IG_USER_ID` | (לא חובה) | החיבור לעמוד שמור ב-Firestore (`secrets/meta`). להחלפה: Graph API Explorer ← טוקן עמוד, ומגדירים כאן את שלושתם. מה שמוגדר כאן מנצח |
 | `FIREBASE_SA` | secret | **התור של אינסטגרם** — ראה למטה |
-| `PLACES_API_KEY` | secret | `/hours/fromgoogle` — קריאת השעות מהפרופיל בגוגל. אף לקוח לא קורא לו היום. ראה למטה |
 | `GB_*` | (לא חובה) | גוגל: שעות לפי תאריך, וביקורות ותשובות (דרך המחבר `/mcp/`). מתחברים פעם אחת ב-`/google/connect`, והשרת שומר ב-Firestore (`secrets/google`) את ה-client, ה-refresh token, החשבון והמיקום. נשמר רק אם מייסד אישר בגוגל, ומנצח את מה שמוגדר כאן |
 | `BOT_KEY` | secret | **שעות מהבוט** — המפתח המשותף עם בוט קורטדו, בוט הוואטסאפ של הבעלים (`agala-bot`). אותו ערך בשני ה-Workers. בלי הסוד הנתיב סגור |
 
@@ -45,42 +44,14 @@
 בלי הסוד: פייסבוק מתוזמן כרגיל; אינסטגרם מתפרסם רק כשלוחצים "תזמן" על
 פוסט שזמנו כבר הגיע (פרסום מיידי).
 
-### הסוד `PLACES_API_KEY` — פעם אחת, ידנית
-
-`/hours/fromgoogle` קורא את שעות הפתיחה מהפרופיל בגוגל (Places API). כפתור "משוך מגוגל"
-הוסר (22.10.2026) — הנתיב נשאר בשרת. קריאה לא צריכה את האישור של Business Profile, רק מפתח.
-מכסה חינמית: 1,000 קריאות בחודש.
-
-1. https://console.cloud.google.com → למעלה: **New project** (פרויקט נפרד, **לא** `cortado-ops`).
-   שתי סיבות: Firebase נשאר בתוכנית החינמית, ובעיקר — המפתח של Firebase (ב-`config.js`)
-   גלוי לכל מבקר באתר ואין עליו הגבלת API (נבדק 29.9: הוא מגיע עד Places ונעצר רק כי
-   השירות כבוי בפרויקט). הפעלת Places ב-`cortado-ops` הייתה נותנת לכל אחד להשתמש בו על חשבונך.
-2. **Billing** → לחבר חשבון חיוב. גוגל דורשת כרטיס גם לשימוש חינמי.
-3. APIs & Services → Library → **Places API (New)** → Enable.
-4. APIs & Services → Credentials → **Create credentials → API key**.
-   אחר כך: Edit → API restrictions → Restrict key → לסמן רק **Places API (New)**.
-5. בטיחות, כדי שלא יהיה חיוב אף פעם: APIs & Services → Places API (New) → **Quotas** →
-   להגביל ל-50 בקשות ביום.
-6. Cloudflare → Workers & Pages → cortado-api → Settings → Variables and Secrets →
-   **Add** → Type: *Secret*, name: `PLACES_API_KEY`, value: המפתח.
-
-מזהה המקום של העגלה כבר בקוד. עסק אחר: משתנה `GOOGLE_PLACE_ID`.
-
 ## נקודות קצה
 
 | נתיב | מה |
 |---|---|
 | `/health` | `{ok:true}` בלי אימות |
-| `/ai/post` `/ai/week` `/ai/brief` `/ai/angle` `/ai/insights` | Gemini: כתיבה, תכנון שבוע, תחקיר, כיוון, תובנות |
-| `/ai/analyze` `/ai/zreport` | Gemini: שאלה חופשית על טבלה, וקריאת דוח Z מצילום |
-| `/insights/posts` | מושך חשיפה, לייקים ושיתופים ממטא לפוסטים שפורסמו |
-| `/publish/schedule` | **סגור (410).** פוסטים — רק דרך `/post/bot` |
-| `/publish/state` | מה מחובר: פייסבוק, אינסטגרם, התור |
-| `/hours/facebook` `/hours/google` | **סגורים (410).** שעות יוצאות רק דרך `/hours/bot` ו-`/hours/refresh` |
-| `/hours/fromgoogle` | שעות פתיחה: קריאה מהפרופיל בגוגל (`PLACES_API_KEY`) |
+| כל נתיב אחר | 404. אין נתיבים עם התחברות משתמש |
 | `/hours/bot` | שעות פתיחה מבוט קורטדו: שבוע שלם, אחרי "כן" של הבעלים בוואטסאפ. מזדהה ב-`BOT_KEY` (כותרת `x-bot-key`), לא במשתמש. כותב `hoursOverride` לשבוע ומפרסם לדף הנחיתה, לפייסבוק ולגוגל. עם `shifts` גם הסידור: שעות ב-`weeks.botShifts` (נקרא לכולם), שמות ב-`botpeople/{wid}` (מנהלים בלבד). זה הכותב היחיד |
 | `/hours/refresh` | הבוט קורא אחרי חצות: מפרסם מחדש מ-`public/hours` את השבוע המתגלגל לפייסבוק. מזדהה ב-`BOT_KEY` |
 | `/queue/bot` | מה מחכה לצאת בבוט (סטורי, ריל, פרסום אוטומטי, לו״ז מתוזמן). הבוט שולח רק כשהתור משתנה, השרת שומר ב-`botqueue/now`. מזדהה ב-`BOT_KEY` |
 | `/team/bot` `/team/bot/set` | רשימת הצוות (`roster`): קריאה, והוספה / טלפון / עזיבה מהבוט. מזוהה לפי השם. מזדהה ב-`BOT_KEY` |
-| `/status` `/setup/pages` | חיבור העמוד |
 | `/mcp/<מפתח>` | מחבר ל-Claude (MCP, קריאה בלבד): `account`, `facebook_daily`, `instagram_daily`, `posts` ישירות מ-Graph API. בקוד רק ה-SHA-256 של המפתח (`MCP_KEY_SHA256`); המפתח עצמו אצל הבעלים, בהגדרת המחבר ב-Claude. מזין את דשבורד הפרסום |

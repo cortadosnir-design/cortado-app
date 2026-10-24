@@ -7,5 +7,5 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const run = (file) => new Promise(res => spawn("node", [file], { stdio: "inherit", cwd: ROOT }).on("close", res));
 
 let code = 0;
-for (const f of ["tests/worker.mjs", "tests/models.mjs", "tests/admins.mjs", "tests/hours.mjs"]) code |= await run(f);
+for (const f of ["tests/worker.mjs", "tests/admins.mjs", "tests/hours.mjs"]) code |= await run(f);
 process.exit(code ? 1 : 0);

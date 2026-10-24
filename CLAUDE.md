@@ -80,9 +80,9 @@ limormelman@gmail.com
 
 `tests/admins.mjs` נופל אם אחד מהם סוטה, אז אי אפשר לשכוח מקום.
 
-**מנהל** — `admin: true` במסמך `members` שלו. `firestore.rules` (`adminOf`) ו-`worker/src/index.js`
-(`isAdminUid`) מכירים בדגל הזה, ורק מייסדים יכולים לשנות אותו. אין היום מסך לזה: שינוי נעשה
-ב-Firebase Console. בלי `FIREBASE_SA` השרת נכשל סגור ומכיר רק במייסדים.
+**מנהל** — `admin: true` במסמך `members` שלו. `firestore.rules` (`adminOf`) מכיר בדגל הזה, ורק מייסדים
+יכולים לשנות אותו. אין היום מסך לזה: שינוי נעשה ב-Firebase Console. בשרת אין התחברות משתמשים
+(מ-24.10.2026): `DEFAULT_OWNERS` משמש רק לאישור חיבור גוגל (`/google/callback`).
 
 ---
 

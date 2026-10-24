@@ -66,12 +66,11 @@ if (f2) process.exitCode = 1;
 
 /* ── חיבור העמוד: מה שבלוח של Cloudflare מנצח, מה שחסר מגיע מ-secrets/meta ── */
 {
-  const block = wsrc.slice(wsrc.indexOf("const META_KEYS"), wsrc.indexOf("\n}\n", wsrc.indexOf("async function withMeta(")) + 2)
-    + "\n" + wsrc.slice(wsrc.indexOf("const choosePage"), wsrc.indexOf("\n", wsrc.indexOf("const choosePage")));
-  const mk = (fsGet) => new Function("fsGet", block + "\nreturn { withMeta, choosePage };")(fsGet);
+  const block = wsrc.slice(wsrc.indexOf("const META_KEYS"), wsrc.indexOf("\n}\n", wsrc.indexOf("async function withMeta(")) + 2);
+  const mk = (fsGet) => new Function("fsGet", block + "\nreturn { withMeta };")(fsGet);
   let calls = 0;
   const doc = { FB_PAGE_ID: "111", FB_PAGE_TOKEN: "tokDoc", IG_USER_ID: "ig1", pageName: "קפה" };
-  const { withMeta, choosePage } = mk(async () => { calls++; return doc; });
+  const { withMeta } = mk(async () => { calls++; return doc; });
   console.log("\n13ב. חיבור עמוד הפייסבוק");
   let pass2 = 0, fail2 = 0;
   const ok = (n, c, x = "") => c ? (pass2++, console.log("  ✓ " + n + (x ? "  " + x : ""))) : (fail2++, console.log("  ✗ " + n + "  " + x));
@@ -92,30 +91,8 @@ if (f2) process.exitCode = 1;
   ok("Firestore נופל → ממשיכים בלי חיבור, לא קורסים", !b2.FB_PAGE_TOKEN);
   const empty = mk(async () => null);
   ok("אין מסמך → כמו שהיה", !(await empty.withMeta({ FIREBASE_SA: "{}" })).FB_PAGE_ID);
-  const one = [{ id: "1", name: "א" }], two = [{ id: "1", name: "א" }, { id: "2", name: "ב" }];
-  ok("עמוד אחד נבחר לבד", choosePage(one) === one[0]);
-  ok("כמה עמודים בלי בחירה → אין שמירה", choosePage(two) === null);
-  ok("כמה עמודים עם pageId → הנבחר", choosePage(two, 2) === two[1]);
   console.log(`\n${pass2} עברו · ${fail2} נכשלו`);
   if (fail2) process.exitCode = 1;
-}
-
-/* ── שעות מגוגל: periods של Places API → טווחים לכל יום ── */
-{
-  console.log("\nשעות מגוגל (Places API)");
-  const a = wsrc.indexOf("const hm = (t)"), z = wsrc.indexOf("async function readGoogleHours");
-  const placeRanges = new Function(wsrc.slice(a, z) + "\nreturn placeRanges;")();
-  const P = (d, oh, om, ch, cm, date) => ({ open: { day: d, hour: oh, minute: om, ...(date ? { date } : {}) }, close: { day: d, hour: ch, minute: cm } });
-  const r = placeRanges([P(1, 9, 0, 12, 0), P(6, 9, 0, 12, 0), P(6, 16, 0, 19, 30), P(0, 7, 5, 14, 0, { year: 2026, month: 10, day: 4 })]);
-  let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
-  ok("יום עם טווח אחד", r.byDay[1].join() === "09:00–12:00", r.byDay[1].join());
-  ok("שני טווחים באותו יום, דקות נשמרות", r.byDay[6].join(", ") === "09:00–12:00, 16:00–19:30", r.byDay[6].join(", "));
-  ok("יום בלי period = סגור", r.byDay[2].length === 0);
-  ok("אפס מוביל בדקות", r.byDay[0][0] === "07:05–14:00", r.byDay[0][0]);
-  ok("לפי תאריך כשגוגל שולחת תאריך", r.byDate["2026-10-04"] && r.byDate["2026-10-04"][0] === "07:05–14:00");
-  ok("בלי close = כל היום", placeRanges([{ open: { day: 3, hour: 0, minute: 0 } }]).byDay[3][0] === "00:00–23:59");
-  console.log(`\n${p} עברו · ${f} נכשלו`);
-  if (f) process.exitCode = 1;
 }
 
 /* ── שעות מהבוט (בוט קורטדו): הבקשה, הפורמטים, והפרסום בלי דפדפן ── */
@@ -220,10 +197,10 @@ if (f2) process.exitCode = 1;
   ok("מפתח שגוי: 403 ושום כתיבה", wrong.err && wrong.err.status === 403 && wrong.writes.length === 0 && wrong.fbCalls.length === 0);
   const unset = await run({ env: { BOT_KEY: "" }, key: "" });
   ok("בלי BOT_KEY בשרת: סגור, גם למפתח ריק", unset.err && unset.err.code === "not_configured" && unset.writes.length === 0);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/bot"') > 0 && wsrc.indexOf('"/hours/bot"') < wsrc.indexOf("await requireUser(request, env)"));
-  ok("רענון הלילה נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/refresh"') > 0 && wsrc.indexOf('"/hours/refresh"') < wsrc.indexOf("await requireUser(request, env)"));
-  ok("האפליקציה כבר לא מפרסמת שעות בעצמה", /case "\/hours\/google":\s*throw fail\("moved"/.test(wsrc));
-  ok("האפליקציה כבר לא מתזמנת פוסטים בעצמה", /case "\/publish\/schedule":\s*throw fail\("moved"/.test(wsrc));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/bot"') > 0 && wsrc.indexOf('"/hours/bot"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
+  ok("רענון הלילה נבדק לפני אימות המשתמש", wsrc.indexOf('"/hours/refresh"') > 0 && wsrc.indexOf('"/hours/refresh"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
+  ok("אין נתיב שמפרסם שעות מחוץ לבוט", !/"\/hours\/(google|facebook)"/.test(wsrc));
+  ok("אין נתיב שמתזמן פוסטים מחוץ לבוט", !wsrc.includes('"/publish/schedule"'));
   const fsBlock = wsrc.slice(wsrc.indexOf("function toFs(v){"), wsrc.indexOf("function fromFs("));
   const toFs = new Function(fsBlock + "\nreturn toFs;")();
   ok("תאריך נכתב כ-timestamp ולא כמפה ריקה", toFs(new Date("2026-10-03T11:00:00Z")).timestampValue === "2026-10-03T11:00:00.000Z");
@@ -245,7 +222,7 @@ if (f2) process.exitCode = 1;
   ok("פעילים בלבד, שם מנוקה וטלפון בספרות", JSON.stringify(out.team) === JSON.stringify([{ name: "נגה", phone: "0543120000" }, { name: "אורי", phone: "" }]), JSON.stringify(out.team));
   let denied = false; try { await botTeam({ BOT_KEY: "k" }, req("nope")); } catch (e){ denied = e.status === 403; }
   ok("מפתח שגוי: נדחה בלי לקרוא את הרשימה", denied && listed === 1);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot"') > 0 && wsrc.indexOf('"/team/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot"') > 0 && wsrc.indexOf('"/team/bot"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
@@ -273,7 +250,7 @@ if (f2) process.exitCode = 1;
   ok("טלפון קצר מדי נדחה", bad && wrote.length === 3);
   let denied = false; try { await set({ BOT_KEY: "k" }, req("nope", { name: "x" })); } catch (e){ denied = e.status === 403; }
   ok("מפתח שגוי: נדחה בלי לכתוב", denied && wrote.length === 3);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot/set"') > 0 && wsrc.indexOf('"/team/bot/set"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/team/bot/set"') > 0 && wsrc.indexOf('"/team/bot/set"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
@@ -296,7 +273,7 @@ if (f2) process.exitCode = 1;
   ok("מפתח שגוי: נדחה בלי לכתוב", denied && wrote.length === 1);
   let tooMany = false; try { await botQueue({ BOT_KEY: "k" }, req("k", { items: Array(51).fill({ kind: "a", at: "2026-10-25T10:00" }) })); } catch (e){ tooMany = e.code === "bad_request"; }
   ok("יותר מ-50 נדחה", tooMany && wrote.length === 1);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/queue/bot"') > 0 && wsrc.indexOf('"/queue/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/queue/bot"') > 0 && wsrc.indexOf('"/queue/bot"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
@@ -338,7 +315,7 @@ if (f2) process.exitCode = 1;
   ok("stats: המספרים ממטא לכל פוסט", st2.posts[0].reach === 120 && st2.posts[1].reach === 40);
   let bad = ""; try { await lister({ BOT_KEY: "k" }, req({ from: "../x" })); } catch (e){ bad = e.code; }
   ok("תאריך לא תקין נדחה", bad === "bad_request");
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot"') > 0 && wsrc.indexOf('"/post/bot"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot"') > 0 && wsrc.indexOf('"/post/bot"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }
@@ -417,7 +394,7 @@ if (f2) process.exitCode = 1;
   // כתיבת ה-igPostId נכשלת אחרי שפורסם: הפוסט כבר מחוץ לתור, ואף כתיבה לא מחזירה אותו
   const flaky = await runDue("FINISHED", (x) => "igPostId" in x);
   ok("קרון: כתיבה שנכשלת אחרי פרסום לא מחזירה לתור", flaky.patches.length === 1 && flaky.patches[0].igPending === false && flaky.res.results[0].ok === true);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/reel"') > 0 && wsrc.indexOf('"/post/bot/reel"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/reel"') > 0 && wsrc.indexOf('"/post/bot/reel"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   ok("השרת מודיע לבוט שהוא יודע ריל", /reels: true/.test(wsrc.slice(wsrc.indexOf("async function publishState("), wsrc.indexOf("async function publishState(") + 600)));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
@@ -472,7 +449,7 @@ if (f2) process.exitCode = 1;
   ok("בלי data URL של תמונה: נדחה בלי להעלות", e1 && e1.code === "bad_request" && !t3.uploads.length);
   const t4 = mk(); let e2 = null; try { await t4.botStory(env, req({ image: img }, "nope")); } catch (e){ e2 = e; }
   ok("מפתח שגוי: נדחה בלי להעלות", e2 && e2.status === 403 && !t4.uploads.length);
-  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/story"') > 0 && wsrc.indexOf('"/post/bot/story"') < wsrc.indexOf("await requireUser(request, env)"));
+  ok("הנתיב נבדק לפני אימות המשתמש", wsrc.indexOf('"/post/bot/story"') > 0 && wsrc.indexOf('"/post/bot/story"') < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)'));
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }

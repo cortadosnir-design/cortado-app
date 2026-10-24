@@ -51,10 +51,8 @@ ok("מחיקה: מנהל רגיל לא יכול להדיח מנהל",
   /allow delete:[\s\S]*?isFounder\(\) \|\| !adminOf\(resource\.data\)/.test(members));
 ok("רשימת שדות סגורה על members", /hasOnly\(\['name','email','photo','admin','at'\]\)/.test(members));
 
-/* ---- השרת בודק את אותו מקור ---- */
-ok("השרת בודק את דגל admin ב-members", /members\/\$\{encodeURIComponent\(uid\)\}/.test(worker));
-ok("השרת מצרף את בדיקת המנהל לבדיקת המייסדים", /ownersOf\(env\)\.includes[\s\S]{0,80}isAdminUid\(env, user\.uid\)/.test(worker));
-ok("בלי FIREBASE_SA השרת נכשל סגור (מייסדים בלבד)", /if \(!env\.FIREBASE_SA \|\| !uid\) return false;/.test(worker));
+/* ---- בשרת אין התחברות משתמשים מאז 23.10.2026: רק המייסדים מאשרים את חיבור גוגל ---- */
+ok("לשרת אין נתיבים שדורשים התחברות", !/requireUser|isAdminUid/.test(worker));
 
 console.log(`\n${pass} עברו · ${fail} נכשלו`);
 process.exit(fail ? 1 : 0);
