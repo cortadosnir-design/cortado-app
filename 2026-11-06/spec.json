@@ -1,0 +1,14 @@
+{
+  "hook": "שישי בבוקר על הדשא",
+  "motion": "push",
+  "music": "cafe",
+  "scenes": [
+    {"media": "toolkit/assets/photos/pastry-5.jpg", "text": "", "dur": 2.5},
+    {"media": "toolkit/assets/photos/sandwich.jpg", "text": "כריך ליד הקפה", "dur": 2.5},
+    {"media": "2026-10-23/nora/nora-cups.jpg", "text": "ואחר כך, קפיצה לשכנים", "dur": 2.5},
+    {"media": "toolkit/assets/photos/lawn.jpg", "text": "ושישי ממשיך לאט", "dur": 3.5}
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 45
+}

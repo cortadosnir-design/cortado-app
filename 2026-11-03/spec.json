@@ -1,0 +1,30 @@
+{
+  "hook": "ציור קטן בתוך כוס",
+  "motion": "kinetic",
+  "music": "drive",
+  "scenes": [
+    {
+      "media": "toolkit/assets/photos/tray.jpg",
+      "text": "",
+      "dur": 2.5
+    },
+    {
+      "media": "toolkit/assets/photos/pastry-4.jpg",
+      "text": "ומשהו קטן ליד",
+      "dur": 2.0
+    },
+    {
+      "media": "toolkit/assets/photos/coffee-5.jpg",
+      "text": "",
+      "dur": 1.5
+    },
+    {
+      "media": "toolkit/assets/photos/coffee-4.jpg",
+      "text": "ואחת בשבילך",
+      "dur": 3.0
+    }
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 32
+}
