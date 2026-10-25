@@ -3,7 +3,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS, hm } from "./parse.js?v=20261024e";
+import { parseWeek, DAYS, hm } from "./parse.js?v=20261025a";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -456,6 +456,9 @@ function openInstall() {
   $("install-ios").hidden = !ios || iosWebview;
   $("install-webview").hidden = !iosWebview;
   $("install-android").hidden = ios || !!installEvt;
+  // אנדרואיד בלי הצעת התקנה: כמעט תמיד דפדפן בתוך אפליקציה (וואטסאפ, Claude), שלא יודע להתקין. פותחים בכרום
+  $("install-chrome").hidden = ios || !!installEvt;
+  $("install-chrome").href = `intent://${location.host}${location.pathname}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(location.href)};end`;
   $("install").showModal();
   document.activeElement?.blur(); // בלי טבעת מיקוד על "אחר כך" כשהגיליון נפתח לבד
 }
