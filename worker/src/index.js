@@ -319,8 +319,8 @@ async function fbReel(env, bytes, description){
   return String(s.video_id);
 }
 // מחזיר את מזהה הקונטיינר. מפרסמים רק אחרי שהוא FINISHED.
-async function igReelContainer(env, bytes, caption){
-  const c = await graph(env, `${env.IG_USER_ID}/media`, { media_type: "REELS", upload_type: "resumable", caption: caption || "", share_to_feed: "true" });
+async function igReelContainer(env, bytes, caption, extra = {}){
+  const c = await graph(env, `${env.IG_USER_ID}/media`, { media_type: "REELS", upload_type: "resumable", caption: caption || "", share_to_feed: "true", ...extra });
   await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
   return String(c.id);
 }
@@ -337,11 +337,12 @@ async function botReel(env, request){
   if (!bytes.byteLength) throw fail("bad_request", "אין קובץ וידאו.");
   if (bytes.byteLength > MAX_REEL_BYTES) throw fail("bad_request", "הסרטון גדול מ-40MB.");
   const text = String(meta.text || "").slice(0, 2200), tags = cleanTags(meta.tags);
+  const collab = cleanTags(meta.collaborators).slice(0, 3); // ריל משותף (25.10.2026): מופיע גם אצל השותף, אחרי שהוא מאשר את ההזמנה
   const id = "r" + Date.now().toString(36);
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date());
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", kind: "reel", status: "ready", hasMedia: true });
 
-  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [] };
+  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "" };
   // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
   await Promise.all([
     fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
@@ -349,12 +350,17 @@ async function botReel(env, request){
       if (meta.noIg) return void (out.igSkipped = "פייסבוק בלבד, לפי הבחירה");
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
       try {
-        const c = await igReelContainer(env, bytes, withMentions(text, tags).slice(0, 2200));
+        const caption = withMentions(text, tags).slice(0, 2200);
+        let c = "";
+        // שותף שנדחה (חשבון פרטי, שם שגוי) לא מפיל: הריל יוצא בלי, והסיבה מדווחת, כמו בקרוסלה
+        if (collab.length) try { c = await igReelContainer(env, bytes, caption, { collaborators: JSON.stringify(collab) }); out.igCollab = collab; }
+          catch (e){ out.igCollabError = hebrew(e.message); }
+        c ||= await igReelContainer(env, bytes, caption);
         out.igTagged = tags;
         // עד 3 דקות כאן. עוד לא מוכן: נכנס לתור, והקרון מפרסם כשיהיה FINISHED (קונטיינר פג אחרי 24 שעות)
         if (await igReady(env, c, 18, 10000)) out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
         else Object.assign(out, { igPending: true, igContainer: c });
-      } catch (e){ out.igError = hebrew(e.message); }
+      } catch (e){ out.igError = hebrew(e.message); out.igCollab = []; }
     })(),
   ]);
   const status = out.igPending ? "scheduled" : (out.fbVideoId || out.igPostId) ? "done" : "cancelled";

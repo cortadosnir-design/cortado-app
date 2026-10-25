@@ -342,10 +342,11 @@ if (f2) process.exitCode = 1;
   const a = wsrc.indexOf("async function igReady("), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botReel(")) + 2;
   const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
   const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
-  const mk = ({ igStatus = ["FINISHED"], fbFails = false } = {}) => {
+  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false } = {}) => {
     const calls = [], uploads = [], writes = [];
     const graph = async (_e, path, params = {}, method = "POST") => {
       calls.push([method, path, params]);
+      if (collabFails && params.collaborators) throw new Error("collab no");
       if (path.endsWith("/video_reels") && params.upload_phase === "start"){ if (fbFails) throw new Error("fb no"); return { video_id: "v1" }; }
       if (path.endsWith("/video_reels")) return { success: true };
       if (path.endsWith("/media")) return { id: "c1" };
@@ -378,6 +379,16 @@ if (f2) process.exitCode = 1;
   ok("תיוג בריל: שורת @ בסוף הכיתוב של אינסטגרם בלבד, פייסבוק נקי, שם לא תקין לא נכנס",
     tg.calls.find(c => c[1] === "I/media")[2].caption === "בוקר\n\n@galilback @galil.elion" && tg.calls.some(c => c[2].upload_phase === "finish" && c[2].description === "בוקר")
     && JSON.stringify(tagged.igTagged) === JSON.stringify(["galilback", "galil.elion"]));
+
+  const cb = mk();
+  const co = await cb.botReel(env, req({ text: "x", collaborators: ["@lalush_dough", "birelich", "malabiyahu", "galilback"] }));
+  ok("ריל משותף: עד 3 שותפים בקונטיינר של אינסטגרם, פייסבוק בלי", JSON.parse(cb.calls.find(c => c[1] === "I/media")[2].collaborators).join() === "lalush_dough,birelich,malabiyahu"
+    && co.igCollab.length === 3 && co.igPostId === "ig9" && !cb.calls.some(c => c[1] !== "I/media" && c[2].collaborators));
+  const cf = mk({ collabFails: true });
+  const cfo = await cf.botReel(env, req({ text: "x", collaborators: ["lalush_dough"] }));
+  ok("שותף נדחה: הריל יוצא בלי, והסיבה מדווחת", cfo.igPostId === "ig9" && cfo.igCollabError === "collab no" && !cfo.igCollab.length);
+  const nc = await mk().botReel(env, req({ text: "x" }));
+  ok("בלי שותפים: אין שדה collaborators", nc.igCollab.length === 0 && !nc.igCollabError);
 
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
   const slow = await t2.botReel(env, req({ text: "x" }));
