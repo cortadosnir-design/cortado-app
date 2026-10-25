@@ -226,7 +226,7 @@ async function openPreview() {
     const p = await call("/panel/preview", { next_week: which === "next", shifts: sorted(list.map(clean)) });
     if (p.week !== wk) throw new Error("השבוע התחלף בינתיים. מרעננים את הדף");
     draftId = p.id;
-    $("pv-public").innerHTML = `<h3>השעות של העגלה ${range(wk)}</h3><ol>${p.days.map((r, d) => `<li><span class="d">${DAYS[d]} ${dm(plusDays(wk, d))}</span><span class="${r.length ? "h" : "x"}">${hrs(r)}</span></li>`).join("")}</ol>`;
+    $("pv-public").innerHTML = `<h3>השעות של העגלה ${range(wk)}</h3><ol>${p.days.map((r, d) => `<li><span class="d">${DAYS[d]} ${dm(plusDays(wk, d))}</span><span class="${r.length ? "h" : "x"}">${hrs(r).split(", ").map((x) => `<span>${x}</span>`).join(", ")}</span></li>`).join("")}</ol>`;
     $("pv-team").textContent = teamText(wk, list);
     // מה השתנה ומה לבדוק: אותן שורות שהבוט היה שולח בוואטסאפ
     const lines = p.text.split("\n").map((l) => l.replace(/\*/g, "").trim());

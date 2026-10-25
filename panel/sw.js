@@ -1,6 +1,6 @@
 // מרכז השליטה כאפליקציה מותקנת. רשת קודם, תמיד: מה שמוצג הוא הגרסה האחרונה שנפרסה.
 // המטמון רק מחזיק את המעטפת, כדי שהאפליקציה תיפתח גם בלי קליטה. בקשות לבוט ול-Firebase לא נוגעים בהן.
-const CACHE = "panel-shell-2026-10-24";
+const CACHE = "panel-shell-2026-10-25";
 const SHELL = ["./", "img/icon-192.png"]; // the rest is cached as it is fetched, with its version in the URL
 
 self.addEventListener("install", (e) => {
