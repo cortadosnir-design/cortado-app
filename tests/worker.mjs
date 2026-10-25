@@ -639,7 +639,9 @@ if (f2) process.exitCode = 1;
     if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
     if (path === "ig1" && /business_discovery/.test(params.fields)){
       if (/private_person/.test(params.fields)) throw new Error("(#110) Cannot query users by their username");
-      return { business_discovery: { username: params.fields.match(/username\((\S+?)\)/)[1], name: "שותף", followers_count: params.fields.includes("big") ? 5000 : 300, media_count: 40 } };
+      return { business_discovery: { username: params.fields.match(/username\((\S+?)\)/)[1], name: "שותף", followers_count: params.fields.includes("big") ? 5000 : 300, media_count: 40,
+        ...(/media\.limit\(3\)/.test(params.fields) ? { media: { data: [{ caption: "ערב בצפון", media_type: "VIDEO", media_product_type: "REELS", timestamp: "2026-10-20T18:00:00+0000", like_count: 218, comments_count: 12, permalink: "https://ig/r1" },
+          { caption: "x".repeat(300), media_type: "CAROUSEL_ALBUM", media_product_type: "FEED", timestamp: "2026-10-18T08:00:00+0000", like_count: 40, comments_count: 1, permalink: "https://ig/c1" }] } } : {}) } };
     }
     if (path === "ig1") return { username: "cortado_snir", followers_count: 672, media_count: 9 };
     throw new Error("unexpected " + path);
@@ -687,6 +689,10 @@ if (f2) process.exitCode = 1;
 
   const who = (await tool("instagram_accounts", { usernames: ["@small", "big", "private_person"] })).structuredContent;
   ok("חשבונות אחרים: ממוינים לפי עוקבים, חשבון פרטי מקבל הערה ולא מפיל", who.rows[0].username === "big" && who.rows[0].followers === 5000 && who.rows[1].username === "small" && who.rows[2].followers === null && who.notes.length === 1, JSON.stringify(who));
+  ok("בלי recent: אין פוסטים בתשובה", !("recent" in who.rows[0]));
+  const scan = (await tool("instagram_accounts", { usernames: ["big"], recent: 3 })).structuredContent;
+  const rc = scan.rows[0].recent;
+  ok("recent: הפוסטים האחרונים של מתחרה, ריל וקרוסלה, לייקים ותגובות, כיתוב מקוצר", rc.length === 2 && rc[0].kind === "reel" && rc[0].likes === 218 && rc[0].url === "https://ig/r1" && rc[1].kind === "carousel" && rc[1].caption.length === 200, JSON.stringify(rc));
   const acc = (await tool("account")).structuredContent;
   ok("חשבון: עוקבים בשתי הרשתות, ומספר הפריטים באינסטגרם", acc.rows[0].followers === 5 && acc.rows[1].followers === 672 && acc.rows[1].media_count === 9);
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);

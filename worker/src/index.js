@@ -559,8 +559,8 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "posts", description: "Every Facebook post and reel and every Instagram post and reel published in the range, with views, reach, likes, comments, shares, saves and interactions. Range up to 90 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
-  { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages), to decide whom to tag: the partner's followers are the cart's new audience. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
-    inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" } }, required: ["usernames"] } },
+  { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages, competing cafes), to decide whom to tag: the partner's followers are the cart's new audience. With recent=N, also each account's N latest posts (date, reel/photo/carousel, likes, comments, link, caption start) for a weekly competitor scan. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
+    inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" }, recent: { type: "number", description: "0-12 latest posts per account, default 0" } }, required: ["usernames"] } },
   { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
     inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
   { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
@@ -678,11 +678,16 @@ async function mcpInstagramAccounts(env, a){
   if (!env.IG_USER_ID) throw fail("not_configured", "Instagram is not connected to the server (IG_USER_ID missing).");
   const names = [...new Set((a.usernames || []).map(u => String(u).replace(/^@/, "").trim()).filter(Boolean))].slice(0, 20);
   const rows = [], notes = [];
+  // recent (25.10.2026): סריקת המתחרים בכל סוף שבוע. מטא לא נותנת צפיות של חשבון אחר, רק לייקים ותגובות
+  const n = Math.max(0, Math.min(12, Math.floor(Number(a.recent) || 0)));
+  const media = n ? `,media.limit(${n}){caption,media_type,media_product_type,timestamp,like_count,comments_count,permalink}` : "";
   for (const u of names){
     try {
-      const r = await graph(env, env.IG_USER_ID, { fields: `business_discovery.username(${u}){username,name,followers_count,media_count}` }, "GET");
+      const r = await graph(env, env.IG_USER_ID, { fields: `business_discovery.username(${u}){username,name,followers_count,media_count${media}}` }, "GET");
       const b = r.business_discovery || {};
-      rows.push({ username: b.username || u, name: b.name || "", followers: b.followers_count ?? null, media: b.media_count ?? null });
+      rows.push({ username: b.username || u, name: b.name || "", followers: b.followers_count ?? null, media: b.media_count ?? null,
+        ...(n ? { recent: (b.media?.data || []).map(m => ({ at: m.timestamp, kind: m.media_product_type === "REELS" ? "reel" : m.media_type === "CAROUSEL_ALBUM" ? "carousel" : m.media_type === "VIDEO" ? "video" : "photo",
+          likes: m.like_count ?? null, comments: m.comments_count ?? null, url: m.permalink || "", caption: String(m.caption || "").slice(0, 200) })) } : {}) });
     } catch (e){ rows.push({ username: u, name: "", followers: null, media: null }); notes.push(`${u}: ${e.message}`); }
   }
   rows.sort((x, y) => (y.followers || 0) - (x.followers || 0));
