@@ -515,7 +515,7 @@ function renderToday() {
   const live = r.find(([a, b]) => a <= nowT && nowT < b), next = r.find(([a]) => a > nowT);
   const state = !weekOf(d) || !S.weeks?.[weekOf(d)] ? "השעות של השבוע עוד לא פורסמו" : live ? `פתוחים עכשיו עד ${live[1]}` : next ? `נפתחים היום ב־${next[0]}` : r.length ? "סגרנו להיום" : "סגורים היום";
   $("today").innerHTML = `<p class="t-date">${DAYS[dayOf(d)]} ⁦${dm(d)}⁩${hol ? ` · ${esc(hol[1])}` : ""}</p>
-    <h3 class="t-state">${esc(state)}</h3>
+    <h3 class="t-state${live && S.weeks?.[weekOf(d)] ? " live" : ""}">${esc(state)}</h3>
     ${r.length ? `<p class="t-hours">${hrs(r)}</p>` : ""}
     <div class="t-meta">
       ${wx ? `<span class="${wx.rain.alert || wx.gust.alert || wx.temp.alert ? "alert" : ""}">${ICON.temp}${wx.temp.v}° ${ICON.rain}${wx.rain.v}% ${ICON.gust}${wx.gust.v}</span>` : ""}
