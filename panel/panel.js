@@ -3,7 +3,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "../config.js";
-import { parseWeek, DAYS, hm } from "./parse.js?v=20261025a";
+import { weekGoals } from "./goals.js?v=20261026a";
+import { parseWeek, DAYS, hm } from "./parse.js?v=20261026b";
 
 const API = "https://agala-bot.cortado-snir.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -339,7 +340,7 @@ onAuthStateChanged(auth, async (user) => {
 const act = (action, extra = {}) => call("/panel/do", { action, ...extra });
 let viewNow = "hours";
 const greet = () => { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : "ערב טוב"; };
-const TITLES = { home: "", hours: "השבוע בעגלה", queue: "בתור", more: "עוד" };
+const TITLES = { home: "", hours: "השבוע בעגלה", data: "נתונים", queue: "בתור", more: "עוד" };
 // הכותרת הגדולה גוללת החוצה, ואז הכותרת הקטנה מופיעה בסרגל העליון מזכוכית
 new IntersectionObserver(([e]) => document.body.classList.toggle("scrolled", !e.isIntersecting), { rootMargin: "-48px 0px 0px 0px" }).observe($("view-title"));
 function show(v) {
@@ -350,7 +351,7 @@ function show(v) {
   }
   try { sessionStorage.removeItem("panel:reloaded"); } catch {}
   viewNow = v;
-  for (const x of ["home", "hours", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
+  for (const x of ["home", "hours", "data", "queue", "more"]) $(`v-${x}`).hidden = x !== v;
   for (const b of document.querySelectorAll(".nav button")) b.toggleAttribute("aria-current", b.dataset.view === v), b.dataset.view === v && b.setAttribute("aria-current", "page");
   document.querySelector(".weeks").hidden = v !== "hours";
   $("view-title").textContent = $("mini-title").textContent = TITLES[v] || greet();
@@ -358,6 +359,7 @@ function show(v) {
   if (v === "queue") loadQueue();
   if (v === "more") loadMore();
   if (v === "home") loadHome();
+  if (v === "data") loadData();
   scrollTo(0, 0);
 }
 for (const b of document.querySelectorAll(".nav button")) b.addEventListener("click", () => S && show(b.dataset.view));
@@ -655,3 +657,38 @@ $("v-home")?.addEventListener("click", async (e) => {
   }
 });
 $("mk-refresh")?.addEventListener("click", () => run(async () => { H = await act("home", { fresh: true }); renderMarketing(); renderTasks(); }));
+
+/* ===== נתונים: יעדי השבוע, יעד החודש, יום אחרי יום, מה עושים, אסטרטגיה ===== */
+const KIND = { reel: "ריל", carousel: "קרוסלה", photo: "תמונה", video: "סרטון" };
+async function loadData(fresh = false) {
+  if (!H || H.error || fresh) { $("goals").innerHTML = '<li class="muted">טוען…</li>'; try { H = await act("home", fresh ? { fresh: true } : {}); } catch (e) { H = { error: e.message }; } }
+  const I = H?.insights;
+  if (!I || I.error || I.ig?.error) { $("goals").innerHTML = `<li class="muted">${esc(I?.ig?.error || I?.error || H?.error || "אין נתונים כרגע")}</li>`; return; }
+  const G = weekGoals(I, today());
+  $("goals-range").textContent = `⁦${dm(G.sunday)}–${dm(G.end)}⁩`;
+  $("goals").innerHTML = G.rows.map((g) => {
+    const pct = Math.min(100, Math.round((100 * g.actual) / g.goal)), st = g.status === "הושג" ? "done" : g.status === "מאחור" ? "behind" : "";
+    return `<li><b>${esc(g.name)}</b><span class="num">${nf(g.actual)} <small>/ ${nf(g.goal)}</small></span>
+      <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${g.goal}" aria-valuenow="${g.actual}"><i class="${g.actual >= g.goal ? "hit" : ""}" style="width:${pct}%"></i></div>
+      <span class="st ${st}">${g.status === "הושג" ? "הושג ✓" : g.status === "בקצב" ? `בקצב (צריך ${nf(g.expected)} עד היום)` : `מאחור: צריך ${nf(g.expected)} עד היום`}</span></li>`;
+  }).join("");
+  const M = G.month;
+  $("month-goal").innerHTML = `<span class="big">${nf(M.actual)}</span><div><b>${esc(M.name)} עד ⁦${dm(M.by)}⁩: ${nf(M.goal)}</b>
+    <span>${M.status === "הושג" ? "הושג ✓" : `הקצב עכשיו ${M.pace} ביום, צריך ${M.need ?? "–"} ביום · ${M.status}`}</span></div>`;
+  const nm = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+  $("days-strip").innerHTML = G.daysRows.map((d, i) => `<div class="s-day${i === 6 ? " y" : ""}${d.views == null ? " off" : ""}"><b>${i === 6 ? "אתמול" : nm[dayOf(d.day)]}</b>
+    <span class="v${(d.views || 0) >= 1000 ? " hi" : ""}">${nf(d.views)}</span><span class="g">+${d.gained ?? 0} עוקבים</span>
+    ${d.went.map((k) => `<span class="k">${KIND[k] || k}</span>`).join("")}</div>`).join("");
+  // מה עושים: קודם מה שמאחור, ואז מה שעבד הכי טוב החודש
+  const todo = [], miss = (g) => g.goal - g.actual, dleft = 7 - G.days;
+  // רק שלושת היעדים שהכי רחוקים מהקצב, כדי שהרשימה תהיה מה לעשות ולא רשימת מספרים
+  for (const g of G.rows.filter((x) => x.status === "מאחור").sort((x, y) => x.actual / x.expected - y.actual / y.expected).slice(0, 3)) todo.push(g.id === "reels" ? [`חסרים ${miss(g)} רילים`, dleft ? `עד שבת נשארו ${dleft} ימים. ריל בתור או ריל משותף עם שותף.` : "השבוע נגמר. בשבוע הבא: ראשון, שלישי ושישי."]
+    : g.id === "ig_follow" ? [`חסרים ${miss(g)} עוקבים באינסטגרם`, "ריל משותף עם שותף, ובסוף כל ריל סיבה לעקוב (האירוע הבא, השותפים)."]
+    : g.id === "shares" ? [`חסרים ${miss(g)} שיתופים`, "פוסט שיש סיבה לשלוח לחבר: אירוע עם תאריך, מסלול טיול, \"מי בא איתי?\"."]
+    : [`${g.name}: חסרים ${nf(miss(g))}`, "ריל נוסף השבוע מעלה צפיות ותגובות יותר מכל דבר אחר."]);
+  const top = (I.posts?.rows || []).filter((p) => p.network === "instagram" && p.views != null).sort((a, b) => b.views - a.views)[0];
+  if (top) todo.push([`הכי עבד החודש: ${KIND[top.kind] || ""} עם ${nf(top.views)} צפיות`, (top.text || "").split("\n")[0].slice(0, 90)]);
+  if (!G.rows.some((x) => x.status === "מאחור")) todo.unshift(["כל היעדים בקצב", "ממשיכים לפי האסטרטגיה."]);
+  $("todo").innerHTML = todo.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join("");
+}
+$("data-refresh")?.addEventListener("click", () => loadData(true));

@@ -25,8 +25,8 @@
 <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-828x1792.png">
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="img/launch-750x1334.png">
 <link rel="preload" href="fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="panel.css?v=20261025c">
-<script type="module" src="panel.js?v=20261025c"></script>
+<link rel="stylesheet" href="panel.css?v=20261026b">
+<script type="module" src="panel.js?v=20261026b"></script>
 </head>
 <body>
 <div id="signin" class="signin" hidden>
@@ -80,6 +80,28 @@
       <button id="copy-prev" class="btn ghost" type="button">שכפול שבוע קודם</button>
     </div>
     <div id="days" class="days"></div>
+  </main>
+
+  <main id="v-data" class="view" hidden>
+    <div class="sec-h"><h2>יעדי השבוע</h2><span id="goals-range" class="sum"></span></div>
+    <ul id="goals" class="group goals"></ul>
+
+    <div class="sec-h"><h2>יעד החודש</h2></div>
+    <div id="month-goal" class="group pad month"></div>
+
+    <div class="sec-h"><h2>יום אחרי יום</h2><button id="data-refresh" class="icon-btn" type="button" aria-label="רענון הנתונים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
+    <div id="days-strip" class="strip days"></div>
+
+    <div class="sec-h"><h2>מה עושים השבוע</h2></div>
+    <ul id="todo" class="group todo"></ul>
+
+    <div class="sec-h"><h2>האסטרטגיה</h2></div>
+    <ul class="group strategy">
+      <li><span class="s-ic" aria-hidden="true">🎬</span><div><b>ריל מביא קהל חדש, 3 בשבוע</b><span>ראשון 10:00, שלישי 10:30, שישי 08:00. כל ריל משותף עם שותף או עמוד אזורי.</span></div></li>
+      <li><span class="s-ic" aria-hidden="true">📱</span><div><b>סטורי לעוקבים, כל יום פתוח</b><span>"פתוחים עכשיו" בתחילת כל טווח שעות, ו"מחר בעגלה" בערב.</span></div></li>
+      <li><span class="s-ic" aria-hidden="true">🗓️</span><div><b>פוסט בפיד רק לאירוע</b><span>עד אחד בשבוע, קרוסלה עם השותפים. בפייסבוק רק רילים ואירועים.</span></div></li>
+      <li><span class="s-ic" aria-hidden="true">🤝</span><div><b>מחשיפה לעוקב</b><span>בכל ריל סיבה לעקוב ושאלה לתגובה. בעגלה QR לאינסטגרם ובקשה לתייג את הכוס.</span></div></li>
+    </ul>
   </main>
 
   <main id="v-queue" class="view" hidden>
@@ -144,6 +166,7 @@
     <nav class="nav" aria-label="מסכים">
       <button type="button" data-view="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.2 3.3a1.2 1.2 0 0 1 1.6 0l8 7.1c.8.7.3 2-.8 2H19v7.3c0 .7-.6 1.3-1.3 1.3H15a1 1 0 0 1-1-1v-4.5a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1V20a1 1 0 0 1-1 1H6.3c-.7 0-1.3-.6-1.3-1.3v-7.3H4c-1.1 0-1.6-1.3-.8-2z"/></svg>בית</button>
       <button type="button" data-view="hours"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a1 1 0 0 1 1 1V5h6V3.5a1 1 0 1 1 2 0V5h.5A3.5 3.5 0 0 1 21 8.5v9a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5H7V3.5a1 1 0 0 1 1-1zM5 10v7.5c0 .8.7 1.5 1.5 1.5h11c.8 0 1.5-.7 1.5-1.5V10zm2.5 2h2v2h-2zm3.5 0h2v2h-2zm3.5 0h2v2h-2zm-7 3.5h2v2h-2zm3.5 0h2v2h-2z"/></svg>שעות</button>
+      <button type="button" data-view="data"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M4 20a1 1 0 0 1-1-1V5a1 1 0 1 1 2 0v13h15a1 1 0 1 1 0 2zm4-4a1 1 0 0 1-1-1v-4a1 1 0 1 1 2 0v4a1 1 0 0 1-1 1zm4 0a1 1 0 0 1-1-1V8a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1zm4 0a1 1 0 0 1-1-1v-6a1 1 0 1 1 2 0v6a1 1 0 0 1-1 1z"/></svg>נתונים</button>
       <button type="button" data-view="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 4a1 1 0 0 0-1 1v5.4c0 .3.1.6.4.8l3.3 2.6a1 1 0 0 0 1.2-1.6L13 12V7a1 1 0 0 0-1-1z"/></svg>בתור</button>
       <button type="button" data-view="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM7.5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>עוד</button>
     </nav>

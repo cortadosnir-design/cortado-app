@@ -60,3 +60,23 @@ assert.equal(parseWeek("שני 19:00–17:00 נוגה").skipped.length, 1);
 }
 
 console.log("ok (panel parser)");
+
+// יעדי הרשתות (panel/goals.js): שבוע = ראשון עד אתמול, מתוך insights של הבוט
+{
+  const { weekGoals } = await import("../panel/goals.js");
+  const ig = { rows: [["2026-10-24", 775, 2, 4], ["2026-10-25", 2222, 20, 0], ["2026-10-26", 1630, 18, 9]].map(([day, views, interactions, follower_gain]) => ({ day, views, interactions, follower_gain })) };
+  const I = { account: { rows: [{ network: "instagram", followers: 693 }] }, ig, fb: { rows: [{ day: "2026-10-25", follows: 1, unfollows: 0 }] },
+    posts: { rows: [{ network: "instagram", kind: "carousel", at: "2026-10-25T17:31:11.000Z", shares: 2 }, { network: "instagram", kind: "reel", at: "2026-10-19T05:31:18.000Z", shares: 1 }] } };
+  const g = weekGoals(I, "2026-10-26");
+  assert.equal(g.sunday, "2026-10-25"); assert.equal(g.end, "2026-10-25"); assert.equal(g.days, 1);
+  const by = Object.fromEntries(g.rows.map((r) => [r.id, r]));
+  assert.equal(by.ig_views.actual, 2222, "today (partial) is not counted");
+  assert.equal(by.ig_follow.actual, 0); assert.equal(by.ig_follow.expected, 2); assert.equal(by.ig_follow.status, "מאחור");
+  assert.equal(by.shares.actual, 2); assert.equal(by.reels.actual, 0, "last week's reel is not this week's");
+  assert.equal(by.fb_follow.actual, 1); assert.equal(by.ig_views.status, "בקצב");
+  assert.equal(g.month.actual, 693); assert.equal(g.daysRows.length, 7); assert.equal(g.daysRows[6].day, "2026-10-25");
+  assert.deepEqual(g.daysRows[6].went, ["carousel"]);
+  // ביום ראשון השבוע הוא השבוע שהסתיים אתמול, שבת
+  assert.equal(weekGoals(I, "2026-10-25").days, 7);
+}
+console.log("ok (panel goals)");
