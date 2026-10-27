@@ -58,6 +58,19 @@ def media_ok(rel):
         fail(f"media not found: {rel}")
 
 
+def sdr_clip(src, dst):
+    """Phone clips (Pixel) are HDR (HLG, 10-bit). HyperFrames then renders in an HDR-layered mode that drops every
+    DOM layer: only the clips show, intro/text/closing card come out black (27.10.2026). Tone-map to SDR 1080x1920."""
+    tr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=color_transfer",
+                         "-of", "csv=p=0", str(src)], capture_output=True, text=True).stdout.strip()
+    tone = ("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,"
+            "zscale=t=bt709:m=bt709:r=tv," if tr in ("arib-std-b67", "smpte2084") else "")
+    vf = f"{tone}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},format=yuv420p"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vf", vf, "-c:v", "libx264", "-preset", "veryfast",
+                    "-crf", "18", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+                    "-an", str(dst)], check=True)
+
+
 def check_spec(s):
     words = lambda t: len(t.split())
     if not s.get("hook") or words(s["hook"]) > 6:
@@ -145,16 +158,22 @@ def compose(s, sc, total):
         ext = pathlib.Path(x["media"]).suffix.lower()
         src = f"assets/m{i}{ext}"
         if ext in (".mp4", ".mov", ".webm"):
-            media = (f'<video class="media" src="{src}" muted playsinline data-start="{start:.2f}" data-duration="{dur:.2f}" '
+            # hyperframes 0.8 lint: time the <video> or its wrapper, never both. The video keeps the timing,
+            # and the untimed section is shown/hidden on the timeline (visibility, so the opacity tweens still work).
+            media = (f'<video class="media" id="v{i}" src="{src}" muted playsinline data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-media-start="{float(x.get("from", 0)):.2f}"></video>')
+            timing = ""
         else:
             media = f'<img class="media" src="{src}" alt="">'
+            timing = f' data-start="{start:.2f}" data-duration="{dur:.2f}"'
         cap = f'<div class="chip" id="c{i}">{text_html(x["text"], motion, i == last)}</div>' if x.get("text") else ""
         hook = (f'<div class="hookwrap" id="hook"><div class="badge"><img src="assets/logo.png" alt=""><span>cortado</span></div>'
                 f'<div class="hook">{text_html(s["hook"], motion, motion == "chalk")}</div></div>') if i == 0 else ""
-        parts.append(f'<section class="scene clip" id="s{i}" data-start="{start:.2f}" data-duration="{dur:.2f}" style="z-index:{i + 1}">'
+        parts.append(f'<section class="scene{" clip" if timing else ""}" id="s{i}"{timing} style="z-index:{i + 1}">'
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
-        a = f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
+        a = "" if timing else (f'tl.set("#s{i}",{{visibility:"hidden"}},0);tl.set("#s{i}",{{visibility:"visible"}},{start:.2f});'
+                               f'tl.set("#s{i}",{{visibility:"hidden"}},{start + dur:.2f});')
+        a += f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
         if push and motion == "kinetic":  # a punch-in cut on the beat
             a += f'tl.fromTo("#s{i}",{{scale:1.35,opacity:0}},{{scale:1,opacity:1,duration:{XFADE},ease:"expo.out"}},{start:.2f});'
         elif push and motion == "chalk":  # a slow dissolve
@@ -276,7 +295,11 @@ def main():
     shutil.rmtree(out, ignore_errors=True)
     (proj / "assets").mkdir(parents=True)
     for i, x in enumerate(sc):
-        shutil.copy(ROOT / x["media"], proj / "assets" / f"m{i}{pathlib.Path(x['media']).suffix.lower()}")
+        src, dst = ROOT / x["media"], proj / "assets" / f"m{i}{pathlib.Path(x['media']).suffix.lower()}"
+        if dst.suffix in (".mp4", ".mov", ".webm"):
+            sdr_clip(src, dst.with_suffix(".mp4")) if dst.suffix == ".mp4" else shutil.copy(src, dst)
+        else:
+            shutil.copy(src, dst)
     for f in ["fonts/Rubik-VF.ttf", "fonts/PlaypenSansHebrew-VF.ttf", "logo.png", "qr-instagram.svg", "qr-facebook.svg", "qr-whatsapp.svg", "art/doodles-story.svg"]:
         shutil.copy(TK / "assets" / f, proj / "assets" / pathlib.Path(f).name)
     shutil.copy(HERE / "node_modules/gsap/dist/gsap.min.js", proj / "assets/gsap.min.js")
