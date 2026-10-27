@@ -40,7 +40,7 @@ BIG = ["cup", "falls", "moka", "pine", "glass", "hermon", "cart", "leaf", "river
 SMALL = ["heart", "spark", "sun", "beans", "leaf"]
 
 
-def pattern(w, h, cols, rows, size, seed, opacity, color="#F4F1EA"):
+def pattern(w, h, cols, rows, size, seed, opacity, color="#4E3D31"):  # --on-board (latte, 27.10.2026)
     rnd = random.Random(seed)
     cw, ch = w / cols, h / rows
     out, k = [], 0
@@ -70,13 +70,13 @@ def icon(name, color="#FFFFFF", width=4):
 
 if __name__ == "__main__":
     ART.mkdir(parents=True, exist_ok=True)
-    (ART / "doodles-post.svg").write_text(pattern(1080, 1350, 5, 6, 150, 7, .30))
-    (ART / "doodles-story.svg").write_text(pattern(1080, 1920, 5, 8, 150, 11, .30))
-    (ART / "doodles-cover.svg").write_text(pattern(1640, 624, 9, 3, 140, 3, .30))
-    (ART / "doodles-post-light.svg").write_text(pattern(1080, 1350, 5, 6, 150, 7, .16, "#34494A"))
-    (ART / "doodles-profile.svg").write_text(pattern(720, 720, 4, 4, 130, 5, .22))
+    (ART / "doodles-post.svg").write_text(pattern(1080, 1350, 5, 6, 150, 7, .20))
+    (ART / "doodles-story.svg").write_text(pattern(1080, 1920, 5, 8, 150, 11, .20))
+    (ART / "doodles-cover.svg").write_text(pattern(1640, 624, 9, 3, 140, 3, .20))
+    (ART / "doodles-post-light.svg").write_text(pattern(1080, 1350, 5, 6, 150, 7, .12, "#4E3D31"))
+    (ART / "doodles-profile.svg").write_text(pattern(720, 720, 4, 4, 130, 5, .16))
     for n in MOTIFS:
         (ART / f"icon-{n}.svg").write_text(icon(n))
-        (ART / f"icon-{n}-board.svg").write_text(icon(n, "#34494A"))
-        (ART / f"icon-{n}-pink.svg").write_text(icon(n, "#E7A3AE", 6))
+        (ART / f"icon-{n}-board.svg").write_text(icon(n, "#6E5646"))
+        (ART / f"icon-{n}-pink.svg").write_text(icon(n, "#E2B9B5", 6))
     print("ok", len(MOTIFS), "motifs")

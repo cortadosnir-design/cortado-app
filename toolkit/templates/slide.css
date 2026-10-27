@@ -5,6 +5,6 @@
 .pic{position:absolute;left:120px;top:186px;width:840px;height:600px;object-fit:cover;border-radius:32px}
 .art{position:absolute;left:290px;top:240px;width:500px;height:500px}
 .title{position:absolute;top:830px;left:110px;right:110px;font-size:96px}
-.dist{position:absolute;top:1000px;left:0;right:0;text-align:center;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:44px;color:var(--board)}
+.dist{position:absolute;top:1000px;left:0;right:0;text-align:center;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:44px;color:var(--ink)}
 .ribbon{top:1150px;font-size:40px}
-.credit{position:absolute;left:130px;top:796px;font-size:15px;color:var(--board);opacity:.75;direction:ltr}
+.credit{position:absolute;left:130px;top:796px;font-size:15px;color:var(--ink);opacity:.75;direction:ltr}

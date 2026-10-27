@@ -111,7 +111,7 @@ CHALK_LINE = ('<svg class="ul" viewBox="0 0 600 40" preserveAspectRatio="none">'
 
 
 # the chalk line takes a different colour each reel (owner, 21.10.2026: vary it), picked by the seed
-CHALK_COLORS = ["#CB7E4D", "#F2AF75", "#E7A3AE", "#F4F1EA", "#9FD3C7", "#F2D06B"]
+CHALK_COLORS = ["#B98C69", "#C9A281", "#D8A9A4", "#8A5D3E", "#A7B49C", "#D4B072"]  # latte palette (27.10.2026)
 
 
 def text_html(t, motion, line=False):
@@ -192,7 +192,7 @@ def compose(s, sc, total):
 <style>
 @font-face{{font-family:Rubik;src:url(assets/Rubik-VF.ttf);font-weight:300 900}}
 @font-face{{font-family:"Playpen Sans Hebrew";src:url(assets/PlaypenSansHebrew-VF.ttf);font-weight:100 800}}
-:root{{--board:#34494A;--cart:#141417;--foam:#F7F2DC;--chalk:#F4F1EA;--aida:#CB7E4D;--line:{CHALK_COLORS[int(s.get("seed", 1)) % len(CHALK_COLORS)]}}}
+:root{{--board:#CDBBA5;--on-board:#4E3D31;--cart:#5A4636;--foam:#FCF8F1;--chalk:#FCF8F1;--aida:#B98C69;--aida-dark:#8A5D3E;--chalk-pink:#E2B9B5;--line:{CHALK_COLORS[int(s.get("seed", 1)) % len(CHALK_COLORS)]}}}
 *{{margin:0;padding:0;box-sizing:border-box}}
 html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-family:Rubik}}
 #root{{position:relative;width:100%;height:100%;overflow:hidden}}
@@ -205,7 +205,7 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .badge img{{width:66px;height:66px;border-radius:50%}}
 .badge span{{font-weight:800;font-size:42px;line-height:1;color:var(--cart)}}
 .hook{{background:var(--foam);color:var(--cart);border-radius:44px;padding:34px 48px 40px;font-weight:900;font-size:96px;line-height:1;
-  letter-spacing:-1px;text-align:center;text-wrap:balance;box-shadow:0 22px 50px rgba(0,0,0,.35)}}
+  letter-spacing:-1px;text-align:center;text-wrap:balance;box-shadow:0 14px 34px rgba(0,0,0,.22)}}
 .chip{{position:absolute;right:116px;left:64px;top:1290px;margin:auto;width:fit-content;max-width:900px;background:var(--foam);color:var(--cart);
   border-radius:999px;padding:18px 44px 22px;font-weight:800;font-size:64px;line-height:1.05;text-align:center;text-wrap:balance;box-shadow:0 14px 34px rgba(0,0,0,.35)}}
 .hook{{position:relative}}
@@ -220,22 +220,22 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .badge.big span{{font-size:78px}}
 .ribbon{{position:absolute;top:760px;left:0;right:0;margin:auto;width:fit-content;background:var(--cart);color:var(--chalk);border-radius:999px;
   padding:16px 64px 24px;font-family:"Playpen Sans Hebrew";font-weight:600;font-size:66px;transform:rotate(-2deg);box-shadow:0 10px 24px rgba(0,0,0,.3)}}
-.place{{position:absolute;top:960px;left:64px;right:116px;text-align:center;color:var(--chalk);font-size:40px;font-weight:500}}
+.place{{position:absolute;top:960px;left:64px;right:116px;text-align:center;color:var(--on-board);font-size:40px;font-weight:500}}
 .intro{{background:var(--board)}}
 .intro .doodles{{opacity:.5}}
 .iart{{position:absolute;inset:0;width:100%;height:100%}}
-#iring,#iring2{{fill:none;stroke:var(--chalk);stroke-width:6;stroke-linecap:round;stroke-dasharray:1571}}
-#iring2{{stroke:var(--chalk-pink,#E7A3AE);stroke-width:4;stroke-dasharray:1709}}
-#irays line{{stroke:var(--aida-light,#F2AF75);stroke-width:11;stroke-linecap:round}}
-.ilogo{{position:absolute;left:310px;top:730px;width:460px;height:460px;border-radius:50%;box-shadow:0 0 0 10px var(--foam),0 30px 70px rgba(0,0,0,.45)}}
-.iword{{position:absolute;top:1290px;left:0;right:0;text-align:center;direction:ltr;font-weight:800;font-size:120px;color:var(--chalk);letter-spacing:2px}}
+#iring,#iring2{{fill:none;stroke:var(--cart);stroke-width:6;stroke-linecap:round;stroke-dasharray:1571}}
+#iring2{{stroke:var(--chalk-pink);stroke-width:4;stroke-dasharray:1709}}
+#irays line{{stroke:var(--aida);stroke-width:11;stroke-linecap:round}}
+.ilogo{{position:absolute;left:310px;top:730px;width:460px;height:460px;border-radius:50%;box-shadow:0 0 0 10px var(--foam),0 20px 44px rgba(60,40,25,.22)}}
+.iword{{position:absolute;top:1290px;left:0;right:0;text-align:center;direction:ltr;font-weight:800;font-size:120px;color:var(--cart);letter-spacing:2px}}
 .iword span{{display:inline-block}}
-.iplace{{position:absolute;top:1440px;left:0;right:0;text-align:center;color:var(--aida-light,#F2AF75);font-size:44px;font-weight:600}}
+.iplace{{position:absolute;top:1440px;left:0;right:0;text-align:center;color:var(--aida-dark);font-size:44px;font-weight:600}}
 .socials{{position:absolute;left:64px;top:1160px;display:flex;gap:16px;direction:ltr}}
 .socials .s{{display:flex;flex-direction:column;align-items:center;gap:6px}}
 .socials .q{{background:var(--foam);border-radius:10px;padding:5px;line-height:0}}
 .socials .q img{{width:72px;height:72px}}
-.socials .s span{{font-weight:600;font-size:22px;color:var(--chalk);line-height:1}}
+.socials .s span{{font-weight:600;font-size:22px;color:var(--on-board);line-height:1}}
 </style></head>
 <body>
 <div id="root" data-composition-id="main" data-start="0" data-duration="{total:.2f}" data-width="{W}" data-height="{H}">

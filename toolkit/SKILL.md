@@ -10,20 +10,25 @@ description: Make on-brand weekly-hours flyers and Instagram/Facebook post image
 The owner chose Café Blue (Jaffa) as the branding idea and asked that every post
 "speak the same design language, all the time". Its logic, in Cortado's own colors:
 
-- **One signature color everywhere: the cart's chalkboard door** `--board #34494A`,
-  with white chalk line-doodles (`assets/art/doodles-*.svg`, from `scripts/doodles.py`:
-  cart, Banias falls, Hermon, pine, river, tank, cortado glass, moka pot, cup, beans,
-  leaf, pink chalk hearts).
-- **Logo badge**: grandma Aida inside an oval black outline with "cortado" (Rubik 800),
+- **One signature color everywhere: latte** `--board #CDBBA5` (owner, 27.10.2026: "every
+  template, the whole platform, goes out in the latte option"; it replaced the green
+  chalkboard `#34494A`, which was too strong). Soft brown line-doodles on it
+  (`assets/art/doodles-*.svg`, from `scripts/doodles.py`, color `--on-board`: cart, Banias
+  falls, Hermon, pine, river, tank, cortado glass, moka pot, cup, beans, leaf, hearts).
+- **Text on the background**: `--on-board #4E3D31`. Never light text on the latte; accent
+  text on it is `--aida-dark`.
+- **Logo badge**: grandma Aida inside an oval outline with "cortado" (Rubik 800),
   top center. Use the rebuilt `assets/logo.png` (1200px, exact concentric circles);
   never the old 240px file.
-- **Headline**: Rubik 900, huge, black `--cart #141417` on a foam card `--foam #F7F2DC`
-  (radius 44px) or chalk-white on the board.
-- **Lists**: rows with round `--board` circles (day letters / numbers), Rubik 500–600.
-- **Ribbon**: black pill at the bottom, Playpen Sans Hebrew in chalk white
+- **Headline**: Rubik 900, huge, soft dark brown `--cart #5A4636` on a foam card
+  `--foam #FCF8F1` (radius 44px) or `--on-board` directly on the latte.
+- **Lists**: rows with round `--aida-dark` circles (day letters / numbers), Rubik 500–600.
+  Secondary text and dots on foam: `--ink #6E5646`.
+- **Ribbon**: soft dark brown pill (`--cart`) at the bottom, Playpen Sans Hebrew in foam
   ("נתראה בעגלה").
-- **Accents**: terracotta `--aida #CB7E4D` (number circles, sticker ring), peach
-  `--aida-light`, pink chalk hearts `--chalk-pink`. Nothing else.
+- **Accents**: soft terracotta `--aida #B98C69` (number circles, sticker ring, highlighted
+  row), `--aida-dark #8A5D3E` for accent text, soft pink hearts `--chalk-pink #E2B9B5`.
+  Nothing else. Shadows stay light (brown, ≤ .18 opacity).
 - **Photos**: real ones, in rounded cards with a foam border.
 - Shared CSS: `templates/board.css` (+ `slide.css` for carousel slides). Templates:
   `11-hours-board` (weekly hours), `21–26` (carousel "יום קצר בצפון"),

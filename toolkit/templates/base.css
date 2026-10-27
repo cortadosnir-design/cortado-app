@@ -49,18 +49,21 @@ h1,.serif{font-family:"Frank Ruhl Libre";font-weight:400;letter-spacing:-.5px}
 
 /* Cortado brand colors, sampled from the cart (6.10.2026) */
 :root{
-  --board:#34494A;     /* the chalkboard door: signature background */
-  --board-2:#2C3E3F;
-  --cart:#141417;      /* matte black cart */
-  --foam:#F7F2DC;      /* milk foam: cards */
+  /* Latte palette (owner, 27.10.2026): soft coffee browns, easy on the eye. Was the green chalkboard #34494A. */
+  --board:#CDBBA5;     /* latte: signature background */
+  --board-2:#C2AE96;
+  --on-board:#4E3D31;  /* text and line art on the background */
+  --ink:#6E5646;       /* secondary text and dots on foam cards */
+  --cart:#5A4636;      /* headlines, ribbon, badge outline: soft dark brown */
+  --foam:#FCF8F1;      /* milk foam: cards */
   --espresso:#3E2811;
-  --aida:#CB7E4D;      /* grandma Aida's logo, terracotta */
-  --aida-dark:#A9592F; /* terracotta for text on foam */
-  --aida-light:#F2AF75;
-  --chalk:#F4F1EA;
-  --chalk-pink:#E7A3AE;/* the pink chalk hearts on the door */
+  --aida:#B98C69;      /* grandma Aida's terracotta, softened */
+  --aida-dark:#8A5D3E; /* terracotta for text on foam */
+  --aida-light:#E2B48E;
+  --chalk:#FCF8F1;     /* light text on dark elements (ribbon, day circles) */
+  --chalk-pink:#E2B9B5;/* the pink hearts */
 }
 .board-bg{background-color:var(--board);
-  background-image:radial-gradient(120% 90% at 50% 40%,rgba(255,255,255,.05),rgba(0,0,0,.18) 100%),
+  background-image:radial-gradient(120% 90% at 50% 40%,rgba(255,255,255,.08),rgba(90,70,54,.08) 100%),
   radial-gradient(40% 30% at 20% 70%,rgba(244,241,234,.05),transparent 70%),
   radial-gradient(35% 25% at 80% 20%,rgba(244,241,234,.045),transparent 70%)}
