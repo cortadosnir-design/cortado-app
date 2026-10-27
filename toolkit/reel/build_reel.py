@@ -15,7 +15,9 @@ spec.json:
   "seed": 7,                                     // picks the music; any integer
   "intro": true,                                 // optional: chalkboard opening, grandma Aida's logo draws in, music drops on the first photo
   "place": "גלריה כפיים · קיבוץ שניר",           // optional: the line under the closing ribbon
-  "music": "drive",                              // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet
+  "music": "drive",                              // optional: "drive" (default) = beat and a drop on bar 3; "cafe" = quiet;
+                                                 //   "none" = silent file, for a reel that goes out with a song from Instagram's library
+                                                 //   (owner, 27.10.2026: never another song under the video, so Facebook gets it silent)
   "motion": "push"                               // optional, one motion rule per reel (instagram/reel-brief.md):
                                                  //   "push" (default) = scenes push in, text pops up
                                                  //   "kinetic" = punch-in cuts, every word lands on its own
@@ -345,7 +347,10 @@ def main():
     shutil.copy(HERE / "node_modules/gsap/dist/gsap.min.js", proj / "assets/gsap.min.js")
     tracks = sorted((TK / "assets/music").glob("*.mp3")) if (TK / "assets/music").is_dir() else []
     seed = int(s.get("seed", 1))
-    if tracks:  # a real licensed track wins over the generated one
+    silent = s.get("music") == "none"
+    if silent:
+        run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", str(total), str(proj / "assets/music.wav")])
+    elif tracks:  # a real licensed track wins over the generated one
         run(["ffmpeg", "-y", "-v", "error", "-i", str(tracks[seed % len(tracks)]), "-t", str(total), "-af", f"afade=t=out:st={total - 1.8}:d=1.8", "-ar", "48000", str(proj / "assets/music.wav")])
     else:
         run([sys.executable, str(HERE / "music.py"), "--seconds", str(total), "--seed", str(seed), "--style", s.get("music", "drive"), "--bpm", str(DRIVE_BPM), "--drop-bars", "1" if s.get("intro") else "2", "--out", str(proj / "assets/music.wav")])
@@ -374,8 +379,8 @@ def main():
     if not au: problems.append("no sound")
     if abs(dur - total) > 0.6: problems.append(f"length {dur:.1f}s, expected {total}s")
     if size > 38e6: problems.append(f"file is {size / 1e6:.0f}MB (the bot passes up to 40MB)")
-    lufs = re.findall(r"I:\s+(-?[\d.]+) LUFS", run(["ffmpeg", "-hide_banner", "-i", str(final), "-af", "ebur128=peak=true", "-f", "null", "-"]))
-    if not lufs or not -16 <= float(lufs[-1]) <= -12.5: problems.append(f"loudness {lufs[-1] if lufs else '?'} LUFS")
+    lufs = [] if silent else re.findall(r"I:\s+(-?[\d.]+) LUFS", run(["ffmpeg", "-hide_banner", "-i", str(final), "-af", "ebur128=peak=true", "-f", "null", "-"]))
+    if not silent and (not lufs or not -16 <= float(lufs[-1]) <= -12.5): problems.append(f"loudness {lufs[-1] if lufs else '?'} LUFS")
     if problems:
         fail("; ".join(problems))
     final.rename(out / "reel.mp4")
@@ -413,7 +418,7 @@ def main():
     for k, im in enumerate(ims): sheet.paste(im, (12 + k * 282, 12))
     sheet.save(out / "sheet.jpg", quality=88)
     print(json.dumps({"reel": str(out / "reel.mp4"), "cover": str(out / "cover.jpg"), "sheet": str(out / "sheet.jpg"),
-                      "seconds": round(dur, 1), "mb": round(size / 1e6, 1), "lufs": float(lufs[-1])}, ensure_ascii=False))
+                      "seconds": round(dur, 1), "mb": round(size / 1e6, 1), "lufs": float(lufs[-1]) if lufs else None}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
  "hook": "תודה שהייתם ביריד הבחירות של שניר",
  "intro": true,
  "motion": "pop",
- "music": "drive",
+ "music": "none",
  "scenes": [
   {
    "media": "2026-10-28/event/131245771.mp4",
