@@ -357,7 +357,8 @@ async function botReel(env, request){
   const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "", igAudio: "", igAudioError: "" };
   // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
   await Promise.all([
-    fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
+    // noFb (27.10.2026): אינסטגרם בלבד, למשל ריל עם שיר מהספרייה שבפייסבוק היה יוצא בלי השיר
+    meta.noFb ? null : fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
     (async () => {
       if (meta.noIg) return void (out.igSkipped = "פייסבוק בלבד, לפי הבחירה");
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
