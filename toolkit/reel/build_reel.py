@@ -145,7 +145,7 @@ def text_html(t, motion, line=False):
 
 def text_in(sel, at, motion, big=False, line=False, n=1):
     if motion == "pop":  # words slam in from big and tilted, then the marker swipes under the last one
-        st = 0.16 if big else 0.1
+        st = 0.2 if big else 0.14  # owner, 27.10.2026: captions ran too fast to read
         return (f'tl.fromTo("{sel}",{{opacity:0}},{{opacity:1,duration:0.01}},{at:.2f});'
                 f'tl.fromTo("{sel} .w",{{opacity:0,scale:2.4,rotation:(i)=>i%2?9:-9}},{{opacity:1,scale:1,rotation:0,'
                 f'duration:0.3,stagger:{st},ease:"back.out(2.6)"}},{at:.2f});'
@@ -190,7 +190,7 @@ def compose(s, sc, total):
         hook = (f'<div class="hookwrap" id="hook"><div class="badge"><img src="assets/logo.png" alt=""><span>cortado</span></div>'
                 f'<div class="hook">{text_html(s["hook"], motion, motion == "chalk")}</div></div>') if i == 0 else ""
         parts.append(f'<section class="scene{" clip" if timing else ""}" id="s{i}"{timing} style="z-index:{i + 1}">'
-                     f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
+                     f'<div class="kb" id="k{i}">{media}</div>{"" if "list" in x else '<div class="shade"></div>'}{hook}{cap}<div class="dim" id="d{i}"></div></section>')
         a = "" if timing else (f'tl.set("#s{i}",{{visibility:"hidden"}},0);tl.set("#s{i}",{{visibility:"visible"}},{start:.2f});'
                                f'tl.set("#s{i}",{{visibility:"hidden"}},{start + dur:.2f});')
         a += "" if "list" in x else f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
