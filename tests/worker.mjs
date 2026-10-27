@@ -342,10 +342,11 @@ if (f2) process.exitCode = 1;
   const a = wsrc.indexOf("async function igReady("), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botReel(")) + 2;
   const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
   const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
-  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false } = {}) => {
+  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false, audioFails = false } = {}) => {
     const calls = [], uploads = [], writes = [];
-    const graph = async (_e, path, params = {}, method = "POST") => {
-      calls.push([method, path, params]);
+    const graph = async (_e, path, params = {}, method = "POST", base) => {
+      calls.push([method, path, params, base]);
+      if (audioFails && params.audio_configuration) throw new Error("audio no");
       if (collabFails && params.collaborators) throw new Error("collab no");
       if (path.endsWith("/video_reels") && params.upload_phase === "start"){ if (fbFails) throw new Error("fb no"); return { video_id: "v1" }; }
       if (path.endsWith("/video_reels")) return { success: true };
@@ -389,6 +390,24 @@ if (f2) process.exitCode = 1;
   ok("שותף נדחה: הריל יוצא בלי, והסיבה מדווחת", cfo.igPostId === "ig9" && cfo.igCollabError === "collab no" && !cfo.igCollab.length);
   const nc = await mk().botReel(env, req({ text: "x" }));
   ok("בלי שותפים: אין שדה collaborators", nc.igCollab.length === 0 && !nc.igCollabError);
+
+  const au = mk();
+  const ao = await au.botReel(env, req({ text: "x", audio: { id: "587784541076604" } }));
+  const am = au.calls.find(c => c[1] === "I/media"), ac = JSON.parse(am[2].audio_configuration);
+  ok("שיר מהספרייה של אינסטגרם: בקונטיינר דרך v22, השיר מלא והסאונד של הקובץ מושתק, פייסבוק בלי",
+    ac.audio_id === "587784541076604" && ac.audio_volume === 100 && ac.video_volume === 0 && am[3] === "https://graph.facebook.com/v22.0"
+    && au.uploads.some(u => u[0] === "https://rupload.facebook.com/ig-api-upload/v22.0/c1") && ao.igAudio === "587784541076604" && ao.igPostId === "ig9"
+    && !au.calls.some(c => c[1] !== "I/media" && c[2].audio_configuration), JSON.stringify(ao));
+  const av = mk();
+  await av.botReel(env, req({ text: "x", audio: { id: "123456", volume: 70, video_volume: 25 } }));
+  const avc = JSON.parse(av.calls.find(c => c[1] === "I/media")[2].audio_configuration);
+  ok("סאונד אמיתי מתחת לשיר: הווליומים עוברים", avc.audio_volume === 70 && avc.video_volume === 25);
+  const af = mk({ audioFails: true });
+  const afo = await af.botReel(env, req({ text: "x", audio: "587784541076604", collaborators: ["lalush_dough"] }));
+  ok("שיר נדחה: הריל יוצא בלי שיר, השותפים נשארים, והסיבה מדווחת", afo.igPostId === "ig9" && afo.igAudioError === "audio no" && !afo.igAudio && afo.igCollab.join() === "lalush_dough", JSON.stringify(afo));
+  const bad = mk();
+  const bo = await bad.botReel(env, req({ text: "x", audio: { id: "abc" } }));
+  ok("מזהה שיר לא תקין: לא נכנס ולא מפיל", !bad.calls.find(c => c[1] === "I/media")[2].audio_configuration && !bo.igAudio && !bo.igAudioError && bo.igPostId === "ig9");
 
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
   const slow = await t2.botReel(env, req({ text: "x" }));
@@ -614,8 +633,9 @@ if (f2) process.exitCode = 1;
   const sameStr = (x, y) => x === y;
   const ENV = { FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t", IG_USER_ID: "ig1" };
   const calls = [];
-  const graph = async (env, path, params) => {
-    calls.push([path, params]);
+  const graph = async (env, path, params, _m, base) => {
+    calls.push([path, params, base]);
+    if (path === "ig_audio") return { audio: [{ audio_id: "587784541076604", display_artist: "Shuba", title: "Birthday Wish", duration_in_ms: 153760, download_url: "https://dl/1", on_platform_audio_preview_link: "https://ig/a1" }, { audio_id: "2", title: "שיר" }] };
     if (path === "p1/insights"){
       if (params.metric === "page_views_total") throw new Error("(#100) The value must be a valid insights metric");
       return { data: [{ name: params.metric, values: [{ value: 5, end_time: "2026-10-08T07:00:00+0000" }, { value: 7, end_time: "2026-10-09T07:00:00+0000" }] }] };
@@ -646,8 +666,8 @@ if (f2) process.exitCode = 1;
     if (path === "ig1") return { username: "cortado_snir", followers_count: 672, media_count: 9 };
     throw new Error("unexpected " + path);
   };
-  const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", block + "\nreturn { mcp };")(
-    (c, msg) => Object.assign(new Error(msg), { code: c }), graph, async (e) => e, sameStr, () => "2026-10-14");
+  const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", "GRAPH_AUDIO", block + "\nreturn { mcp };")(
+    (c, msg) => Object.assign(new Error(msg), { code: c }), graph, async (e) => e, sameStr, () => "2026-10-14", "https://graph.facebook.com/v22.0");
   const call = async (body, k = key, method = "POST") => {
     const r = await m.mcp(ENV, new Request("https://x/mcp/" + k, { method, ...(method === "POST" ? { body: JSON.stringify(body) } : {}) }), k);
     return { status: r.status, body: r.status === 200 ? await r.json() : null };
@@ -661,7 +681,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("חמישה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,google_reviews,google_reply");
+  ok("שישה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,instagram_audio,google_reviews,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -693,6 +713,14 @@ if (f2) process.exitCode = 1;
   const scan = (await tool("instagram_accounts", { usernames: ["big"], recent: 3 })).structuredContent;
   const rc = scan.rows[0].recent;
   ok("recent: הפוסטים האחרונים של מתחרה, ריל וקרוסלה, לייקים ותגובות, כיתוב מקוצר", rc.length === 2 && rc[0].kind === "reel" && rc[0].likes === 218 && rc[0].url === "https://ig/r1" && rc[1].kind === "carousel" && rc[1].caption.length === 200, JSON.stringify(rc));
+  calls.length = 0;
+  const tr = (await tool("instagram_audio")).structuredContent;
+  ok("מוזיקה: בלי חיפוש = טרנדים, music של החשבון, דרך v22, שורה מלאה", tr.query === "trending" && tr.rows.length === 2 && calls[0][1].audio_type === "music" && calls[0][1].user_id === "ig1"
+    && !("search_query" in calls[0][1]) && calls[0][2] === "https://graph.facebook.com/v22.0"
+    && JSON.stringify(tr.rows[0]) === JSON.stringify({ audio_id: "587784541076604", title: "Birthday Wish", artist: "Shuba", seconds: 154, preview: "https://dl/1", link: "https://ig/a1" }), JSON.stringify(tr));
+  calls.length = 0;
+  const sq = (await tool("instagram_audio", { query: " chill acoustic ", limit: 1 })).structuredContent;
+  ok("מוזיקה: חיפוש ומגבלה", sq.query === "chill acoustic" && calls[0][1].search_query === "chill acoustic" && sq.rows.length === 1);
   const acc = (await tool("account")).structuredContent;
   ok("חשבון: עוקבים בשתי הרשתות, ומספר הפריטים באינסטגרם", acc.rows[0].followers === 5 && acc.rows[1].followers === 672 && acc.rows[1].media_count === 9);
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);

@@ -161,13 +161,13 @@ async function withMeta(env){
   return out;
 }
 
-async function graph(env, path, params, method = "POST"){
+async function graph(env, path, params, method = "POST", base = GRAPH){
   if (!env.FB_PAGE_TOKEN) throw fail("not_configured", "חסר טוקן של עמוד הפייסבוק בשרת.", 500);
   const q = new URLSearchParams({ ...params, access_token: env.FB_PAGE_TOKEN });
   // GET ו-DELETE נושאים את הטוקן בשאילתה; POST בגוף. DELETE עם גוף
   // מוחזר על ידי Graph כבקשה בלי הרשאה.
   const inQuery = method === "GET" || method === "DELETE";
-  const r = await fetch(`${GRAPH}/${path}${inQuery ? "?" + q : ""}`,
+  const r = await fetch(`${base}/${path}${inQuery ? "?" + q : ""}`,
     method === "GET" ? {} : inQuery ? { method } : { method, body: q });
   const data = await r.json();
   if (!r.ok || data.error) throw fail("meta_error", data.error?.message || "Meta דחה את הבקשה.", 502);
@@ -301,6 +301,16 @@ const withMentions = (caption, tags) => tags.length ? `${caption || ""}\n\n${tag
    הגוף הוא הקובץ כמו שהוא (בלי multipart ובלי base64, שעולים זמן מעבד),
    והטקסט בכותרת x-reel: JSON ב-base64, כי כותרת לא מקבלת עברית. */
 const GRAPH_VER = GRAPH.split("/").pop();
+// מוזיקה מהספרייה של אינסטגרם (Audio API, 27.10.2026) קיימת רק מ-v22. רק הקריאות של המוזיקה עוברות לשם; השאר נשאר על GRAPH
+const GRAPH_AUDIO = GRAPH.replace(/v[\d.]+$/, "v22.0");
+// audio מהבוט: { id, volume, video_volume } או רק המזהה. video_volume ברירת מחדל 0, כי בריל הבנוי כבר יש מוזיקה משלו;
+// קליפ עם סאונד אמיתי (רעשי רקע) שולח video_volume נמוך, למשל 25, כדי שיישמע מתחת לשיר
+function audioConf(a){
+  const id = String((a && a.id) || (typeof a === "string" || typeof a === "number" ? a : "")).trim();
+  if (!/^\d{5,25}$/.test(id)) return "";
+  const v = (x, d) => Math.max(0, Math.min(100, Math.round(Number(x ?? d)) || 0));
+  return JSON.stringify({ audio_id: id, audio_volume: v(a && a.volume, 100), video_volume: v(a && a.video_volume, 0) });
+}
 const MAX_REEL_BYTES = 40 * 1024 * 1024; // כמו MAX_VIDEO_MB בבוט: זיכרון ה-Worker 128MB
 
 async function rupload(env, path, bytes){
@@ -320,8 +330,9 @@ async function fbReel(env, bytes, description){
 }
 // מחזיר את מזהה הקונטיינר. מפרסמים רק אחרי שהוא FINISHED.
 async function igReelContainer(env, bytes, caption, extra = {}){
-  const c = await graph(env, `${env.IG_USER_ID}/media`, { media_type: "REELS", upload_type: "resumable", caption: caption || "", share_to_feed: "true", ...extra });
-  await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
+  const base = extra.audio_configuration ? GRAPH_AUDIO : GRAPH;
+  const c = await graph(env, `${env.IG_USER_ID}/media`, { media_type: "REELS", upload_type: "resumable", caption: caption || "", share_to_feed: "true", ...extra }, "POST", base);
+  await rupload(env, `ig-api-upload/${base.split("/").pop()}/${c.id}`, bytes);
   return String(c.id);
 }
 
@@ -342,7 +353,8 @@ async function botReel(env, request){
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date());
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", kind: "reel", status: "ready", hasMedia: true });
 
-  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "" };
+  const audio = audioConf(meta.audio); // שיר מהספרייה של אינסטגרם. לפייסבוק אין: שם יוצא הסאונד שבקובץ
+  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "", igAudio: "", igAudioError: "" };
   // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
   await Promise.all([
     fbReel(env, bytes, text).then(v => { out.fbVideoId = v; }, e => { out.fbError = hebrew(e.message); }),
@@ -351,11 +363,17 @@ async function botReel(env, request){
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
       try {
         const caption = withMentions(text, tags).slice(0, 2200);
+        // שיר או שותף שנדחים לא מפילים: מורידים קודם את השיר ואז את השותפים, הריל יוצא, והסיבה מדווחת
+        const opt = { ...(collab.length && { collaborators: JSON.stringify(collab) }), ...(audio && { audio_configuration: audio }) };
         let c = "";
-        // שותף שנדחה (חשבון פרטי, שם שגוי) לא מפיל: הריל יוצא בלי, והסיבה מדווחת, כמו בקרוסלה
-        if (collab.length) try { c = await igReelContainer(env, bytes, caption, { collaborators: JSON.stringify(collab) }); out.igCollab = collab; }
-          catch (e){ out.igCollabError = hebrew(e.message); }
-        c ||= await igReelContainer(env, bytes, caption);
+        while (!c) try { c = await igReelContainer(env, bytes, caption, opt); }
+          catch (e){
+            if (opt.audio_configuration){ out.igAudioError = hebrew(e.message); delete opt.audio_configuration; }
+            else if (opt.collaborators){ out.igCollabError = hebrew(e.message); delete opt.collaborators; }
+            else throw e;
+          }
+        if (opt.collaborators) out.igCollab = collab;
+        if (opt.audio_configuration) out.igAudio = JSON.parse(audio).audio_id;
         out.igTagged = tags;
         // עד 3 דקות כאן. עוד לא מוכן: נכנס לתור, והקרון מפרסם כשיהיה FINISHED (קונטיינר פג אחרי 24 שעות)
         if (await igReady(env, c, 18, 10000)) out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
@@ -561,6 +579,8 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages, competing cafes), to decide whom to tag: the partner's followers are the cart's new audience. With recent=N, also each account's N latest posts (date, reel/photo/carousel, likes, comments, link, caption start) for a weekly competitor scan. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
     inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" }, recent: { type: "number", description: "0-12 latest posts per account, default 0" } }, required: ["usernames"] } },
+  { name: "instagram_audio", description: "Music from Instagram's own library that the cart's account may attach to a reel through the API (licensed for third-party use, so safe for a business account). Without query: what is trending now. Each track: audio_id (put it in an auto reel row as audio: {id, volume, video_volume}), title, artist, seconds, preview (audio link that expires in about 1.5 days, for listening only, never baked into a video), link. The selection can differ from the Instagram app.",
+    inputSchema: { type: "object", properties: { query: { type: "string", description: "Song, artist or mood; empty = trending" }, limit: { type: "number", description: "1-50, default 20" } } } },
   { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
     inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
   { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
@@ -694,6 +714,16 @@ async function mcpInstagramAccounts(env, a){
   return { rows, notes };
 }
 
+async function mcpInstagramAudio(env, a){
+  if (!env.IG_USER_ID) throw fail("not_configured", "Instagram is not connected to the server.");
+  const q = String(a.query || "").trim().slice(0, 100);
+  const n = Math.max(1, Math.min(50, Number(a.limit) || 20));
+  const r = await graph(env, "ig_audio", { audio_type: "music", user_id: env.IG_USER_ID, ...(q && { search_query: q }) }, "GET", GRAPH_AUDIO);
+  const rows = (r.audio || r.data || []).slice(0, n).map(t => ({ audio_id: String(t.audio_id || t.id || ""), title: t.title || "", artist: t.display_artist || "",
+    seconds: t.duration_in_ms ? Math.round(t.duration_in_ms / 1000) : null, preview: t.download_url || "", link: t.on_platform_audio_preview_link || "" }));
+  return { query: q || "trending", rows };
+}
+
 async function mcpPosts(env, a){
   const { since, until } = mcpRange(a, 90);
   const from = since + "T00:00:00Z", to = dayShift(until, 1) + "T00:00:00Z";
@@ -786,7 +816,7 @@ async function mcp(env, request, key){
   // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
   const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
     google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
-  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts }[params.name];
+  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio }[params.name];
   if (!run && !google) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
   try {
     if (google){ const out = await google(); return reply({ id, result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out } }); }
