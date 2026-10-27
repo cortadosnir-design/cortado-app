@@ -75,17 +75,21 @@ def check_spec(s):
     words = lambda t: len(t.split())
     if not s.get("hook") or words(s["hook"]) > 6:
         fail("hook missing or longer than 6 words")
-    if s.get("motion", "push") not in ("push", "kinetic", "chalk"):
-        fail("motion must be push, kinetic or chalk")
+    if s.get("motion", "push") not in ("push", "kinetic", "chalk", "pop"):
+        fail("motion must be push, kinetic, chalk or pop")
     sc = s.get("scenes") or []
     if not 3 <= len(sc) <= 12:
         fail("need 3-12 scenes")
-    for t in [s["hook"], s.get("end", "")] + [x.get("text", "") for x in sc]:
+    for t in [s["hook"], s.get("end", "")] + [x.get("text", "") for x in sc] + [t for x in sc for t in [x.get("title", "")] + x.get("list", [])]:
         voice_ok(t)
     for x in sc:
         if x.get("text") and words(x["text"]) > 6:
             fail(f"scene text over 6 words: {x['text']!r}")
-        media_ok(x["media"])
+        if "list" in x:  # a thank-you list card on the board: no photo
+            if not 2 <= len(x["list"]) <= 12:
+                fail("a list scene needs 2-12 names")
+        else:
+            media_ok(x["media"])
         x["dur"] = float(x.get("dur", 2.5))
         if not (1.6 if x.get("text") else 1.0) <= x["dur"] <= 6:  # quick cuts only without text: the owner wants text readable
             fail("scene duration must be 1.6-6s (1.0-6s without text)")
@@ -129,12 +133,23 @@ CHALK_COLORS = ["#B98C69", "#C9A281", "#D8A9A4", "#8A5D3E", "#A7B49C", "#D4B072"
 
 def text_html(t, motion, line=False):
     # kinetic: one span per word so each can land on its own; chalk: a line that draws under the text
+    # pop: one span per word, and the last word sits on a marker swipe
+    if motion == "pop":
+        ws = t.split()
+        return "".join(f'<span class="w">{html.escape(w)}</span> ' for w in ws[:-1]) + \
+            f'<span class="w hl"><i class="mk"></i><b>{html.escape(ws[-1])}</b></span>'
     if motion == "kinetic":
         return "".join(f'<span class="w">{html.escape(w)}</span> ' for w in t.split())
     return html.escape(t) + (CHALK_LINE if line else "")
 
 
-def text_in(sel, at, motion, big=False, line=False):
+def text_in(sel, at, motion, big=False, line=False, n=1):
+    if motion == "pop":  # words slam in from big and tilted, then the marker swipes under the last one
+        st = 0.16 if big else 0.1
+        return (f'tl.fromTo("{sel}",{{opacity:0}},{{opacity:1,duration:0.01}},{at:.2f});'
+                f'tl.fromTo("{sel} .w",{{opacity:0,scale:2.4,rotation:(i)=>i%2?9:-9}},{{opacity:1,scale:1,rotation:0,'
+                f'duration:0.3,stagger:{st},ease:"back.out(2.6)"}},{at:.2f});'
+                f'tl.fromTo("{sel} .mk",{{scaleX:0}},{{scaleX:1,duration:0.3,ease:"power3.out"}},{at + 0.2 + st * n:.2f});')
     if motion == "kinetic":  # the card snaps open, then the words drop in one by one
         return (f'tl.fromTo("{sel}",{{opacity:0,scaleX:0.4}},{{opacity:1,scaleX:1,duration:0.22,ease:"power3.out"}},{at:.2f});'
                 f'tl.fromTo("{sel} .w",{{opacity:0,y:{70 if big else 45},scale:0.55}},{{opacity:1,y:0,scale:1,'
@@ -155,9 +170,14 @@ def compose(s, sc, total):
         push = bool(i or intro)
         start = max(0.0, t - (XFADE if push else 0))
         dur = x["dur"] + (XFADE if push else 0) + XFADE        # overlaps the next scene's push
-        ext = pathlib.Path(x["media"]).suffix.lower()
+        ext = pathlib.Path(x.get("media", "")).suffix.lower()
         src = f"assets/m{i}{ext}"
-        if ext in (".mp4", ".mov", ".webm"):
+        if "list" in x:  # names pop in one by one on the board, the way the closing card looks
+            rows = "".join(f'<div class="li">{html.escape(n)}</div>' for n in x["list"])
+            media = (f'<div class="listcard"><img class="doodles" src="assets/doodles-story.svg" alt="">'
+                     f'<div class="lt">{html.escape(x.get("title") or "תודה לכל מי שהיה איתנו")}</div>{rows}</div>')
+            timing = f' data-start="{start:.2f}" data-duration="{dur:.2f}"'
+        elif ext in (".mp4", ".mov", ".webm"):
             # hyperframes 0.8 lint: time the <video> or its wrapper, never both. The video keeps the timing,
             # and the untimed section is shown/hidden on the timeline (visibility, so the opacity tweens still work).
             media = (f'<video class="media" id="v{i}" src="{src}" muted playsinline data-start="{start:.2f}" data-duration="{dur:.2f}" '
@@ -173,8 +193,14 @@ def compose(s, sc, total):
                      f'<div class="kb" id="k{i}">{media}</div><div class="shade"></div>{hook}{cap}<div class="dim" id="d{i}"></div></section>')
         a = "" if timing else (f'tl.set("#s{i}",{{visibility:"hidden"}},0);tl.set("#s{i}",{{visibility:"visible"}},{start:.2f});'
                                f'tl.set("#s{i}",{{visibility:"hidden"}},{start + dur:.2f});')
-        a += f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
-        if push and motion == "kinetic":  # a punch-in cut on the beat
+        a += "" if "list" in x else f'tl.fromTo("#k{i}",{{scale:1.0,x:{-30 if i % 2 else 30}}},{{scale:1.14,x:{30 if i % 2 else -30},duration:{dur:.2f},ease:"none"}},{start:.2f});'
+        if "list" in x:
+            a += (f'tl.fromTo("#s{i} .lt",{{opacity:0,scale:0.6,rotation:-4}},{{opacity:1,scale:1,rotation:-2,duration:0.45,ease:"back.out(2)"}},{start + XFADE:.2f});'
+                  f'tl.fromTo("#s{i} .li",{{opacity:0,y:40,scale:0.7}},{{opacity:1,y:0,scale:1,duration:0.3,stagger:{min(0.18, 1.6 / len(x["list"])):.2f},ease:"back.out(2.2)"}},{start + XFADE + 0.35:.2f});')
+        if push and motion == "pop":  # a whip: the next shot flies in sideways, blurred, and snaps sharp on the beat
+            a += (f'tl.fromTo("#s{i}",{{x:{-420 if i % 2 else 420},scale:1.12,filter:"blur(26px)"}},'
+                  f'{{x:0,scale:1,filter:"blur(0px)",duration:{XFADE},ease:"expo.out"}},{start:.2f});')
+        elif push and motion == "kinetic":  # a punch-in cut on the beat
             a += f'tl.fromTo("#s{i}",{{scale:1.35,opacity:0}},{{scale:1,opacity:1,duration:{XFADE},ease:"expo.out"}},{start:.2f});'
         elif push and motion == "chalk":  # a slow dissolve
             a += f'tl.fromTo("#s{i}",{{opacity:0}},{{opacity:1,duration:{XFADE},ease:"sine.inOut"}},{start:.2f});'
@@ -186,9 +212,9 @@ def compose(s, sc, total):
         land = start + (XFADE if push else 0)
         if i == 0:
             a += f'tl.fromTo("#hook .badge",{{opacity:0,y:-30}},{{opacity:1,y:0,duration:0.5,ease:"power3.out"}},{land + 0.1:.2f});'
-            a += text_in("#hook .hook", land + 0.25, motion, big=True, line=motion == "chalk")
+            a += text_in("#hook .hook", land + 0.25, motion, big=True, line=motion == "chalk", n=len(s["hook"].split()))
         if x.get("text"):
-            a += text_in(f"#c{i}", land + (1.2 if i == 0 else 0.15), motion, line=i == last)
+            a += text_in(f"#c{i}", land + (1.2 if i == 0 else 0.15), motion, line=i == last, n=len(x["text"].split()))
         anims.append(a)
         t = start + dur - XFADE
     es = t - XFADE
@@ -231,6 +257,18 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .w{{display:inline-block}}
 .ul{{position:absolute;left:10%;width:80%;bottom:-34px;height:38px;overflow:visible}}
 .ul path{{fill:none;stroke:var(--line);stroke-width:11;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}}
+.listcard{{position:absolute;inset:60px;background:var(--board);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px}}
+.listcard .doodles{{opacity:.5}}
+.lt{{position:relative;background:var(--cart);color:var(--chalk);border-radius:999px;padding:14px 56px 22px;margin-bottom:34px;
+  font-family:"Playpen Sans Hebrew";font-weight:700;font-size:70px;box-shadow:0 10px 24px rgba(0,0,0,.25)}}
+.li{{position:relative;color:var(--cart);font-weight:900;font-size:76px;line-height:1.05;text-align:center}}
+.pop .chip,.pop .hook{{background:none;box-shadow:none;color:var(--foam);font-weight:900;
+  text-shadow:0 5px 0 var(--cart),0 10px 28px rgba(0,0,0,.55)}}
+.pop .chip{{font-size:92px;line-height:1.08;top:1180px;max-width:960px}}
+.pop .hook{{font-size:112px;line-height:1.05;padding:0}}
+.hl{{position:relative;color:var(--cart);text-shadow:none;padding:0 14px}}
+.hl b{{position:relative;font-weight:900}}
+.mk{{position:absolute;inset:6px -4px 2px;background:var(--aida);border-radius:18px;transform-origin:100% 50%;transform:rotate(-2deg)}}
 .dim{{position:absolute;inset:0;background:#000;opacity:0;z-index:5}}
 .end{{background:var(--board)}}
 .doodles{{position:absolute;inset:0;width:100%;height:100%;opacity:.55}}
@@ -257,7 +295,7 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:var(--cart);font-
 .socials .s span{{font-weight:600;font-size:22px;color:var(--on-board);line-height:1}}
 </style></head>
 <body>
-<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.2f}" data-width="{W}" data-height="{H}">
+<div id="root" class="{motion}" data-composition-id="main" data-start="0" data-duration="{total:.2f}" data-width="{W}" data-height="{H}">
 {''.join(parts)}
 <audio id="music" src="assets/music.wav" data-start="0" data-duration="{total:.2f}" data-volume="1"></audio>
 </div>
@@ -295,6 +333,8 @@ def main():
     shutil.rmtree(out, ignore_errors=True)
     (proj / "assets").mkdir(parents=True)
     for i, x in enumerate(sc):
+        if "list" in x:
+            continue
         src, dst = ROOT / x["media"], proj / "assets" / f"m{i}{pathlib.Path(x['media']).suffix.lower()}"
         if dst.suffix in (".mp4", ".mov", ".webm"):
             sdr_clip(src, dst.with_suffix(".mp4")) if dst.suffix == ".mp4" else shutil.copy(src, dst)
