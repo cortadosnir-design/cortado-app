@@ -404,7 +404,11 @@ if (f2) process.exitCode = 1;
   ok("סאונד אמיתי מתחת לשיר: הווליומים עוברים", avc.audio_volume === 70 && avc.video_volume === 25);
   const af = mk({ audioFails: true });
   const afo = await af.botReel(env, req({ text: "x", audio: "587784541076604", collaborators: ["lalush_dough"] }));
-  ok("שיר נדחה: הריל יוצא בלי שיר, השותפים נשארים, והסיבה מדווחת", afo.igPostId === "ig9" && afo.igAudioError === "audio no" && !afo.igAudio && afo.igCollab.join() === "lalush_dough", JSON.stringify(afo));
+  ok("שיר נדחה: הריל לא עולה לאינסטגרם בלי השיר, והסיבה מדווחת", !afo.igPostId && !afo.igPending && afo.igAudioError === "audio no" && afo.igError && !afo.igAudio
+    && af.calls.every(c => c[1] !== "I/media" || c[2].audio_configuration) && afo.fbVideoId === "v1", JSON.stringify(afo));
+  const cfa = mk({ collabFails: true });
+  const cfao = await cfa.botReel(env, req({ text: "x", audio: "587784541076604", collaborators: ["lalush_dough"] }));
+  ok("שותף נדחה עם שיר: הריל יוצא עם השיר, בלי השותף", cfao.igPostId === "ig9" && cfao.igAudio === "587784541076604" && cfao.igCollabError === "collab no" && !cfao.igCollab.length, JSON.stringify(cfao));
   const bad = mk();
   const bo = await bad.botReel(env, req({ text: "x", audio: { id: "abc" } }));
   ok("מזהה שיר לא תקין: לא נכנס ולא מפיל", !bad.calls.find(c => c[1] === "I/media")[2].audio_configuration && !bo.igAudio && !bo.igAudioError && bo.igPostId === "ig9");

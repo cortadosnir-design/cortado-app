@@ -363,15 +363,17 @@ async function botReel(env, request){
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
       try {
         const caption = withMentions(text, tags).slice(0, 2200);
-        // שיר או שותף שנדחים לא מפילים: מורידים קודם את השיר ואז את השותפים, הריל יוצא, והסיבה מדווחת
+        // שותף שנדחה לא מפיל: הריל יוצא בלי, והסיבה מדווחת. שיר שנדחה כן: הריל לא עולה לאינסטגרם בלי השיר שנבחר
+        // (הבעלים, 27.10.2026: "שלא יצא מצב שהסרטון נמצא עם שיר אחר ברקע")
         const opt = { ...(collab.length && { collaborators: JSON.stringify(collab) }), ...(audio && { audio_configuration: audio }) };
-        let c = "";
+        let c = "", collabErr = null;
         while (!c) try { c = await igReelContainer(env, bytes, caption, opt); }
           catch (e){
-            if (opt.audio_configuration){ out.igAudioError = hebrew(e.message); delete opt.audio_configuration; }
-            else if (opt.collaborators){ out.igCollabError = hebrew(e.message); delete opt.collaborators; }
+            if (opt.collaborators){ collabErr = e; delete opt.collaborators; }
+            else if (opt.audio_configuration){ out.igAudioError = hebrew(e.message); throw new Error("השיר נדחה, אז הריל לא עלה לאינסטגרם"); }
             else throw e;
           }
+        if (collabErr) out.igCollabError = hebrew(collabErr.message);
         if (opt.collaborators) out.igCollab = collab;
         if (opt.audio_configuration) out.igAudio = JSON.parse(audio).audio_id;
         out.igTagged = tags;
