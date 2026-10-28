@@ -155,6 +155,12 @@ Send the PNGs with SendUserFile. They are drafts: nothing is published without
 an exact preview and an explicit "כן" from the owners. Say which week's hours
 are on them and where they came from.
 
+**Stories go out as video with music (owner, 28.10.2026: "חייב").** Queue the image in the outbox as
+always; on the push, `.github/workflows/story-music.yml` runs `scripts/story_video.py` and puts
+`<image>.mp4` (8s, slow push-in, music, -14 LUFS) next to it, and the bot publishes that video
+instead of the image. Pushing a story image without its outbox row makes no video. Licensed tracks
+in `assets/music/*.mp3` beat the generated `reel/music.py` music, for stories and reels alike.
+
 ## Templates (`templates/`)
 
 Five options, all with the six required elements, logo as a clear seal (~140–150px):

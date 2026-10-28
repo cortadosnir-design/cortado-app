@@ -1,0 +1,54 @@
+# Every story goes out with music (owner, 28.10.2026: "חייב").
+# For each story the outbox queues that has not gone out yet, makes <image>.mp4 next to the image (story_video.py), so the bot
+# publishes the video with music instead of the silent image. Runs on every push to this branch.
+name: Story music
+on:
+  push:
+    branches: [social-media]
+  workflow_dispatch:
+concurrency:
+  group: story-music
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  videos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: social-media
+      - name: Story images without a video
+        id: todo
+        run: |
+          python3 - <<'EOF' > todo.txt
+          import datetime, json, os, zoneinfo
+          now = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Jerusalem")).strftime("%Y-%m-%dT%H:%M")
+          pre = "https://raw.githubusercontent.com/cortadosnir-design/cortado-app/social-media/"
+          seen = set()
+          for line in open("outbox.jsonl", encoding="utf-8").read().splitlines()[-300:]:
+              try: s = json.loads(line).get("story") or {}
+              except Exception: continue
+              img = str(s.get("image", ""))
+              if str(s.get("at", "")) >= now and img.startswith(pre) and img.lower().endswith((".jpg", ".jpeg", ".png")):
+                  p = img[len(pre):]
+                  if os.path.isfile(p) and not os.path.isfile(os.path.splitext(p)[0] + ".mp4") and p not in seen:
+                      seen.add(p); print(p)
+          EOF
+          cat todo.txt
+          echo "n=$(grep -c . todo.txt || true)" >> "$GITHUB_OUTPUT"
+      - name: Make the videos
+        if: steps.todo.outputs.n != '0'
+        run: |
+          command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          python3 -c "import numpy" 2>/dev/null || pip install -q numpy
+          xargs -d '\n' python3 toolkit/scripts/story_video.py < todo.txt
+      - name: Push
+        if: steps.todo.outputs.n != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          xargs -d '\n' -I{} sh -c 'f="{}"; git add "${f%.*}.mp4"' < todo.txt
+          git commit -qm "story music: $(grep -c . todo.txt) video(s)"
+          for i in 1 2 3 4; do git pull -q --rebase origin social-media && git push -q origin HEAD:social-media && exit 0; sleep 5; done
+          exit 1
