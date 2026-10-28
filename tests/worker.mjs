@@ -339,14 +339,19 @@ if (f2) process.exitCode = 1;
 {
   console.log("\nריל מהבוט");
   let p = 0, f = 0; const ok = (m, c, x) => { c ? p++ : f++; console.log(`  ${c ? "✓" : "✗"} ${m}${x ? "  " + x : ""}`); };
-  const a = wsrc.indexOf("async function igReady("), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botReel(")) + 2;
+  const a = wsrc.indexOf("async function igReady("), z = wsrc.indexOf("\n}\n", wsrc.indexOf("async function botVideoStory(")) + 2;
   const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
   const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
-  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false, audioFails = false } = {}) => {
+  const SONGS = [{ audio_id: "587784541076604", title: "Birthday Wish", display_artist: "Shuba" }];
+  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false, audioFails = false, songs = null, tagFails = false } = {}) => {
     const calls = [], uploads = [], writes = [];
     const graph = async (_e, path, params = {}, method = "POST", base) => {
       calls.push([method, path, params, base]);
+      if (path === "ig_audio") return songs ? { audio: songs } : {};
       if (audioFails && params.audio_configuration) throw new Error("audio no");
+      if (tagFails && params.user_tags) throw new Error("tag no");
+      if (path.endsWith("/video_stories") && params.upload_phase === "start"){ if (fbFails) throw new Error("fb no"); return { video_id: "vs1" }; }
+      if (path.endsWith("/video_stories")) return { success: true, post_id: "s1" };
       if (collabFails && params.collaborators) throw new Error("collab no");
       if (path.endsWith("/video_reels") && params.upload_phase === "start"){ if (fbFails) throw new Error("fb no"); return { video_id: "v1" }; }
       if (path.endsWith("/video_reels")) return { success: true };
@@ -358,7 +363,7 @@ if (f2) process.exitCode = 1;
     const realFetch = globalThis.fetch;
     const fakeFetch = async (url, init) => { uploads.push([String(url), init.headers.file_size, init.headers.authorization]); return Response.json({ success: true }); };
     const fn = new Function("botAuth", "withMeta", "fsPatch", "graph", "hebrew", "fail", "GRAPH", "fetch", "sleep",
-      wsrc.slice(a, z) + "\nreturn { botReel, igReady };")(auth, async (e) => e, async (_e, path, fields) => { writes.push([path, fields]); },
+      wsrc.slice(a, z) + "\nreturn { botReel, igReady, botVideoStory };")(auth, async (e) => e, async (_e, path, fields) => { writes.push([path, fields]); },
       graph, (m) => m, fail, "https://graph.facebook.com/v21.0", fakeFetch, async () => {});
     return { ...fn, calls, uploads, writes, realFetch };
   };
@@ -415,6 +420,43 @@ if (f2) process.exitCode = 1;
   const bad = mk();
   const bo = await bad.botReel(env, req({ text: "x", audio: { id: "abc" } }));
   ok("מזהה שיר לא תקין: לא נכנס ולא מפיל", !bad.calls.find(c => c[1] === "I/media")[2].audio_configuration && !bo.igAudio && !bo.igAudioError && bo.igPostId === "ig9");
+
+  // שיר אוטומטי (28.10.2026): ריל בלי שיר שנבחר מקבל שיר טרנדי, כדי שאף ריל לא יוצא בלי מוזיקה
+  const sa = mk({ songs: SONGS });
+  const sao = await sa.botReel(env, req({ text: "x" }));
+  const sac = JSON.parse(sa.calls.find(c => c[1] === "I/media")[2].audio_configuration);
+  ok("בלי שיר: שיר טרנדי, והסאונד של הסרטון נשמע בשקט מתחת", sac.audio_id === "587784541076604" && sac.video_volume === 30 && sao.igAudio === "587784541076604" && sao.igAudioTitle === "Birthday Wish – Shuba" && sao.igPostId === "ig9", JSON.stringify(sao));
+  const sk = mk({ songs: SONGS });
+  await sk.botReel(env, req({ text: "x", keepSound: false }));
+  ok("קובץ עם מוזיקה משלו: היא מושתקת מתחת לשיר", JSON.parse(sk.calls.find(c => c[1] === "I/media")[2].audio_configuration).video_volume === 0);
+  const sr = mk({ songs: SONGS, audioFails: true });
+  const sro = await sr.botReel(env, req({ text: "x" }));
+  ok("שיר אוטומטי נדחה: הריל עולה עם הסאונד שבקובץ, והסיבה מדווחת", sro.igPostId === "ig9" && sro.igAudioError === "audio no" && !sro.igAudio && !sro.igError, JSON.stringify(sro));
+  const sn = mk({ songs: SONGS });
+  const sno = await sn.botReel(env, req({ text: "x", audio: false }));
+  ok("audio: false: בלי שיר, ובלי לחפש", !sno.igAudio && !sn.calls.some(c => c[1] === "ig_audio"));
+  const si = mk({ songs: SONGS });
+  await si.botReel(env, req({ text: "x", noIg: true }));
+  ok("פייסבוק בלבד: לא מחפש שיר", !si.calls.some(c => c[1] === "ig_audio"));
+  const se = await mk().botReel(env, req({ text: "x" }));
+  ok("אין שירים בספרייה: הריל יוצא כרגיל", se.igPostId === "ig9" && !se.igAudio && !se.igAudioError);
+
+  // סטורי עם מוזיקה: הקובץ עצמו לשתי הרשתות
+  const sreq = (o = {}, body = new Uint8Array([1, 2, 3])) => new Request("https://x/post/bot/story", { method: "POST", body, headers: { "x-bot-key": "k", "content-type": "video/mp4", "x-story": meta(o) } });
+  const vs = mk();
+  const vso = await vs.botVideoStory(env, sreq({ tags: ["galiluz.north", "@galilback"] }));
+  const vsc = vs.calls.find(c => c[1] === "I/media")[2];
+  ok("סטורי וידאו: פייסבוק ואינסטגרם יצאו", vso.ok && vso.video && vso.fbStoryId === "s1" && vso.igStoryId === "ig9", JSON.stringify(vso));
+  ok("אינסטגרם: STORIES, העלאה של הקובץ, ותיוג", vsc.media_type === "STORIES" && vsc.upload_type === "resumable" && JSON.parse(vsc.user_tags).map(u => u.username).join() === "galiluz.north,galilback"
+    && vs.uploads.some(u => u[0].includes("ig-api-upload/v21.0/c1")) && vs.uploads.some(u => u[0].includes("video-upload/v21.0/vs1")));
+  ok("פייסבוק: video_stories, התחלה וסיום", vs.calls.some(c => c[1] === "P/video_stories" && c[2].upload_phase === "finish" && c[2].video_id === "vs1"));
+  const vt = await mk({ tagFails: true }).botVideoStory(env, sreq({ tags: ["galiluz.north"] }));
+  ok("סטורי וידאו: תיוג נדחה, יוצא בלי", vt.igStoryId === "ig9" && vt.igTagError === "tag no" && !vt.igTagged.length);
+  const vf = await mk({ fbFails: true }).botVideoStory(env, sreq());
+  ok("סטורי וידאו: פייסבוק נכשל, אינסטגרם בכל זאת", vf.fbError === "fb no" && vf.igStoryId === "ig9" && vf.ok);
+  let ve = null; try { await mk().botVideoStory(env, sreq({}, new Uint8Array())); } catch (e){ ve = e; }
+  ok("סטורי וידאו ריק: נדחה", ve && ve.code === "bad_request");
+  ok("סטורי: וידאו עובר למסלול הווידאו", wsrc.slice(wsrc.indexOf("async function botStory("), wsrc.indexOf("async function botStory(") + 300).includes("return botVideoStory(env, request)"));
 
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
   const slow = await t2.botReel(env, req({ text: "x" }));

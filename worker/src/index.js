@@ -336,6 +336,14 @@ async function igReelContainer(env, bytes, caption, extra = {}){
   return String(c.id);
 }
 
+// אחד מעשרת השירים הטרנדיים בספרייה, באקראי, כדי שלא יחזור אותו שיר בכל ריל
+async function trendingSong(env){
+  const r = await graph(env, "ig_audio", { audio_type: "music", user_id: env.IG_USER_ID }, "GET", GRAPH_AUDIO);
+  const top = (r.audio || r.data || []).slice(0, 10).filter(t => audioConf(t.audio_id || t.id));
+  const t = top[Math.floor(Math.random() * top.length)];
+  return t ? { id: String(t.audio_id || t.id), title: [t.title, t.display_artist].filter(Boolean).join(" – ") } : null;
+}
+
 async function botReel(env, request){
   botAuth(env, request);
   env = await withMeta(env);
@@ -353,8 +361,15 @@ async function botReel(env, request){
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }).format(new Date());
   await fsPatch(env, `posts/${id}`, { text, date: local.slice(0, 10), time: local.slice(11, 16), source: "bot", kind: "reel", status: "ready", hasMedia: true });
 
-  const audio = audioConf(meta.audio); // שיר מהספרייה של אינסטגרם. לפייסבוק אין: שם יוצא הסאונד שבקובץ
-  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "", igAudio: "", igAudioError: "" };
+  // שיר מהספרייה של אינסטגרם. לפייסבוק אין: שם יוצא הסאונד שבקובץ.
+  // בלי שיר שנבחר (סרטון ששלחו לבוט): שיר טרנדי, כדי שאף ריל לא יוצא בלי מוזיקה (הבעלים, 28.10.2026: "חייב שיהיה מוזיקה").
+  // keepSound=false: בקובץ כבר יש מוזיקה, ולכן היא מושתקת מתחת לשיר; אחרת הסאונד המקורי נשמע בשקט מתחתיו
+  let audio = audioConf(meta.audio), song = null;
+  if (!audio && meta.audio == null && env.IG_USER_ID && !meta.noIg){
+    song = await trendingSong(env).catch(() => null);
+    if (song) audio = audioConf({ id: song.id, video_volume: meta.keepSound === false ? 0 : 30 });
+  }
+  const out = { id, fbVideoId: "", fbError: "", igPostId: "", igPending: false, igSkipped: "", igError: "", igTagged: [], igCollab: [], igCollabError: "", igAudio: "", igAudioTitle: "", igAudioError: "" };
   // כל רשת מקבלת את הקובץ בעצמה, וכישלון של אחת לא עוצר את השנייה
   await Promise.all([
     // noFb (27.10.2026): אינסטגרם בלבד, למשל ריל עם שיר מהספרייה שבפייסבוק היה יוצא בלי השיר
@@ -371,12 +386,14 @@ async function botReel(env, request){
         while (!c) try { c = await igReelContainer(env, bytes, caption, opt); }
           catch (e){
             if (opt.collaborators){ collabErr = e; delete opt.collaborators; }
+            // שיר שנבחר אוטומטית ונדחה: יוצא עם הסאונד שבקובץ. שיר שנבחר בכוונה ונדחה: לא עולה (הכלל של 27.10.2026)
+            else if (opt.audio_configuration && song){ out.igAudioError = hebrew(e.message); delete opt.audio_configuration; }
             else if (opt.audio_configuration){ out.igAudioError = hebrew(e.message); throw new Error("השיר נדחה, אז הריל לא עלה לאינסטגרם"); }
             else throw e;
           }
         if (collabErr) out.igCollabError = hebrew(collabErr.message);
         if (opt.collaborators) out.igCollab = collab;
-        if (opt.audio_configuration) out.igAudio = JSON.parse(audio).audio_id;
+        if (opt.audio_configuration) Object.assign(out, { igAudio: JSON.parse(audio).audio_id, igAudioTitle: song ? song.title : "" });
         out.igTagged = tags;
         // עד 3 דקות כאן. עוד לא מוכן: נכנס לתור, והקרון מפרסם כשיהיה FINISHED (קונטיינר פג אחרי 24 שעות)
         if (await igReady(env, c, 18, 10000)) out.igPostId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c })).id);
@@ -390,11 +407,46 @@ async function botReel(env, request){
   return { ok: true, ...out };
 }
 
+/* ===== סטורי עם מוזיקה (28.10.2026, הבעלים: "חייב שיהיה מוזיקה בכל הסטטוסים") =====
+   סרטון קצר מהתמונה, עם המוזיקה בתוך הקובץ: ל-API אין שיר מהספרייה בסטורי. הגוף הוא הקובץ, ה-x-story כמו x-reel.
+   אותו קובץ עולה לכל רשת בנפרד, וכישלון של אחת לא עוצר את השנייה. */
+async function botVideoStory(env, request){
+  env = await withMeta(env);
+  if (!env.FB_PAGE_ID || !env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
+  let meta = {};
+  try { meta = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(request.headers.get("x-story") || ""), ch => ch.charCodeAt(0)))); } catch {}
+  const bytes = await request.arrayBuffer();
+  if (!bytes.byteLength) throw fail("bad_request", "אין קובץ וידאו לסטורי.");
+  if (bytes.byteLength > MAX_REEL_BYTES) throw fail("bad_request", "הסרטון גדול מ-40MB.");
+  const tags = cleanTags(meta.tags);
+  const out = { fbStoryId: "", fbError: "", igStoryId: "", igSkipped: "", igError: "", igTagged: [], igTagError: "", video: true };
+  await Promise.all([
+    (async () => {
+      const s = await graph(env, `${env.FB_PAGE_ID}/video_stories`, { upload_phase: "start" });
+      await rupload(env, `video-upload/${GRAPH_VER}/${s.video_id}`, bytes);
+      const r = await graph(env, `${env.FB_PAGE_ID}/video_stories`, { upload_phase: "finish", video_id: s.video_id });
+      out.fbStoryId = String(r.post_id || s.video_id);
+    })().catch(e => { out.fbError = hebrew(e.message); }),
+    (async () => {
+      if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
+      try {
+        const c = await igImageContainer(env, { media_type: "STORIES", upload_type: "resumable" }, tags);
+        Object.assign(out, { igTagged: c.tagged, igTagError: c.tagError });
+        await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
+        if (!(await igReady(env, c.id, 18, 5000))) throw fail("meta_error", "אינסטגרם עוד מעבד את הסרטון, והסטורי לא פורסם.", 502);
+        out.igStoryId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id })).id);
+      } catch (e){ out.igError = hebrew(e.message); out.igTagged = []; }
+    })(),
+  ]);
+  return { ok: !!(out.fbStoryId || out.igStoryId), ...out };
+}
+
 /* ===== סטורי מהבוט: "מחר בעגלה", בלי "כן" (הבעלים, 17.10.2026) =====
    התמונה עולה פעם אחת לעמוד כתמונה לא מפורסמת. ממנה סטורי לפייסבוק, ומהכתובת שלה ב-CDN סטורי לאינסטגרם
    (אין לנו אחסון משלנו). כל ערוץ מדווח לבד, וכישלון של אחד לא עוצר את השני. */
 async function botStory(env, request){
   botAuth(env, request);
+  if (/^video\//.test(request.headers.get("content-type") || "")) return botVideoStory(env, request);
   const b = await request.json().catch(() => ({}));
   env = await withMeta(env);
   if (!env.FB_PAGE_ID || !env.FB_PAGE_TOKEN) throw fail("not_configured", "עמוד הפייסבוק עוד לא מחובר לשרת.", 501);
