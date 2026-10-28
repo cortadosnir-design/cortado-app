@@ -30,6 +30,8 @@ export default {
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
       if (url.pathname === "/post/bot/carousel") return json(await botCarousel(env, request), cors);
+      // בחירת שיר לריל מהבוט (28.10.2026): אותו חיפוש של instagram_audio, בלי חיפוש = טרנדים
+      if (url.pathname === "/post/bot/songs"){ botAuth(env, request); const b = await request.json().catch(() => ({})); return json(await mcpInstagramAudio(await withMeta(env), b), cors); }
       // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
       if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
       // חיבור חד-פעמי של פרופיל העסק בגוגל. נשמר רק אם מייסד אישר בגוגל.

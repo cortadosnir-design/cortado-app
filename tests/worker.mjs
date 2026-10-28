@@ -456,6 +456,8 @@ if (f2) process.exitCode = 1;
   ok("סטורי וידאו: פייסבוק נכשל, אינסטגרם בכל זאת", vf.fbError === "fb no" && vf.igStoryId === "ig9" && vf.ok);
   let ve = null; try { await mk().botVideoStory(env, sreq({}, new Uint8Array())); } catch (e){ ve = e; }
   ok("סטורי וידאו ריק: נדחה", ve && ve.code === "bad_request");
+  const songsAt = wsrc.indexOf('"/post/bot/songs"');
+  ok("בחירת שיר: נתיב עם מפתח הבוט, לפני אימות המשתמש", songsAt > 0 && songsAt < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)') && wsrc.slice(songsAt, songsAt + 200).includes("botAuth(env, request)"));
   ok("סטורי: וידאו עובר למסלול הווידאו", wsrc.slice(wsrc.indexOf("async function botStory("), wsrc.indexOf("async function botStory(") + 300).includes("return botVideoStory(env, request)"));
 
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
