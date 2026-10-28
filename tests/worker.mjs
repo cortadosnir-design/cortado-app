@@ -343,7 +343,7 @@ if (f2) process.exitCode = 1;
   const fail = (code, m, status = 400) => Object.assign(new Error(m), { code, status });
   const auth = (env, req) => { if (req.headers.get("x-bot-key") !== env.BOT_KEY) throw fail("forbidden", "x", 403); };
   const SONGS = [{ audio_id: "587784541076604", title: "Birthday Wish", display_artist: "Shuba" }];
-  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false, audioFails = false, songs = null, tagFails = false } = {}) => {
+  const mk = ({ igStatus = ["FINISHED"], fbFails = false, collabFails = false, audioFails = false, songs = null, tagFails = false, mine = [] } = {}) => {
     const calls = [], uploads = [], writes = [];
     const graph = async (_e, path, params = {}, method = "POST", base) => {
       calls.push([method, path, params, base]);
@@ -362,9 +362,9 @@ if (f2) process.exitCode = 1;
     };
     const realFetch = globalThis.fetch;
     const fakeFetch = async (url, init) => { uploads.push([String(url), init.headers.file_size, init.headers.authorization]); return Response.json({ success: true }); };
-    const fn = new Function("botAuth", "withMeta", "fsPatch", "graph", "hebrew", "fail", "GRAPH", "fetch", "sleep",
+    const fn = new Function("botAuth", "withMeta", "fsPatch", "graph", "hebrew", "fail", "GRAPH", "fetch", "sleep", "ownerSongs",
       wsrc.slice(a, z) + "\nreturn { botReel, igReady, botVideoStory };")(auth, async (e) => e, async (_e, path, fields) => { writes.push([path, fields]); },
-      graph, (m) => m, fail, "https://graph.facebook.com/v21.0", fakeFetch, async () => {});
+      graph, (m) => m, fail, "https://graph.facebook.com/v21.0", fakeFetch, async () => {}, async () => mine);
     return { ...fn, calls, uploads, writes, realFetch };
   };
   const env = { BOT_KEY: "k", FB_PAGE_ID: "P", FB_PAGE_TOKEN: "T", IG_USER_ID: "I" };
@@ -426,6 +426,9 @@ if (f2) process.exitCode = 1;
   const sao = await sa.botReel(env, req({ text: "x" }));
   const sac = JSON.parse(sa.calls.find(c => c[1] === "I/media")[2].audio_configuration);
   ok("בלי שיר: שיר טרנדי, והסאונד של הסרטון נשמע בשקט מתחת", sac.audio_id === "587784541076604" && sac.video_volume === 30 && sao.igAudio === "587784541076604" && sao.igAudioTitle === "Birthday Wish – Shuba" && sao.igPostId === "ig9", JSON.stringify(sao));
+  const sm = mk({ songs: SONGS, mine: [{ id: "123456789", title: "Wildflowers", artist: "Nick Gallant" }] });
+  const smo = await sm.botReel(env, req({ text: "x" }));
+  ok("בלי שיר: שיר מהרשימה של הבעלים קודם, בלי לחפש טרנדים", smo.igAudio === "123456789" && smo.igAudioTitle === "Wildflowers – Nick Gallant" && !sm.calls.some(c => c[1] === "ig_audio"), JSON.stringify(smo));
   const sk = mk({ songs: SONGS });
   await sk.botReel(env, req({ text: "x", keepSound: false }));
   ok("קובץ עם מוזיקה משלו: היא מושתקת מתחת לשיר", JSON.parse(sk.calls.find(c => c[1] === "I/media")[2].audio_configuration).video_volume === 0);
@@ -456,8 +459,6 @@ if (f2) process.exitCode = 1;
   ok("סטורי וידאו: פייסבוק נכשל, אינסטגרם בכל זאת", vf.fbError === "fb no" && vf.igStoryId === "ig9" && vf.ok);
   let ve = null; try { await mk().botVideoStory(env, sreq({}, new Uint8Array())); } catch (e){ ve = e; }
   ok("סטורי וידאו ריק: נדחה", ve && ve.code === "bad_request");
-  const songsAt = wsrc.indexOf('"/post/bot/songs"');
-  ok("בחירת שיר: נתיב עם מפתח הבוט, לפני אימות המשתמש", songsAt > 0 && songsAt < wsrc.indexOf('return json({ error: "not_found" }, cors, 404)') && wsrc.slice(songsAt, songsAt + 200).includes("botAuth(env, request)"));
   ok("סטורי: וידאו עובר למסלול הווידאו", wsrc.slice(wsrc.indexOf("async function botStory("), wsrc.indexOf("async function botStory(") + 300).includes("return botVideoStory(env, request)"));
 
   const t2 = mk({ igStatus: ["IN_PROGRESS"] });
@@ -717,8 +718,11 @@ if (f2) process.exitCode = 1;
     if (path === "ig1") return { username: "cortado_snir", followers_count: 672, media_count: 9 };
     throw new Error("unexpected " + path);
   };
-  const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", "GRAPH_AUDIO", block + "\nreturn { mcp };")(
-    (c, msg) => Object.assign(new Error(msg), { code: c }), graph, async (e) => e, sameStr, () => "2026-10-14", "https://graph.facebook.com/v22.0");
+  const store = {}, fetched = [];
+  const fsGet = async (_e, path) => store[path] ?? null, fsPatch = async (_e, path, x) => { store[path] = { ...(store[path] || {}), ...x }; };
+  const songFetch = async (url, init) => { fetched.push([url, init.headers.range]); return /expired/.test(url) ? new Response("", { status: 403 }) : new Response(new Uint8Array([0, 0, 0, 24, 102, 116]), { headers: { "content-type": "video/mp4" } }); };
+  const m = new Function("fail", "graph", "withMeta", "sameStr", "ilToday", "GRAPH_AUDIO", "fsGet", "fsPatch", "fetch", block + "\nreturn { mcp };")(
+    (c, msg) => Object.assign(new Error(msg), { code: c }), graph, async (e) => e, sameStr, () => "2026-10-14", "https://graph.facebook.com/v22.0", fsGet, fsPatch, songFetch);
   const call = async (body, k = key, method = "POST") => {
     const r = await m.mcp(ENV, new Request("https://x/mcp/" + k, { method, ...(method === "POST" ? { body: JSON.stringify(body) } : {}) }), k);
     return { status: r.status, body: r.status === 200 ? await r.json() : null };
@@ -732,7 +736,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("שישה כלים של מטא ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,instagram_audio,google_reviews,google_reply");
+  ok("כלי מטא, שירי העגלה ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,instagram_audio,songs,songs_set,song_play,google_reviews,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -772,6 +776,16 @@ if (f2) process.exitCode = 1;
   calls.length = 0;
   const sq = (await tool("instagram_audio", { query: " chill acoustic ", limit: 1 })).structuredContent;
   ok("מוזיקה: חיפוש ומגבלה", sq.query === "chill acoustic" && calls[0][1].search_query === "chill acoustic" && sq.rows.length === 1);
+  // שירי העגלה (28.10.2026): הבעלים בוחר בדף, הרשימה נשמרת בשרת, וריל לוקח ממנה
+  ok("שירי העגלה: ריק בהתחלה", JSON.stringify((await tool("songs")).structuredContent) === '{"songs":[]}');
+  const ss = (await tool("songs_set", { songs: [{ id: "351866282607327", title: "Wildflowers", artist: "Nick Gallant" }, { id: "351866282607327", title: "dup" }, { id: "bad" }, { audio_id: "666143646062118", title: "Coffee Runs" }] })).structuredContent;
+  ok("שירי העגלה: נשמר בלי כפילויות ובלי מזהה לא תקין", ss.songs.map(t => t.id).join() === "351866282607327,666143646062118" && store["songs/cart"].list.length === 2 && ss.songs[1].artist === "");
+  ok("שירי העגלה: נקרא חזרה", (await tool("songs")).structuredContent.songs[0].title === "Wildflowers");
+  ok("שירי העגלה: לא רשימה → שגיאה", (await tool("songs_set", { songs: "x" })).isError === true);
+  const play = (await tool("song_play", { preview: "https://video-iad3-2.xx.fbcdn.net/o1/a.mp4?x=1" })).structuredContent;
+  ok("האזנה: תחילת השיר כ-base64, אודיו, בבקשת טווח", play.mime === "audio/mp4" && play.data === "AAAAGGZ0" && fetched.at(-1)[1] === "bytes=0-716799");
+  ok("האזנה: רק מכתובת של מטא", (await tool("song_play", { preview: "https://evil.example/a.mp4" })).isError === true && (await tool("song_play", { preview: "http://x.fbcdn.net/a" })).isError === true && fetched.length === 1);
+  ok("האזנה: קישור שפג → הודעה ברורה", /expired/.test((await tool("song_play", { preview: "https://x.fbcdn.net/expired" })).content[0].text));
   const acc = (await tool("account")).structuredContent;
   ok("חשבון: עוקבים בשתי הרשתות, ומספר הפריטים באינסטגרם", acc.rows[0].followers === 5 && acc.rows[1].followers === 672 && acc.rows[1].media_count === 9);
   const noIg = await m.mcp({ FB_PAGE_ID: "p1", FB_PAGE_TOKEN: "t" }, new Request("https://x/mcp/" + key, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "instagram_daily" } }) }), key);

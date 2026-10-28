@@ -30,8 +30,6 @@ export default {
       if (url.pathname === "/post/bot/reel") return json(await botReel(env, request), cors);
       if (url.pathname === "/post/bot/story") return json(await botStory(env, request), cors);
       if (url.pathname === "/post/bot/carousel") return json(await botCarousel(env, request), cors);
-      // בחירת שיר לריל מהבוט (28.10.2026): אותו חיפוש של instagram_audio, בלי חיפוש = טרנדים
-      if (url.pathname === "/post/bot/songs"){ botAuth(env, request); const b = await request.json().catch(() => ({})); return json(await mcpInstagramAudio(await withMeta(env), b), cors); }
       // מחבר Claude לנתוני פייסבוק ואינסטגרם (קריאה בלבד). המפתח בנתיב, ראה MCP למטה.
       if (url.pathname.startsWith("/mcp/")) return await mcp(env, request, url.pathname.slice(5));
       // חיבור חד-פעמי של פרופיל העסק בגוגל. נשמר רק אם מייסד אישר בגוגל.
@@ -338,8 +336,11 @@ async function igReelContainer(env, bytes, caption, extra = {}){
   return String(c.id);
 }
 
-// אחד מעשרת השירים הטרנדיים בספרייה, באקראי, כדי שלא יחזור אותו שיר בכל ריל
+// שיר לריל בלי שיר שנבחר: אחד מהשירים שהבעלים בחר (דף "שירי העגלה", 28.10.2026), באקראי.
+// הרשימה ריקה או לא נקראת: אחד מעשרת הטרנדיים בספרייה
 async function trendingSong(env){
+  const mine = await ownerSongs(env).catch(() => []);
+  if (mine.length){ const t = mine[Math.floor(Math.random() * mine.length)]; return { id: t.id, title: [t.title, t.artist].filter(Boolean).join(" – ") }; }
   const r = await graph(env, "ig_audio", { audio_type: "music", user_id: env.IG_USER_ID }, "GET", GRAPH_AUDIO);
   const top = (r.audio || r.data || []).slice(0, 10).filter(t => audioConf(t.audio_id || t.id));
   const t = top[Math.floor(Math.random() * top.length)];
@@ -636,8 +637,14 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages, competing cafes), to decide whom to tag: the partner's followers are the cart's new audience. With recent=N, also each account's N latest posts (date, reel/photo/carousel, likes, comments, link, caption start) for a weekly competitor scan. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
     inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" }, recent: { type: "number", description: "0-12 latest posts per account, default 0" } }, required: ["usernames"] } },
-  { name: "instagram_audio", description: "Music from Instagram's own library that the cart's account may attach to a reel through the API (licensed for third-party use, so safe for a business account). Without query: what is trending now. Each track: audio_id (put it in an auto reel row as audio: {id, volume, video_volume}), title, artist, seconds, preview (audio link that expires in about 1.5 days, for listening only, never baked into a video), link. The selection can differ from the Instagram app.",
+  { name: "instagram_audio", description: "Music from Instagram's own library that the cart's account may attach to a reel through the API (licensed for third-party use, so safe for a business account). Without query: what is trending now. Each track: audio_id (put it in an auto reel row as audio: {id, volume, video_volume}; prefer the owner's list from the songs tool), title, artist, seconds, preview (audio link that expires in about 1.5 days, for listening only, never baked into a video), link. The selection can differ from the Instagram app.",
     inputSchema: { type: "object", properties: { query: { type: "string", description: "Song, artist or mood; empty = trending" }, limit: { type: "number", description: "1-50, default 20" } } } },
+  { name: "songs", description: "The cart's songs: Instagram library songs the owner chose after listening (the page \"שירי העגלה\"). Every reel takes its song from this list. Each: id (audio_id), title, artist.",
+    inputSchema: { type: "object", properties: {} } },
+  { name: "songs_set", description: "Replace the cart's song list. Only with songs the owner picked himself. songs: [{id (audio_id from instagram_audio), title, artist}], up to 60.",
+    inputSchema: { type: "object", properties: { songs: { type: "array", items: { type: "object", properties: { id: { type: "string" }, title: { type: "string" }, artist: { type: "string" } }, required: ["id"] } } }, required: ["songs"] } },
+  { name: "song_play", description: "The start of a song (about a minute) as base64 audio, from its instagram_audio preview link, so a page can play it. For listening only.",
+    inputSchema: { type: "object", properties: { preview: { type: "string", description: "The preview link from instagram_audio" } }, required: ["preview"] } },
   { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
     inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
   { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
@@ -781,6 +788,39 @@ async function mcpInstagramAudio(env, a){
   return { query: q || "trending", rows };
 }
 
+/* ===== שירי העגלה (הבעלים, 28.10.2026: "אתה תיתן לי לבחור איזה שירים יהיו") =====
+   הרשימה שהבעלים בוחר בדף, אחרי שהוא שומע את השירים. Firestore songs/cart, שדה list: [{id, title, artist}].
+   ממנה: ריל בלי שיר שנבחר (trendingSong), ומוח התוכן (הכלי songs). */
+const SONG_ID = /^\d{5,25}$/;
+async function ownerSongs(env){
+  const d = await fsGet(env, "songs/cart");
+  return (Array.isArray(d?.list) ? d.list : []).filter(t => t && SONG_ID.test(String(t.id))).map(t => ({ id: String(t.id), title: String(t.title || ""), artist: String(t.artist || "") }));
+}
+async function mcpSongs(env){ return { songs: await ownerSongs(env) }; }
+async function mcpSongsSet(env, a){
+  if (!Array.isArray(a.songs)) throw fail("bad_request", "songs must be a list of {id, title, artist}.");
+  const seen = new Set(), list = [];
+  for (const t of a.songs.slice(0, 60)){
+    const id = String(t?.id ?? t?.audio_id ?? "").trim();
+    if (!SONG_ID.test(id) || seen.has(id)) continue;
+    seen.add(id); list.push({ id, title: String(t.title || "").slice(0, 120), artist: String(t.artist || "").slice(0, 120) });
+  }
+  await fsPatch(env, "songs/cart", { list, updatedAt: new Date() });
+  return { songs: list };
+}
+// האזנה בדף: הקובץ עצמו (הדף לא יכול לטעון אודיו ממטא), רק מכתובת התצוגה המקדימה של מטא, ורק תחילת השיר
+const SONG_BYTES = 700 * 1024;
+async function mcpSongPlay(env, a){
+  let u;
+  try { u = new URL(String(a.preview || "")); } catch { throw fail("bad_request", "preview must be the preview link from instagram_audio."); }
+  if (u.protocol !== "https:" || !/(^|\.)fbcdn\.net$/.test(u.hostname)) throw fail("bad_request", "preview must be the preview link from instagram_audio.");
+  const r = await fetch(u.toString(), { headers: { range: `bytes=0-${SONG_BYTES - 1}` } });
+  if (!r.ok) throw fail("meta_error", r.status === 403 || r.status === 410 ? "The preview link expired. Search again for a fresh one." : `Meta did not return the song (${r.status}).`, 502);
+  const bytes = new Uint8Array(await r.arrayBuffer()).subarray(0, SONG_BYTES);
+  let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return { mime: (r.headers.get("content-type") || "audio/mp4").split(";")[0].replace(/^video\//, "audio/"), data: btoa(bin) };
+}
+
 async function mcpPosts(env, a){
   const { since, until } = mcpRange(a, 90);
   const from = since + "T00:00:00Z", to = dayShift(until, 1) + "T00:00:00Z";
@@ -873,7 +913,8 @@ async function mcp(env, request, key){
   // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
   const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
     google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
-  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio }[params.name];
+  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio,
+    songs: mcpSongs, songs_set: mcpSongsSet, song_play: mcpSongPlay }[params.name];
   if (!run && !google) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
   try {
     if (google){ const out = await google(); return reply({ id, result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out } }); }
