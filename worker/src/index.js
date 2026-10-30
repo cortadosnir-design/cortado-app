@@ -136,7 +136,8 @@ function hebrew(msg){
   if (!s) return "משהו השתבש. נסה שוב.";
   if (HEBREW_RE.test(s)) return s;              // כבר בעברית — לא נוגעים
   for (const [re, make] of ERROR_MAP) if (re.test(s)) return make(s);
-  return "משהו השתבש מול שירות חיצוני. נסה שוב, ואם זה חוזר — ספר לי מה עשית.";
+  // הסיבה המקורית מצורפת בקצרה: בלעדיה אי אפשר לדעת מה נכשל (30.10.2026, תיוג בסטורי)
+  return `משהו השתבש מול שירות חיצוני (${s.replace(/\s+/g, " ").slice(0, 140)}). נסה שוב, ואם זה חוזר — ספר לי מה עשית.`;
 }
 
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
@@ -292,6 +293,7 @@ async function igImageContainer(env, params, tags, xy = false){
   c ||= (await graph(env, `${env.IG_USER_ID}/media`, params)).id;
   return { id: String(c), ...out };
 }
+const MEDIA_URL = "https://raw.githubusercontent.com/cortadosnir-design/cortado-app/social-media/";
 // וידאו: אין user_tags, ולכן התיוג הוא שורת @ בסוף הכיתוב של אינסטגרם בלבד (פייסבוק נשאר נקי)
 const withMentions = (caption, tags) => tags.length ? `${caption || ""}\n\n${tags.map(t => "@" + t).join(" ")}`.trim() : (caption || "");
 
@@ -433,9 +435,13 @@ async function botVideoStory(env, request){
     (async () => {
       if (!env.IG_USER_ID) return void (out.igSkipped = "חשבון האינסטגרם לא מחובר לשרת");
       try {
-        const c = await igImageContainer(env, { media_type: "STORIES", upload_type: "resumable" }, tags);
+        // מטא מקבלת user_tags בסטורי וידאו רק עם video_url, לא בהעלאה resumable (30.10.2026: כל סטורי עם מוזיקה יצא "בלי תיוג").
+        // הסרטון יושב בענף social-media הציבורי, אז אינסטגרם מושך אותו משם; בלי כתובת כזו, העלאה בלי תיוג
+        const url = typeof meta.url === "string" && meta.url.startsWith(MEDIA_URL) ? meta.url : "";
+        const c = url ? await igImageContainer(env, { media_type: "STORIES", video_url: url }, tags)
+          : { ...(await igImageContainer(env, { media_type: "STORIES", upload_type: "resumable" }, [])), tagError: tags.length ? "סרטון בלי כתובת ציבורית" : "" };
         Object.assign(out, { igTagged: c.tagged, igTagError: c.tagError });
-        await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
+        if (!url) await rupload(env, `ig-api-upload/${GRAPH_VER}/${c.id}`, bytes);
         if (!(await igReady(env, c.id, 18, 5000))) throw fail("meta_error", "אינסטגרם עוד מעבד את הסרטון, והסטורי לא פורסם.", 502);
         out.igStoryId = String((await graph(env, `${env.IG_USER_ID}/media_publish`, { creation_id: c.id })).id);
       } catch (e){ out.igError = hebrew(e.message); out.igTagged = []; }

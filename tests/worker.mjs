@@ -447,14 +447,20 @@ if (f2) process.exitCode = 1;
   // סטורי עם מוזיקה: הקובץ עצמו לשתי הרשתות
   const sreq = (o = {}, body = new Uint8Array([1, 2, 3])) => new Request("https://x/post/bot/story", { method: "POST", body, headers: { "x-bot-key": "k", "content-type": "video/mp4", "x-story": meta(o) } });
   const vs = mk();
-  const vso = await vs.botVideoStory(env, sreq({ tags: ["galiluz.north", "@galilback"] }));
+  const VURL = "https://raw.githubusercontent.com/cortadosnir-design/cortado-app/social-media/2026-10-30/day-slot-0900.mp4";
+  const vso = await vs.botVideoStory(env, sreq({ tags: ["galiluz.north", "@galilback"], url: VURL }));
   const vsc = vs.calls.find(c => c[1] === "I/media")[2];
   ok("סטורי וידאו: פייסבוק ואינסטגרם יצאו", vso.ok && vso.video && vso.fbStoryId === "s1" && vso.igStoryId === "ig9", JSON.stringify(vso));
-  ok("אינסטגרם: STORIES, העלאה של הקובץ, ותיוג", vsc.media_type === "STORIES" && vsc.upload_type === "resumable" && JSON.parse(vsc.user_tags).map(u => u.username).join() === "galiluz.north,galilback"
-    && vs.uploads.some(u => u[0].includes("ig-api-upload/v21.0/c1")) && vs.uploads.some(u => u[0].includes("video-upload/v21.0/vs1")));
+  // מטא מקבלת user_tags בסטורי וידאו רק עם video_url (30.10.2026): אינסטגרם מושך מהענף, בלי העלאה resumable
+  ok("אינסטגרם: STORIES מ-video_url, עם תיוג", vsc.media_type === "STORIES" && vsc.video_url === VURL && !vsc.upload_type && JSON.parse(vsc.user_tags).map(u => u.username).join() === "galiluz.north,galilback"
+    && !vs.uploads.some(u => u[0].includes("ig-api-upload")) && vs.uploads.some(u => u[0].includes("video-upload/v21.0/vs1")), JSON.stringify(vsc));
   ok("פייסבוק: video_stories, התחלה וסיום", vs.calls.some(c => c[1] === "P/video_stories" && c[2].upload_phase === "finish" && c[2].video_id === "vs1"));
-  const vt = await mk({ tagFails: true }).botVideoStory(env, sreq({ tags: ["galiluz.north"] }));
-  ok("סטורי וידאו: תיוג נדחה, יוצא בלי", vt.igStoryId === "ig9" && vt.igTagError === "tag no" && !vt.igTagged.length);
+  const vx = mk(), vxo = await vx.botVideoStory(env, sreq({ tags: ["galiluz.north"], url: "https://evil.example/x.mp4" }));
+  const vxc = vx.calls.find(c => c[1] === "I/media")[2];
+  ok("כתובת מחוץ לענף: העלאה resumable בלי תיוג, והסיבה מדווחת", vxc.upload_type === "resumable" && !vxc.video_url && !vxc.user_tags && vxo.igStoryId === "ig9" && vxo.igTagError && !vxo.igTagged.length
+    && vx.uploads.some(u => u[0].includes("ig-api-upload/v21.0/c1")), JSON.stringify(vxo));
+  const vt = await mk({ tagFails: true }).botVideoStory(env, sreq({ tags: ["galiluz.north"], url: VURL }));
+  ok("סטורי וידאו: תיוג נדחה, יוצא בלי", vt.igStoryId === "ig9" && /tag no/.test(vt.igTagError) && !vt.igTagged.length, JSON.stringify(vt));
   const vf = await mk({ fbFails: true }).botVideoStory(env, sreq());
   ok("סטורי וידאו: פייסבוק נכשל, אינסטגרם בכל זאת", vf.fbError === "fb no" && vf.igStoryId === "ig9" && vf.ok);
   let ve = null; try { await mk().botVideoStory(env, sreq({}, new Uint8Array())); } catch (e){ ve = e; }
