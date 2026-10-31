@@ -23,6 +23,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .row{{position:absolute;right:170px;left:170px;display:flex;justify-content:space-between;align-items:baseline;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5)}}
 .row .n{{font-weight:600;font-size:50px;color:#F7F2DC}}
 .row .t{{font-weight:700;font-size:56px;direction:ltr;unicode-bidi:isolate;text-align:left;line-height:1.12}}
+.note{{font-weight:700;font-size:34px;color:#fff;background:#C9774A;border-radius:22px;padding:4px 16px;margin-right:12px;vertical-align:middle}}
 .row.off .t{{color:#F7F2DC;opacity:.75;font-weight:500}}
 .q{{position:absolute;width:190px;text-align:center;color:#F7F2DC;font-weight:600;font-size:30px;text-shadow:0 2px 8px rgba(0,0,0,.7)}}
 .q img{{width:146px;height:146px;display:block;margin:0 auto 6px;background:#fff;border-radius:22px;padding:8px;image-rendering:pixelated}}
@@ -35,11 +36,11 @@ layers = [("00-shade", "<div class=shade></div>"),
           ("01-head", "<div class='c h'>השבוע בעגלה</div>"),
           ("02-date", f"<div class='c d'>{week['range']}</div><div class=rule></div>")]
 y = 360
-for i, (name, times) in enumerate(week["days"]):
+for i, (name, times, *note) in enumerate(week["days"]):  # optional 3rd item: a short note beside the day
     off = times == ["סגור"]
     t = "סגור" if off else "<br>".join(times)
     layers.append((f"1{i}-day", f"<div class='row{' off' if off else ''}' style='top:{y}px'>"
-                   f"<span class=n>{name}</span><span class=t{' style=direction:rtl' if off else ''}>{t}</span></div>"))
+                   f"<span class=n>{name}{f' <b class=note>{note[0]}</b>' if note else ''}</span><span class=t{' style=direction:rtl' if off else ''}>{t}</span></div>"))
     y += 80 + 63 * (len(times) - 1)
 if week.get("menu"):  # what's on (owner 31.10.2026)
     layers.append(("17-menu", f"<div class='c m' style='top:{y + 14}px'>{week['menu']}</div>")); y += 74
