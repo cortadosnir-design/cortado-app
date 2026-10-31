@@ -28,7 +28,7 @@ html = lambda body: f"<html><head><meta charset=utf-8><style>{CSS}</style></head
 
 layers = [("00-shade", "<div class=shade></div>"),
           ("01-head", f"<div class='c h'>{today.get('head', 'פתוחים היום')}</div>"),
-          ("02-date", f"<div class='c d'>{today['day']} · <span style='direction:ltr;unicode-bidi:isolate'>{today['date']}</span></div>")]
+          ("02-date", f"<div class='c d'>{today['place'] + ' · ' if today.get('place') else ''}{today['day']} · <span style='direction:ltr;unicode-bidi:isolate'>{today['date']}</span></div>")]
 for i, t in enumerate(today["times"]):
     layers.append((f"1{i}-time", f"<div class='c t' style='top:{372 + i * 96}px'>{t}</div>"))
 if today.get("menu"):  # what's on, under the hours (owner 31.10.2026: "אין כיתוב על הפיצות ועל הקפה")
