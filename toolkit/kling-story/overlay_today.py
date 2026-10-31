@@ -37,7 +37,8 @@ qr_top = today.get("qr_top", 1110)  # right-hand column on the lawn, clear of th
 for i, (name, label) in enumerate([("waze", "ניווט"), ("whatsapp", "וואטסאפ"), ("instagram", "אינסטגרם")]):
     layers.append((f"2{i}-qr", f"<div class=q style='top:{qr_top + i * 200}px;right:120px'>"
                    f"<img src='data:image/png;base64,{b64(qrdir / f'{name}.png')}'>{label}</div>"))
-layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))
+if today.get("end", True):  # a closed-day story leaves "כולם מוזמנים" out
+    layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))
 
 with sync_playwright() as p:
     br = p.chromium.launch(); pg = br.new_page(viewport={"width": 1080, "height": 1920})
