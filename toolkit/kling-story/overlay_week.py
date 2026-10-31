@@ -17,7 +17,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .shade{{position:absolute;inset:0 0 auto 0;height:1120px;background:linear-gradient(rgba(20,20,23,.78),rgba(20,20,23,.62) 80%,rgba(20,20,23,0))}}
 .c{{position:absolute;width:100%;text-align:center;color:#F7F2DC;text-shadow:0 3px 14px rgba(0,0,0,.45)}}
 .h{{top:150px;font-weight:800;font-size:82px}}
-.d{{top:250px;font-weight:500;font-size:42px;opacity:.92;direction:ltr;unicode-bidi:isolate}}
+.d{{top:250px;font-weight:500;font-size:42px;opacity:.92}}
 .m{{font-weight:600;font-size:40px;color:#F7F2DC;line-height:1.3}}
 .rule{{position:absolute;top:322px;left:300px;width:480px;height:3px;background:#C9774A;border-radius:2px}}
 .row{{position:absolute;right:170px;left:170px;display:flex;justify-content:space-between;align-items:baseline;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5)}}
@@ -34,7 +34,7 @@ html = lambda body: f"<html><head><meta charset=utf-8><style>{CSS}</style></head
 
 layers = [("00-shade", "<div class=shade></div>"),
           ("01-head", "<div class='c h'>השבוע בעגלה</div>"),
-          ("02-date", f"<div class='c d'>{week['range']}</div><div class=rule></div>")]
+          ("02-date", f"<div class='c d'>{week.get('place', '') + ' · ' if week.get('place') else ''}<span style='direction:ltr;unicode-bidi:isolate'>{week['range']}</span></div><div class=rule></div>")]
 y = 360
 for i, (name, times, *note) in enumerate(week["days"]):  # optional 3rd item: a short note beside the day
     off = times == ["סגור"]
