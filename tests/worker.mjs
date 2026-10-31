@@ -656,16 +656,16 @@ if (f2) process.exitCode = 1;
   ok("שבת עם שני טווחים = שתי תקופות באותו תאריך", per.filter(x => x.startDate.day === 10).length === 2 && per.find(x => x.startDate.day === 10).openTime.hours === 9);
   ok("יום סגור = closed", JSON.stringify(g.specialPeriods([{ date: "2026-10-11", ranges: [] }])) === JSON.stringify([{ startDate: { year: 2026, month: 10, day: 11 }, endDate: { year: 2026, month: 10, day: 11 }, closed: true }]));
 
-  // בלי GB_LIVE: קוראים בלבד, ומחזירים מה ישתנה
+  // GB_LIVE=0: קוראים בלבד, ומחזירים מה ישתנה
   shown = [{ startDate: { year: 2026, month: 10, day: 10 }, endDate: { year: 2026, month: 10, day: 10 }, openTime: { hours: 16 }, closeTime: { hours: 19 } },
     { startDate: { year: 2026, month: 12, day: 25 }, endDate: { year: 2026, month: 12, day: 25 }, closed: true },
     { startDate: { year: 2026, month: 10, day: 1 }, endDate: { year: 2026, month: 10, day: 1 }, closed: true }];
-  const dry = await g.setGoogleHours(GB, { weeks, today: "2026-10-08" });
+  const dry = await g.setGoogleHours({ ...GB, GB_LIVE: "0" }, { weeks, today: "2026-10-08" });
   ok("בדיקה בלי כתיבה: אין PATCH", dry.dry === true && !calls.some(c => c[0] === "PATCH"));
   ok("ומה ישתנה, יום יום", /08\.10: עכשיו לפי השעות הקבועות → 16:30–19:00/.test(dry.text) && /10\.10: עכשיו 16:00–19:00 → 09:00–13:00, 16:00–19:00/.test(dry.text), dry.text);
 
-  // GB_LIVE=1: כותבים את החלון, שומרים חג עתידי, מוחקים עבר, וקוראים חזרה
-  const live = await g.setGoogleHours({ ...GB, GB_LIVE: "1" }, { weeks, today: "2026-10-08" });
+  // ברירת המחדל (31.10.2026): כותבים את החלון, שומרים חג עתידי, מוחקים עבר, וקוראים חזרה
+  const live = await g.setGoogleHours(GB, { weeks, today: "2026-10-08" });
   const patch = calls.find(c => c[0] === "PATCH");
   ok("רק specialHours, לא השעות הקבועות", /updateMask=specialHours$/.test(patch[1]) && !("regularHours" in patch[2]));
   const sent = patch[2].specialHours.specialHourPeriods.map(x => `${x.startDate.month}/${x.startDate.day}`);

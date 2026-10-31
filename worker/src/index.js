@@ -1030,16 +1030,9 @@ async function fsQuery(env, colName, wheres){
    Google Business Profile הוא הערוץ מספר 1 לחיפוש "קפה ליד": מי שנוסע לבניאס
    רואה את הכרטיס בגוגל, לא את עמוד הפייסבוק. שעות שגויות שם שולחות אנשים לעגלה סגורה.
 
-   מוכן, אבל דורש אישור ידני מגוגל ל-Business Profile API. עד שיאושר
-   setGoogleHours מחזיר not_configured, והבוט שולח לבעלים טקסט להדבקה ידנית.
-
-   ביום שהאישור מגיע (הקוטה עולה מ-0 ל-300 QPM), צריך להגדיר ב-Cloudflare:
-     GB_LOCATION     — locations/12345678901234567890
-     GB_CLIENT_ID    — מ-OAuth client ב-Cloud Console
-     GB_CLIENT_SECRET
-     GB_REFRESH_TOKEN — נוצר פעם אחת בהסכמת הבעלים, לא פג
-   ואז כל פרסום מריץ בדיקה בלי כתיבה ("גוגל מציג עכשיו X, אחרי הפרסום Y").
-   רק אחרי שהבעלים ראה שהבדיקה נכונה: GB_LIVE=1, ומאז גוגל מתעדכן לבד. */
+   ה-API אושר ב-12.10.2026, והחיבור נשמר ב-Firestore דרך /google/connect (ראה gbEnv למטה).
+   מ-31.10.2026 (הבעלים: "שהפעמים הבאות זה לא יקרה") גוגל מתעדכן לבד בכל פרסום ובכל רענון לילי,
+   עם קריאה חוזרת. GB_LIVE=0 בלוח של Cloudflare מחזיר לבדיקה בלי כתיבה (והבוט שולח טקסט להדבקה). */
 const GB_API = "https://mybusinessbusinessinformation.googleapis.com/v1";
 
 // refresh token → access token. נשמר בזיכרון ה-Worker עד שפג.
@@ -1072,7 +1065,7 @@ function gbTime(hhmm){
 /* גוגל מקבל שעות לפי תאריך (specialHours) לכל יום שפורסם, מהיום ועד 14 יום קדימה. השעות הקבועות (regularHours)
    לא משתנות: שינוי של שבוע אחד לא הופך לשעות של כל השבועות. שעות מיוחדות של תאריכים אחרים (חג שהבעלים הגדיר
    בגוגל, יום שעוד לא פורסם) נשארות כמו שהן.
-   בלי GB_LIVE=1 זו בדיקה בלי כתיבה: מחזיר מה גוגל מציג עכשיו ומה היה נכתב. */
+   עם GB_LIVE=0 זו בדיקה בלי כתיבה: מחזיר מה גוגל מציג עכשיו ומה היה נכתב. */
 const GB_WINDOW = 14;
 function googleDates(weeks, today){
   const out = [];
@@ -1119,7 +1112,7 @@ async function setGoogleHours(env, { weeks, today }){
   const want = byDate(periods), now = byDate(before);
   const diff = days.map(x => x.date).filter(d => (now[d] || "לפי השעות הקבועות") !== want[d])
     .map(d => `${d.slice(8)}.${+d.slice(5, 7)}: עכשיו ${now[d] || "לפי השעות הקבועות"} → ${want[d]}`);
-  if (env.GB_LIVE !== "1") return { dry: true, text: diff.length ? diff.join("\n") : "גוגל כבר מציג את השעות האלה" };
+  if (env.GB_LIVE === "0") return { dry: true, text: diff.length ? diff.join("\n") : "גוגל כבר מציג את השעות האלה" };
   const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=specialHours`, {
     method: "PATCH", headers: { ...auth, "content-type": "application/json" },
     body: JSON.stringify({ specialHours: { specialHourPeriods: [...periods, ...keep] } }),
