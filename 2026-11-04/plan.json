@@ -1,0 +1,216 @@
+{
+ "durationSec": 44.0,
+ "music": "media/music_reel.wav",
+ "musicVol": 1.0,
+ "musicTailAt": 44.0,
+ "scenes": [
+  {
+   "kind": "broll",
+   "to": 3,
+   "src": "media/drone.mp4",
+   "startFrom": 0.3,
+   "enter": "cut",
+   "drift": "in",
+   "hook": {
+    "lines": [
+     {
+      "text": "באתם לצפון",
+      "at": 0.15
+     },
+     {
+      "text": "ליום אחד?",
+      "at": 0.4,
+      "accent": true
+     }
+    ]
+   },
+   "from": 0
+  },
+  {
+   "kind": "broll",
+   "to": 8,
+   "src": "media/banias.mp4",
+   "enter": "zoom",
+   "drift": "in",
+   "place": {
+    "name": "הבניאס",
+    "sub": "השביל התלוי · ברגל מהעגלה",
+    "at": 3.2
+   },
+   "from": 3,
+   "punch": [
+    5.5
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 13,
+   "src": "media/tank.mp4",
+   "enter": "whip",
+   "drift": "in",
+   "place": {
+    "name": "הטנק הסורי",
+    "sub": "5 דקות הליכה",
+    "at": 8.2
+   },
+   "from": 8,
+   "punch": [
+    10.5
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 17.5,
+   "src": "media/snir.mp4",
+   "enter": "push",
+   "drift": "left",
+   "place": {
+    "name": "נחל שניר",
+    "sub": "10 דקות נסיעה",
+    "at": 13.2
+   },
+   "from": 13,
+   "punch": [
+    15.25
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 22.0,
+   "src": "media/teldan.mp4",
+   "enter": "whip",
+   "drift": "in",
+   "place": {
+    "name": "תל דן",
+    "sub": "7 דקות נסיעה",
+    "at": 17.7
+   },
+   "ov": 0.7,
+   "from": 17.5,
+   "punch": [
+    19.75
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 27.0,
+   "src": "media/lawn.mp4",
+   "enter": "fade",
+   "drift": "in",
+   "place": {
+    "name": "קיבוץ שניר",
+    "sub": "הדשא במרכז הקיבוץ",
+    "at": 22.2
+   },
+   "from": 22.0,
+   "punch": [
+    24.5
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 32.0,
+   "src": "media/cart.mp4",
+   "enter": "zoom",
+   "drift": "in",
+   "ov": 0.7,
+   "from": 27.0,
+   "punch": [
+    29.5
+   ]
+  },
+  {
+   "kind": "broll",
+   "to": 37.0,
+   "src": "media/team.mp4",
+   "enter": "fade",
+   "drift": "out",
+   "ov": 0.7,
+   "from": 32.0,
+   "punch": [
+    34.5
+   ]
+  },
+  {
+   "kind": "end",
+   "to": 44.0,
+   "enter": "fade",
+   "ov": 0,
+   "logo": "media/logo.png",
+   "title": "קפה קורטדו",
+   "sub": "קיבוץ שניר",
+   "from": 37.0,
+   "contacts": [
+    {
+     "label": "טלפון",
+     "value": "054-312-5466"
+    },
+    {
+     "label": "בווייז",
+     "value": "קפה קורטדו"
+    }
+   ],
+   "note": "השעות מתעדכנות כל שבוע באינסטגרם ובפייסבוק",
+   "qrs": [
+    {
+     "img": "media/qr-instagram.svg",
+     "label": "אינסטגרם"
+    },
+    {
+     "img": "media/qr-facebook.svg",
+     "label": "פייסבוק"
+    },
+    {
+     "img": "media/qr-whatsapp.svg",
+     "label": "וואטסאפ"
+    }
+   ]
+  }
+ ],
+ "captions": [
+  {
+   "from": 3.9,
+   "to": 7.85,
+   "text": "השביל התלוי, ומים מהחרמון",
+   "hl": "מהחרמון"
+  },
+  {
+   "from": 8.9,
+   "to": 12.85,
+   "text": "טנק סורי הפוך בתוך הנחל",
+   "hl": "הפוך"
+  },
+  {
+   "from": 13.9,
+   "to": 17.35,
+   "text": "מים קרים גם באמצע הקיץ",
+   "hl": "קרים"
+  },
+  {
+   "from": 18.4,
+   "to": 21.85,
+   "text": "מעיינות בצל עצים עתיקים",
+   "hl": "עתיקים"
+  },
+  {
+   "from": 22.9,
+   "to": 26.85,
+   "text": "צל, גינה לילדים, וקפה",
+   "hl": "וקפה"
+  },
+  {
+   "from": 27.9,
+   "to": 31.85,
+   "text": "קורטדו בהשראת סבתא אאידה",
+   "hl": "סבתא אאידה",
+   "pos": "mid"
+  },
+  {
+   "from": 32.9,
+   "to": 36.85,
+   "text": "בפעם הבאה בצפון, תעצרו אצלנו",
+   "hl": "אצלנו"
+  }
+ ],
+ "sfx": []
+}
