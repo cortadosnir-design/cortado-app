@@ -1,0 +1,13 @@
+{
+  "hook": "קצת חלב, הרבה סבלנות",
+  "motion": "kinetic",
+  "music": "drive",
+  "scenes": [
+    {"media": "toolkit/assets/photos/coffee-5.jpg", "dur": 3.0},
+    {"media": "toolkit/assets/photos/latte.jpg", "text": "אחת לך, אחת לחבר", "dur": 3.0},
+    {"media": "toolkit/assets/photos/pastry-4.jpg", "text": "ועוגה באמצע השולחן", "dur": 3.5}
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 63
+}

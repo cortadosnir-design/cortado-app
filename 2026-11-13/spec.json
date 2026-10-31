@@ -1,0 +1,14 @@
+{
+  "hook": "שולחן אחד, הרבה כוסות",
+  "motion": "push",
+  "music": "cafe",
+  "scenes": [
+    {"media": "toolkit/assets/photos/tray.jpg", "dur": 2.5},
+    {"media": "toolkit/assets/photos/pastry-3.jpg", "text": "משהו מתוק לחלוק", "dur": 2.5},
+    {"media": "toolkit/assets/photos/pastry-2.jpg", "dur": 2.0},
+    {"media": "toolkit/assets/photos/twocups.jpg", "text": "ואף אחד לא ממהר", "dur": 3.5}
+  ],
+  "end": "נתראה בעגלה",
+  "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+  "seed": 74
+}

@@ -1,0 +1,29 @@
+{
+ "hook": "כששואלים אם שניר חזרה לעצמה",
+ "intro": true,
+ "motion": "chalk",
+ "music": "cafe",
+ "scenes": [
+  {
+   "media": "toolkit/assets/photos/coffee-2.jpg",
+   "dur": 2.5
+  },
+  {
+   "media": "toolkit/assets/photos/cart.jpg",
+   "dur": 2.0
+  },
+  {
+   "media": "2026-10-23/avira/counter-dusk.jpg",
+   "text": "חזרנו הביתה ופתחנו עגלה",
+   "dur": 3.0
+  },
+  {
+   "media": "assets-ref/cart-real-2026-10-31.jpg",
+   "text": "ועכשיו השולחנות מתמלאים שוב",
+   "dur": 4.0
+  }
+ ],
+ "end": "נתראה בעגלה",
+ "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+ "seed": 52
+}
