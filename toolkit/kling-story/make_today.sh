@@ -3,8 +3,10 @@
 # Kling clip + exact logo + 'open today' layers fading in one by one + Kling ambience mixed with soft birds.
 set -euo pipefail
 B="$(cd "$(dirname "$0")" && pwd)"; L="$1"; OUT="$2"; D=8.04
-inputs=(-i "$B/base-coffee.mp4" -i "$B/soundtrack.wav" -loop 1 -t $D -i "$B/logo-layer.png")
-filters="[0:v][2:v]overlay=0:0[v0]"
+# BASE / SOUND / LOGO override the clip, the soundtrack and the cup logo (LOGO=none for an item without the cup)
+inputs=(-i "${BASE:-$B/base-coffee.mp4}" -i "${SOUND:-$B/soundtrack.wav}")
+if [ "${LOGO:-$B/logo-layer.png}" = none ]; then filters="[0:v]null[v0]"; inputs+=(-f lavfi -t $D -i color=black@0:s=16x16,format=rgba)
+else inputs+=(-loop 1 -t $D -i "${LOGO:-$B/logo-layer.png}"); filters="[0:v][2:v]overlay=0:0[v0]"; fi
 n=3; prev=v0
 add() { # file start — a layer the day doesn't have (second time range) is skipped
   [ -f "$1" ] || return 0
@@ -25,6 +27,7 @@ line a                1.91
 add "$L/10-time.png"  2.87
 add "$L/11-time.png"  3.35
 line b                3.83
+add "$L/15-menu.png"  3.83
 add "$L/20-qr.png"    4.31
 add "$L/21-qr.png"    4.79
 add "$L/22-qr.png"    5.27

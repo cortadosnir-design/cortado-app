@@ -18,6 +18,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .c{{position:absolute;width:100%;text-align:center;color:#F7F2DC;text-shadow:0 3px 14px rgba(0,0,0,.45)}}
 .h{{top:150px;font-weight:800;font-size:82px}}
 .d{{top:250px;font-weight:500;font-size:42px;opacity:.92;direction:ltr;unicode-bidi:isolate}}
+.m{{font-weight:600;font-size:40px;color:#F7F2DC;line-height:1.3}}
 .rule{{position:absolute;top:322px;left:300px;width:480px;height:3px;background:#C9774A;border-radius:2px}}
 .row{{position:absolute;right:170px;left:170px;display:flex;justify-content:space-between;align-items:baseline;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5)}}
 .row .n{{font-weight:600;font-size:50px;color:#F7F2DC}}
@@ -39,7 +40,9 @@ for i, (name, times) in enumerate(week["days"]):
     t = "סגור" if off else "<br>".join(times)
     layers.append((f"1{i}-day", f"<div class='row{' off' if off else ''}' style='top:{y}px'>"
                    f"<span class=n>{name}</span><span class=t{' style=direction:rtl' if off else ''}>{t}</span></div>"))
-    y += 86 + 63 * (len(times) - 1)
+    y += 80 + 63 * (len(times) - 1)
+if week.get("menu"):  # what's on (owner 31.10.2026)
+    layers.append(("17-menu", f"<div class='c m' style='top:{y + 14}px'>{week['menu']}</div>")); y += 74
 assert y < 1090, f"rows run into the QR column ({y}px)"
 for i, (name, label) in enumerate([("waze", "ניווט"), ("whatsapp", "וואטסאפ"), ("instagram", "אינסטגרם")]):
     layers.append((f"2{i}-qr", f"<div class=q style='top:{1110 + i * 200}px;right:120px'>"
