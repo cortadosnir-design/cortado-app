@@ -714,7 +714,7 @@ if (f2) process.exitCode = 1;
     if (path === "ig1/media") return { data: [{ id: "m1", caption: "דוכנים", media_type: "IMAGE", media_product_type: "FEED", timestamp: "2026-10-10T06:02:26+0000", permalink: "https://ig/m1", like_count: 8, comments_count: 0,
       insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }],
       paging: { cursors: { after: "c2" }, next: "https://graph/next" } };
-    if (path === "p1/stories") return { data: [{ post_id: "p1_s1", status: "published", creation_time: "2026-10-14T07:00:00+0000", media_type: "video", url: "https://fb/s1" }, { post_id: "p1_s0", status: "archived" }] };
+    if (path === "p1/stories") return { data: [{ post_id: "p1_s1", status: "published", creation_time: "2026-10-14T07:00:00+0000", media_type: "video", url: "https://fb/s1" }, { post_id: "p1_s0", status: "archived" }, { post_id: "p1_s2", status: "published", creation_time: 1760425200, media_type: "photo" }, { post_id: "p1_s3", status: "published", media_type: "photo" }] };
     if (path === "ig1/stories") return { data: [{ id: "s1", media_type: "VIDEO", timestamp: "2026-10-14T07:00:05+0000", permalink: "https://ig/s1" }] };
     if (path === "s1/insights") return { data: [{ name: "views", values: [{ value: 23 }] }, { name: "reach", values: [{ value: 20 }] }] };
     if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
@@ -771,7 +771,7 @@ if (f2) process.exitCode = 1;
   ok("ריל מחוץ לטווח לא נכנס", !byId["50"]);
   ok("אינסטגרם: צפיות והגעה", byId.m1.views === 376 && byId.m1.reach === 169 && byId.m1.at === "2026-10-10T06:02:26.000Z");
   ok("ממוין מהחדש לישן", posts.rows.filter(r => r.kind !== "story")[0].id === "m1");
-  ok("טווח שכולל את היום: סטוריז חיים נכנסים כ-story, ראשונים", posts.rows[0].kind === "story" && posts.rows.filter(r => r.kind === "story").length === 2 && byId.s1.views === 23, JSON.stringify(posts.rows.slice(0, 2)));
+  ok("טווח שכולל את היום: סטוריז חיים נכנסים כ-story, ראשונים", posts.rows[0].kind === "story" && posts.rows.filter(r => r.kind === "story").length === 4 && byId.s1.views === 23 && byId.p1_s2.at === "2026-10-14T07:00:00.000Z" && byId.p1_s3.at === "", JSON.stringify(posts.rows.slice(0, 2)));
   ok("טווח בעבר: בלי סטוריז", !(await tool("posts", { since: "2026-10-01", until: "2026-10-08" })).structuredContent.rows.some(r => r.kind === "story"));
   ok("אינסטגרם: עמוד שני של media נכנס, כריל", byId.m2 && byId.m2.kind === "reel", JSON.stringify(Object.keys(byId)));
   ok("אינסטגרם: הערה כשמטא מחזירה פחות ממה שיש בחשבון", posts.notes.some(n => /2 media items, the account holds 9/.test(n)), JSON.stringify(posts.notes));

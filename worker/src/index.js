@@ -924,7 +924,8 @@ async function mcpPosts(env, a){
     notes.push(...st.notes);
   }
 
-  const iso = (t) => new Date(Date.parse(String(t).replace(/\+0000$/, "Z"))).toISOString();
+  // סטורי של פייסבוק מגיע לפעמים בלי זמן, או עם שניות מאז 1970; שורה בלי זמן תקין נשארת כמו שהיא, לא מפילה את הכלי
+  const iso = (t) => { const ms = typeof t === "number" ? t * 1000 : Date.parse(String(t).replace(/\+0000$/, "Z")); return Number.isNaN(ms) ? "" : new Date(ms).toISOString(); };
   rows.forEach(r => { r.at = iso(r.at); });
   rows.sort((x, y) => (y.at < x.at ? -1 : 1));
   return { since, until, rows, notes };
