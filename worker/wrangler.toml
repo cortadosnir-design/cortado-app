@@ -12,3 +12,7 @@ keep_vars = true
 # דורש את הסוד FIREBASE_SA בלוח של Cloudflare — ראה worker/README.md.
 [triggers]
 crons = ["*/10 * * * *"]
+
+# לוגים של בקשות ושגיאות (Workers Logs, בתוכנית החינמית), כמו בבוט: ניסיונות עם מפתח שגוי (403) נראים בלוח של Cloudflare.
+[observability]
+enabled = true

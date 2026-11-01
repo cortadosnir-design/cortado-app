@@ -1184,6 +1184,9 @@ const gbEsc = (s) => String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<
 
 async function googleConnect(env, request){
   if (!env.FIREBASE_SA) return gbPage("חסר FIREBASE_SA", "השרת לא יכול לשמור את החיבור.", 500);
+  // הדף פתוח לכל העולם בלי התחברות. אחרי שגוגל מחוברת הוא נסגר: זר לא כותב ל-Firestore ולא מנסה להחליף את החיבור.
+  if ((await fsGet(env, "secrets/google").catch(() => null))?.GB_REFRESH_TOKEN)
+    return gbPage("גוגל כבר מחוברת", "כדי לחבר מחדש: מוחקים את המסמך secrets/google ב-Firebase Console ופותחים את הדף שוב.", 403);
   let id = env.GB_CLIENT_ID, secret = env.GB_CLIENT_SECRET;
   if (request.method === "POST"){
     const f = await request.formData().catch(() => null);

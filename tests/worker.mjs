@@ -853,6 +853,8 @@ if (f2) process.exitCode = 1;
   const sg = store["secrets/google"] || {};
   ok("מייסד → נשמרים טוקן, חשבון ומיקום", done.status === 200 && sg.GB_REFRESH_TOKEN === "R" && sg.GB_ACCOUNT === "accounts/1" && sg.GB_LOCATION === "locations/9" && sg.GB_CLIENT_SECRET === "SECRET12345", JSON.stringify(sg));
   ok("הממתין נמחק", store["secrets/google_pending"].secret === "");
+  const again = await g.googleConnect(ENV, new Request("https://x/google/connect", { method: "POST", body: new URLSearchParams({ id: "evil.apps.googleusercontent.com", secret: "EVIL1234567" }) }));
+  ok("אחרי החיבור הדף נסגר → 403 ושום דבר לא נכתב", again.status === 403 && store["secrets/google_pending"].secret === "" && store["secrets/google"].GB_CLIENT_SECRET === "SECRET12345");
   // 19.10.2026: refresh token ישן בלוח של Cloudflare לא מתערבב עם client חדש מהחיבור
   const ge = await g.gbEnv({ ...ENV, GB_CLIENT_ID: "old", GB_CLIENT_SECRET: "old", GB_REFRESH_TOKEN: "old", GB_ACCOUNT: "old", GB_LOCATION: "old" });
   ok("החיבור מנצח את הלוח", ge.GB_REFRESH_TOKEN === "R" && ge.GB_CLIENT_SECRET === "SECRET12345" && ge.GB_LOCATION === "locations/9", JSON.stringify(ge));
