@@ -714,6 +714,9 @@ if (f2) process.exitCode = 1;
     if (path === "ig1/media") return { data: [{ id: "m1", caption: "דוכנים", media_type: "IMAGE", media_product_type: "FEED", timestamp: "2026-10-10T06:02:26+0000", permalink: "https://ig/m1", like_count: 8, comments_count: 0,
       insights: { data: [{ name: "reach", values: [{ value: 169 }] }, { name: "views", values: [{ value: 376 }] }, { name: "total_interactions", values: [{ value: 8 }] }] } }],
       paging: { cursors: { after: "c2" }, next: "https://graph/next" } };
+    if (path === "p1/stories") return { data: [{ post_id: "p1_s1", status: "published", creation_time: "2026-10-14T07:00:00+0000", media_type: "video", url: "https://fb/s1" }, { post_id: "p1_s0", status: "archived" }] };
+    if (path === "ig1/stories") return { data: [{ id: "s1", media_type: "VIDEO", timestamp: "2026-10-14T07:00:05+0000", permalink: "https://ig/s1" }] };
+    if (path === "s1/insights") return { data: [{ name: "views", values: [{ value: 23 }] }, { name: "reach", values: [{ value: 20 }] }] };
     if (path === "p1") return { name: "קפה קורטדו", followers_count: 5 };
     if (path === "ig1" && /business_discovery/.test(params.fields)){
       if (/private_person/.test(params.fields)) throw new Error("(#110) Cannot query users by their username");
@@ -742,7 +745,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("כלי מטא, שירי העגלה ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,instagram_accounts,instagram_audio,songs,songs_set,song_play,google_reviews,google_reply");
+  ok("כלי מטא, שירי העגלה ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,stories,instagram_accounts,instagram_audio,songs,songs_set,song_play,google_reviews,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -757,6 +760,9 @@ if (f2) process.exitCode = 1;
   ok("אינסטגרם: ברירת מחדל 28 יום עד היום", ig.since === "2026-09-17" && ig.until === "2026-10-14" && ig.rows.length === 28);
   ok("אינסטגרם: הגעה יומית וסכומים לכל יום", ig.rows.find(r => r.day === "2026-10-07").reach === 40 && ig.rows[0].views === 11 && ig.rows[0].interactions === 2);
   ok("אינסטגרם: לא יותר מ-40 בקשות למטא (תקרת Workers 50)", calls.length <= 40, String(calls.length));
+
+  const st = (await tool("stories")).structuredContent;
+  ok("סטוריז: מה באוויר בשתי הרשתות, בלי ארכיון, עם צפיות באינסטגרם", st.rows.length === 2 && st.rows[0].network === "facebook" && st.rows[0].id === "p1_s1" && st.rows[1].views === 23 && st.rows[1].reach === 20 && st.notes.length === 0, JSON.stringify(st));
 
   const posts = (await tool("posts", { since: "2026-10-07", until: "2026-10-14" })).structuredContent;
   const byId = Object.fromEntries(posts.rows.map(r => [r.id, r]));

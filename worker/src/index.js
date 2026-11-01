@@ -641,6 +641,8 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "posts", description: "Every Facebook post and reel and every Instagram post and reel published in the range, with views, reach, likes, comments, shares, saves and interactions. Range up to 90 days; default the last 28 days.",
     inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
+  { name: "stories", description: "The stories live right now on the cart's Instagram account and Facebook page (Meta keeps a story 24 hours). Each: network, id, kind (image/video), at (publish time), url, and for Instagram views and reach when Meta gives them. Empty rows = nothing is up. Use it to verify a queued story actually went out.",
+    inputSchema: { type: "object", properties: {} } },
   { name: "instagram_accounts", description: "Followers and post counts of other Instagram accounts (partners, neighbours, local pages, competing cafes), to decide whom to tag: the partner's followers are the cart's new audience. With recent=N, also each account's N latest posts (date, reel/photo/carousel, likes, comments, link, caption start) for a weekly competitor scan. Only business or creator accounts answer; a personal account returns an error. Up to 20 usernames.",
     inputSchema: { type: "object", properties: { usernames: { type: "array", items: { type: "string" }, description: "Instagram usernames, without @" }, recent: { type: "number", description: "0-12 latest posts per account, default 0" } }, required: ["usernames"] } },
   { name: "instagram_audio", description: "Music from Instagram's own library that the cart's account may attach to a reel through the API (licensed for third-party use, so safe for a business account). Without query: what is trending now. Each track: audio_id (put it in an auto reel row as audio: {id, volume, video_volume}; prefer the owner's list from the songs tool), title, artist, seconds, preview (audio link that expires in about 1.5 days, for listening only, never baked into a video), link. The selection can differ from the Instagram app.",
@@ -705,6 +707,29 @@ async function mcpAccount(env){
     const ig = await graph(env, env.IG_USER_ID, { fields: "username,followers_count,follows_count,media_count" }, "GET");
     out.rows.push({ network: "instagram", name: ig.username, followers: ig.followers_count ?? null, media_count: ig.media_count ?? null, url: "https://www.instagram.com/" + ig.username + "/" });
   }
+  return out;
+}
+
+// מה באוויר עכשיו. מטא שומרת סטורי 24 שעות, ולכן אין טווח: רק "עכשיו".
+async function mcpStories(env){
+  const out = { rows: [], notes: [] };
+  try {
+    const r = await graph(env, `${env.FB_PAGE_ID}/stories`, { fields: "post_id,status,creation_time,media_type,url" }, "GET");
+    for (const s of r.data || []) if (s.status !== "archived")
+      out.rows.push({ network: "facebook", id: s.post_id || "", kind: String(s.media_type || "").toLowerCase(), at: s.creation_time || "", url: s.url || "" });
+  } catch (e){ out.notes.push("facebook stories: " + e.message); }
+  if (!env.IG_USER_ID) { out.notes.push("Instagram is not connected to the server (IG_USER_ID missing)."); return out; }
+  try {
+    const r = await graph(env, `${env.IG_USER_ID}/stories`, { fields: "id,media_type,timestamp,permalink" }, "GET");
+    for (const s of r.data || []){
+      const row = { network: "instagram", id: s.id, kind: String(s.media_type || "").toLowerCase(), at: s.timestamp || "", url: s.permalink || "", views: null, reach: null };
+      try {
+        const i = await graph(env, `${s.id}/insights`, { metric: "views,reach" }, "GET");
+        for (const m of i.data || []) row[m.name] = m.values?.[0]?.value ?? null;
+      } catch (e){ out.notes.push(`instagram story ${s.id}: no insights (${e.message})`); }
+      out.rows.push(row);
+    }
+  } catch (e){ out.notes.push("instagram stories: " + e.message); }
   return out;
 }
 
@@ -919,7 +944,7 @@ async function mcp(env, request, key){
   // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
   const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
     google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
-  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio,
+  const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, stories: mcpStories, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio,
     songs: mcpSongs, songs_set: mcpSongsSet, song_play: mcpSongPlay }[params.name];
   if (!run && !google) return reply({ id, error: { code: -32602, message: "Unknown tool: " + params.name } });
   try {
