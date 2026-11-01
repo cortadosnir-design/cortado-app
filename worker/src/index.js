@@ -917,6 +917,12 @@ async function mcpPosts(env, a){
         interactions: insightVal(m.insights, "total_interactions") ?? likes + comments + (saves || 0) + (shares || 0) });
     }
   } catch (e){ notes.push("instagram posts: " + e.message); }
+  // סטוריז חיים נכנסים גם כאן (kind: "story"), כדי שמחבר שטען את רשימת הכלים לפני שהכלי stories נוסף יראה אותם.
+  if (until >= ilToday()){
+    const st = await mcpStories(env);
+    rows.push(...st.rows.map(s => ({ ...s, kind: "story", text: "" })));
+    notes.push(...st.notes);
+  }
 
   const iso = (t) => new Date(Date.parse(String(t).replace(/\+0000$/, "Z"))).toISOString();
   rows.forEach(r => { r.at = iso(r.at); });
