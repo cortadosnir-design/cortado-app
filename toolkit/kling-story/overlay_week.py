@@ -23,7 +23,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .row{{position:absolute;right:170px;left:170px;display:flex;justify-content:space-between;align-items:baseline;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5)}}
 .row .n{{font-weight:600;font-size:50px;color:#F7F2DC}}
 .row .t{{font-weight:700;font-size:56px;direction:ltr;unicode-bidi:isolate;text-align:left;line-height:1.12}}
-.note{{font-weight:700;font-size:34px;color:#fff;background:#C9774A;border-radius:22px;padding:4px 16px;margin-right:12px;vertical-align:middle}}
+.note{{font-weight:800;font-size:46px;color:#fff;background:#C9774A;border-radius:24px;padding:4px 20px;margin-right:12px;vertical-align:middle;white-space:nowrap}}
 .row.off .t{{color:#F7F2DC;opacity:.75;font-weight:500}}
 .q{{position:absolute;width:190px;text-align:center;color:#F7F2DC;font-weight:600;font-size:30px;text-shadow:0 2px 8px rgba(0,0,0,.7)}}
 .q img{{width:146px;height:146px;display:block;margin:0 auto 6px;background:#fff;border-radius:22px;padding:8px;image-rendering:pixelated}}
