@@ -32,7 +32,9 @@ jobs:
               img = str(s.get("image", ""))
               if str(s.get("at", "")) >= now and img.startswith(pre) and img.lower().endswith((".jpg", ".jpeg", ".png")):
                   p = img[len(pre):]
-                  if os.path.isfile(p) and not os.path.isfile(os.path.splitext(p)[0] + ".mp4") and p not in seen:
+                  base = os.path.splitext(p)[0]
+                  # <image>.silent = the owner asked for this story without music
+                  if os.path.isfile(p) and not os.path.isfile(base + ".mp4") and not os.path.isfile(base + ".silent") and p not in seen:
                       seen.add(p); print(p)
           EOF
           cat todo.txt
