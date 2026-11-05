@@ -1,0 +1,417 @@
+{
+ "durationSec": 31.29,
+ "scenes": [
+  {
+   "kind": "broll",
+   "from": 0.0,
+   "to": 2.554,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/jump_ramp.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 1.0,
+    "s": 1.069
+   },
+   "hook": {
+    "lines": [
+     {
+      "text": "אנחנו גרים בגן עדן",
+      "at": -1
+     },
+     {
+      "text": "בואו נראה לכם",
+      "at": -1,
+      "accent": true
+     }
+    ]
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 2.554,
+   "to": 5.108,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0010.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 1.15,
+    "s": 1.078
+   },
+   "label": {
+    "name": "מפל הבניאס",
+    "at": 0,
+    "top": 1060
+   },
+   "punch": [
+    3.831
+   ]
+  },
+  {
+   "kind": "broll",
+   "from": 5.108,
+   "to": 6.385,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0001.mp4",
+   "startFrom": 1.0,
+   "grade": {
+    "b": 1.026,
+    "s": 1.04
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 6.385,
+   "to": 8.806,
+   "enter": "cut",
+   "exit": "whip3",
+   "ov": 0.267,
+   "drift": "in",
+   "src": "media/WA0003.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 1.085,
+    "s": 1.09
+   },
+   "label": {
+    "kicker": "השותפים שלנו לדרך",
+    "handle": "@shelefstrail",
+    "pin": false,
+    "at": 0,
+    "top": 1060
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 8.806,
+   "to": 11.493,
+   "enter": "whip3",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0002.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 1.02,
+    "s": 1.3
+   },
+   "label": {
+    "name": "השביל התלוי",
+    "at": 0.13333333333333333,
+    "top": 1060
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 11.493,
+   "to": 12.77,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "left",
+   "src": "media/WA0008.mp4",
+   "startFrom": 0.5,
+   "grade": {
+    "b": 0.882,
+    "s": 1.207
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 12.77,
+   "to": 13.914,
+   "enter": "cut",
+   "exit": "whip3",
+   "ov": 0.267,
+   "drift": "in",
+   "src": "media/WA0009.mp4",
+   "startFrom": 1.0,
+   "grade": {
+    "b": 1.065,
+    "s": 0.99
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 13.914,
+   "to": 16.601,
+   "enter": "whip3",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/tank_full.mp4",
+   "startFrom": 0.5,
+   "grade": {
+    "b": 0.96,
+    "s": 1.035
+   },
+   "label": {
+    "name": "הטנק הסורי",
+    "meta": "5 דקות הליכה מהעגלה",
+    "at": 0.13333333333333333,
+    "top": 1060
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 16.601,
+   "to": 19.155,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0012.mp4",
+   "startFrom": 4.0,
+   "grade": {
+    "b": 1.085,
+    "s": 0.93
+   },
+   "label": {
+    "name": "נחל שניר",
+    "meta": "10 דקות נסיעה",
+    "at": 0,
+    "top": 1060
+   },
+   "punch": [
+    17.878
+   ]
+  },
+  {
+   "kind": "broll",
+   "from": 19.155,
+   "to": 20.432,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0011.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 0.912,
+    "s": 0.85
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 20.432,
+   "to": 21.07,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/WA0000.mp4",
+   "startFrom": 1.0,
+   "grade": {
+    "b": 1.07,
+    "s": 0.85
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 21.07,
+   "to": 21.709,
+   "enter": "cut",
+   "exit": "thru",
+   "ov": 0.2,
+   "drift": "out",
+   "src": "media/WA0000.mp4",
+   "startFrom": 3.2,
+   "grade": {
+    "b": 1.072,
+    "s": 0.871
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 21.709,
+   "to": 24.263,
+   "enter": "thru",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/k_lawn.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 1.035,
+    "s": 1.018
+   },
+   "flash": true,
+   "label": {
+    "name": "ובסוף, קפה",
+    "pin": false,
+    "at": 0,
+    "top": 1060
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 24.263,
+   "to": 25.54,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.0,
+   "drift": "in",
+   "src": "media/k_hero.mp4",
+   "startFrom": 1.0,
+   "grade": {
+    "b": 1.15,
+    "s": 0.85
+   }
+  },
+  {
+   "kind": "broll",
+   "from": 25.54,
+   "to": 28.732,
+   "enter": "cut",
+   "exit": "none",
+   "ov": 0.267,
+   "drift": "in",
+   "src": "media/k_cart.mp4",
+   "startFrom": 0.0,
+   "grade": {
+    "b": 0.931,
+    "s": 0.898
+   },
+   "sign": {
+    "logo": "media/logo.png",
+    "title": "עגלת קפה קורטדו",
+    "sub": "קיבוץ שניר",
+    "at": 0.25
+   }
+  },
+  {
+   "kind": "end",
+   "from": 28.732,
+   "to": 31.286,
+   "enter": "fade",
+   "ov": 0,
+   "logo": "media/logo.png",
+   "title": "עגלת קפה קורטדו",
+   "sub": "קיבוץ שניר",
+   "qrs": [
+    {
+     "img": "media/qr-instagram.svg",
+     "label": "אינסטגרם"
+    },
+    {
+     "img": "media/qr-facebook.svg",
+     "label": "פייסבוק"
+    },
+    {
+     "img": "media/qr-whatsapp.svg",
+     "label": "וואטסאפ"
+    },
+    {
+     "img": "media/qr-waze.svg",
+     "label": "וייז"
+    }
+   ],
+   "contacts": [
+    {
+     "label": "טלפון",
+     "value": "054-312-5466"
+    }
+   ]
+  }
+ ],
+ "captions": [],
+ "sfx": [
+  {
+   "at": 0.0,
+   "src": "media/amb_jump.wav",
+   "vol": 1.0
+  },
+  {
+   "at": 2.554,
+   "src": "media/amb6_01.wav",
+   "vol": 0.85,
+   "dur": 2.854
+  },
+  {
+   "at": 4.838,
+   "src": "media/amb6_02.wav",
+   "vol": 0.85,
+   "dur": 1.847
+  },
+  {
+   "at": 6.385,
+   "src": "media/amb6_03.wav",
+   "vol": 0.85,
+   "dur": 2.987
+  },
+  {
+   "at": 8.806,
+   "src": "media/amb6_04.wav",
+   "vol": 0.85,
+   "dur": 2.987
+  },
+  {
+   "at": 8.559,
+   "src": "media/whoosh.wav",
+   "vol": 0.4
+  },
+  {
+   "at": 11.223,
+   "src": "media/amb6_05.wav",
+   "vol": 0.85,
+   "dur": 1.847
+  },
+  {
+   "at": 12.5,
+   "src": "media/amb6_06.wav",
+   "vol": 0.85,
+   "dur": 1.98
+  },
+  {
+   "at": 13.644,
+   "src": "media/amb6_07.wav",
+   "vol": 0.85,
+   "dur": 3.257
+  },
+  {
+   "at": 13.667,
+   "src": "media/whoosh.wav",
+   "vol": 0.4
+  },
+  {
+   "at": 16.331,
+   "src": "media/amb6_08.wav",
+   "vol": 0.85,
+   "dur": 3.124
+  },
+  {
+   "at": 19.155,
+   "src": "media/amb6_09.wav",
+   "vol": 0.85,
+   "dur": 1.577
+  },
+  {
+   "at": 20.162,
+   "src": "media/amb6_10.wav",
+   "vol": 0.85,
+   "dur": 1.209
+  },
+  {
+   "at": 20.8,
+   "src": "media/amb6_11.wav",
+   "vol": 0.85,
+   "dur": 1.409
+  },
+  {
+   "at": 21.329,
+   "src": "media/whoosh.wav",
+   "vol": 0.45
+  }
+ ],
+ "music": "media/music6.wav",
+ "musicVol": 0.9,
+ "musicTailAt": 31.29
+}
