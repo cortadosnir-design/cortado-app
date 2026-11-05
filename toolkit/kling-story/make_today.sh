@@ -14,9 +14,9 @@ add() { # file start — a layer the day doesn't have (second time range) is ski
   filters+=";[$n:v]format=rgba,fade=t=in:st=$2:d=${3:-0.25}:alpha=1[l$n];[$prev][l$n]overlay=0:0[v$n]"
   prev=v$n; n=$((n+1))
 }
-line() { # name start — PNG sequence drawing the line, last frame held
+line() { # name start [y-shift] — PNG sequence drawing the line, last frame held
   inputs+=(-framerate 24 -i "$B/lines/${1}_%02d.png")
-  filters+=";[$n:v]format=rgba,setpts=PTS+$2/TB[l$n];[$prev][l$n]overlay=0:0:eof_action=repeat[v$n]"
+  filters+=";[$n:v]format=rgba,setpts=PTS+$2/TB[l$n];[$prev][l$n]overlay=0:${3:-0}:eof_action=repeat[v$n]"
   prev=v$n; n=$((n+1))
 }
 # on the beat of "Life" (Tony Dark Eyes, ~125 BPM, beat 0.48s, first beat 0.47s, downbeats 0.95/2.87/4.79/6.71)
@@ -26,7 +26,7 @@ add "$L/02-date.png"  1.43
 line a                1.91
 add "$L/10-time.png"  2.87
 add "$L/11-time.png"  3.35
-line b                3.83
+line b                3.83 "${LINE_B_DY:-0}"  # a second time range pushes the menu down, and the line under it
 add "$L/15-menu.png"  3.83
 add "$L/20-qr.png"    4.31
 add "$L/21-qr.png"    4.79
