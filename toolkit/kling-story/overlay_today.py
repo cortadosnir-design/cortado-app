@@ -21,6 +21,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .q{{position:absolute;width:190px;text-align:center;color:#F7F2DC;font-weight:600;font-size:30px;text-shadow:0 2px 8px rgba(0,0,0,.7)}}
 .q img{{width:146px;height:146px;display:block;margin:0 auto 6px;background:#fff;border-radius:22px;padding:8px;image-rendering:pixelated}}
 .m{{font-weight:600;font-size:50px;color:#F7F2DC}}
+.n{{font-weight:500;font-size:38px;color:#F7F2DC}}
 .end{{position:absolute;left:44px;top:{today.get('end_top', 1360)}px;width:300px;text-align:center}}
 .end span{{display:inline-block;background:#141417;color:#F7F2DC;font-weight:800;font-size:64px;line-height:1.1;padding:22px 34px;border-radius:40px}}
 """
@@ -33,9 +34,12 @@ for i, t in enumerate(today["times"]):
     layers.append((f"1{i}-time", f"<div class='c t' style='top:{372 + i * 96}px'>{t}</div>"))
 if today.get("menu"):  # what's on, under the hours (owner 31.10.2026: "אין כיתוב על הפיצות ועל הקפה")
     layers.append(("15-menu", f"<div class='c m' style='top:{372 + len(today['times']) * 96 + 14}px'>{today['menu']}</div>"))
+if today.get("note"):  # a smaller line under the menu (owner 6.11.2026: closing "או בגשם הראשון", updates on the networks)
+    layers.append(("16-note", f"<div class='c n' style='top:{372 + len(today['times']) * 96 + 80}px'>{today['note']}</div>"))
 qr_top = today.get("qr_top", 1110)  # right-hand column on the lawn, clear of the cart and the item
 for i, (name, label) in enumerate([("waze", "ניווט"), ("whatsapp", "וואטסאפ"), ("instagram", "אינסטגרם")]):
-    layers.append((f"2{i}-qr", f"<div class=q style='top:{qr_top + i * 200}px;right:120px'>"
+    # qr_dx turns the column into a row (three drinks fill the table: the row sits on the lawn above them)
+    layers.append((f"2{i}-qr", f"<div class=q style='top:{qr_top + i * today.get('qr_dy', 200)}px;right:{today.get('qr_right', 120) + i * today.get('qr_dx', 0)}px'>"
                    f"<img src='data:image/png;base64,{b64(qrdir / f'{name}.png')}'>{label}</div>"))
 if today.get("end", True):  # a closed-day story leaves "כולם מוזמנים" out
     layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))

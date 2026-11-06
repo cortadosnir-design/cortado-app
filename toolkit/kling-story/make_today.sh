@@ -28,6 +28,7 @@ add "$L/10-time.png"  2.87
 add "$L/11-time.png"  3.35
 line b                3.83 "${LINE_B_DY:-0}"  # a second time range pushes the menu down, and the line under it
 add "$L/15-menu.png"  3.83
+add "$L/16-note.png"  5.75
 add "$L/20-qr.png"    4.31
 add "$L/21-qr.png"    4.79
 add "$L/22-qr.png"    5.27

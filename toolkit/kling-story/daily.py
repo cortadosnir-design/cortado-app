@@ -17,7 +17,10 @@ DAYS = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"
 PLACE = "קפה קורטדו · קיבוץ שניר"
 # a range that starts before 15:00 is a morning; qr_top / end_top keep the QR column and "כולם מוזמנים" clear of the item
 SCENES = {
-    "morning": {"menu": "כריכים, מאפים וקפה על הדשא", "env": {}, "layout": {}},  # base-coffee.mp4 + the cup logo
+    # owner, 6.11.2026: tea instead of the iced coffee, with a sahlab and a hot coffee beside it. The three glasses
+    # fill the table, so the QR codes sit in a row on the lawn above them (qr_dx), next to "כולם מוזמנים"
+    "morning": {"menu": "כריכים, מאפים וקפה על הדשא", "env": {"BASE": str(HERE / "base-hot.mp4"), "LOGO": "none"},
+                "layout": {"qr_top": 1076, "qr_dx": 231, "qr_dy": 0, "qr_right": 33, "end_top": 1086}},
     "evening": {"menu": "פיצה וקפה חם על הדשא", "env": {"BASE": str(HERE / "base-pizza.mp4"), "LOGO": "none"},
                 "layout": {"qr_top": 940, "end_top": 1180}},
 }
@@ -31,7 +34,7 @@ def hours(x):
     return x
 
 
-def plan(date, times=(), reopens=None):
+def plan(date, times=(), reopens=None, note=None):
     eve, am = f"{date - datetime.timedelta(1)}T18:30", f"{date}T09:00"
     day = {"day": DAYS[date.weekday()], "date": f"{date.day}.{date.month}", "place": PLACE}
     if not times:
@@ -40,6 +43,8 @@ def plan(date, times=(), reopens=None):
         return [dict(day, name=n, at=at, head=h, times=[], menu=f"נתראה {w}, {', '.join(when)}", end=False, scene="evening")
                 for n, at, h, w in [("closed-tomorrow", eve, "מחר סגורים", on),
                                     ("closed-today", am, "היום סגורים", "מחר" if back == date + datetime.timedelta(1) else on)]]
+    if note:  # one small line under the menu, e.g. closing early in rain; only when the owner asked for it
+        day["note"] = note
     scene = lambda r: "morning" if r[:5] < "15:00" else "evening"
     menu = SCENES[scene(times[0])]["menu"] if len({scene(r) for r in times}) == 1 else "בבוקר כריכים ומאפים · בערב פיצה"
     out = [dict(day, name=n, at=at, head=h, times=list(times), menu=menu, scene=scene(times[0]))
@@ -61,7 +66,7 @@ def build(s, out):
         # calm.wav for every story (owner, 31.10.2026: "נעימה, זרימה", not the happy soundtrack.wav)
         subprocess.run(["bash", HERE / "make_today.sh", t / "layers", mp4], check=True, capture_output=True,
                        env={**os.environ, "SOUND": str(HERE / "calm.wav"), **sc["env"],
-                            "LINE_B_DY": str(96 * max(0, len(s["times"]) - 1))})
+                            "LINE_B_DY": str(96 * max(0, len(s["times"]) - 1) + (56 if s.get("note") else 0))})
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "7.8", "-i", mp4, "-frames:v", "1", "-q:v", "2",
                     mp4.with_suffix(".jpg")], check=True)
 
@@ -71,6 +76,7 @@ def main():
     a.add_argument("--date", required=True, type=datetime.date.fromisoformat)
     a.add_argument("--hours", nargs="+", type=hours, default=[], help="the day's published ranges")
     a.add_argument("--reopens", nargs="+", metavar=("DATE", "RANGE"), help="closed day: the next open date and its ranges")
+    a.add_argument("--note", help="open day: a small line under the menu, in the owner's words")
     a.add_argument("--out", required=True, type=pathlib.Path)
     o = a.parse_args()
     if bool(o.hours) == bool(o.reopens) or (o.reopens and len(o.reopens) < 2):
@@ -79,7 +85,7 @@ def main():
     if back and back[0] <= o.date:
         a.error("--reopens must be after --date")
     o.out.mkdir(parents=True, exist_ok=True)
-    for s in plan(o.date, o.hours, back):
+    for s in plan(o.date, o.hours, back, o.note):
         build(s, o.out)
         print(json.dumps({"file": s["name"] + ".jpg", **{k: s[k] for k in ("at", "head", "day", "date", "times", "menu")}},
                          ensure_ascii=False), flush=True)
@@ -97,4 +103,5 @@ if __name__ == "__main__":
     shut = plan(D(2026, 11, 3), reopens=(D(2026, 11, 4), ["16:30–18:30"]))
     assert [s["menu"] for s in shut] == ["נתראה ברביעי, 16:30–18:30", "נתראה מחר, 16:30–18:30"] and not shut[0]["times"]
     assert hours("09:00-13:00") == "09:00–13:00"
+    assert plan(D(2026, 11, 6), ["09:00–15:00"], note="x")[1]["note"] == "x" and "note" not in sat[0]
     main()
