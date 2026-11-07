@@ -31,6 +31,8 @@ SCENES = {
     # sahlab and hot coffee in front. Same frame as rain, without the drops and with the calm music
     "closed": {"menu": "", "env": {"BASE": str(HERE / "base-rain.mp4"), "LOGO": "none"}, "layout": {}},
 }
+# days without the winter rain line, even by default (owner, 7.11.2026: the fair, Saturday 14.11)
+NO_NOTE = {"2026-11-14"}
 SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
 
@@ -113,6 +115,8 @@ def main():
     a.add_argument("--rain", action="store_true", help="closed because of rain: the rain format (--reopens optional)")
     a.add_argument("--out", required=True, type=pathlib.Path)
     o = a.parse_args()
+    if str(o.date) in NO_NOTE and "--note" not in sys.argv:
+        o.note = ""
     if o.rain and o.hours:
         a.error("--rain is for a day we close; give --reopens (or nothing) instead of --hours")
     if (not o.rain and bool(o.hours) == bool(o.reopens)) or (o.reopens and len(o.reopens) < 2):
