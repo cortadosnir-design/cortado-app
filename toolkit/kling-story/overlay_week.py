@@ -1,5 +1,5 @@
 """Layers (transparent 1080x1920 PNGs) for the weekly hours story, same look as overlay_today.py.
-usage: python overlay_week.py week.json outdir fontsdir qrdir
+usage: python overlay_week.py week.json outdir fontsdir   (no QR codes: owner, 7.11.2026)
 week.json: {"range": "1.11–7.11", "days": [["ראשון", ["16:30–18:30"]], ["שלישי", ["סגור"]], ...]}
 Hours only from what was published through בוט קורטדו, never guessed.
 """
@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 week = json.load(open(sys.argv[1]))
 out = pathlib.Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
-fonts, qrdir = pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4])
+fonts = pathlib.Path(sys.argv[3])
 b64 = lambda p: base64.b64encode(p.read_bytes()).decode()
 
 CSS = f"""
@@ -25,8 +25,6 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .row .t{{font-weight:700;font-size:56px;direction:ltr;unicode-bidi:isolate;text-align:left;line-height:1.12}}
 .note{{font-weight:800;font-size:46px;color:#fff;background:#C9774A;border-radius:24px;padding:4px 20px;margin-right:12px;vertical-align:middle;white-space:nowrap}}
 .row.off .t{{color:#F7F2DC;opacity:.75;font-weight:500}}
-.q{{position:absolute;width:190px;text-align:center;color:#F7F2DC;font-weight:600;font-size:30px;text-shadow:0 2px 8px rgba(0,0,0,.7)}}
-.q img{{width:146px;height:146px;display:block;margin:0 auto 6px;background:#fff;border-radius:22px;padding:8px;image-rendering:pixelated}}
 .end{{position:absolute;left:44px;top:1360px;width:300px;text-align:center}}
 .end span{{display:inline-block;background:#141417;color:#F7F2DC;font-weight:800;font-size:64px;line-height:1.1;padding:22px 34px;border-radius:40px}}
 """
@@ -44,10 +42,7 @@ for i, (name, times, *note) in enumerate(week["days"]):  # optional 3rd item: a 
     y += 80 + 63 * (len(times) - 1)
 if week.get("menu"):  # what's on (owner 31.10.2026)
     layers.append(("17-menu", f"<div class='c m' style='top:{y + 14}px'>{week['menu']}</div>")); y += 74
-assert y < 1090, f"rows run into the QR column ({y}px)"
-for i, (name, label) in enumerate([("waze", "ניווט"), ("whatsapp", "וואטסאפ"), ("instagram", "אינסטגרם")]):
-    layers.append((f"2{i}-qr", f"<div class=q style='top:{1110 + i * 200}px;right:120px'>"
-                   f"<img src='data:image/png;base64,{b64(qrdir / f'{name}.png')}'>{label}</div>"))
+assert y < 1340, f"rows run into כולם מוזמנים ({y}px)"
 layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))
 
 with sync_playwright() as p:

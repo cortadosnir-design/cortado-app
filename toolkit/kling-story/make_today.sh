@@ -21,6 +21,10 @@ line() { # name start [y-shift] — PNG sequence drawing the line, last frame he
 }
 # on the beat of "Life" (Tony Dark Eyes, ~125 BPM, beat 0.48s, first beat 0.47s, downbeats 0.95/2.87/4.79/6.71)
 add "$L/00-shade.png" 0.47 0.45
+if [ -n "${RAIN:-}" ]; then  # rain day: falling drops (rain.html frames) over the clip, under the text
+  inputs+=(-framerate 24 -i "$RAIN/%03d.png")
+  filters+=";[$n:v]format=rgba[l$n];[$prev][l$n]overlay=0:0:eof_action=repeat[v$n]"; prev=v$n; n=$((n+1))
+fi
 add "$L/01-head.png"  0.95
 add "$L/02-date.png"  1.43
 line a                1.91
@@ -29,9 +33,6 @@ add "$L/11-time.png"  3.35
 line b                3.83 "${LINE_B_DY:-0}"  # a second time range pushes the menu down, and the line under it
 add "$L/15-menu.png"  3.83
 add "$L/16-note.png"  5.75
-add "$L/20-qr.png"    4.31
-add "$L/21-qr.png"    4.79
-add "$L/22-qr.png"    5.27
 add "$L/90-end.png"   6.71
 filters+=";[1:a]anull[a]"  # soundtrack.wav: Kling ambience + birds + café melody at 125 BPM, mixed at -14 LUFS
 ffmpeg -v error -y "${inputs[@]}" -filter_complex "$filters" -map "[$prev]" -map "[a]" \

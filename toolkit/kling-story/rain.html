@@ -1,0 +1,13 @@
+<!doctype html><!-- falling drops for rain-day stories (owner, 7.11.2026: "שיהיה טיפות כזה, להמחיש"); rendered to frames by daily.py --><html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1080px;height:1920px;background:transparent;overflow:hidden}
+.s{position:absolute;top:0;left:0;width:2.5px;height:var(--l);border-radius:2px;
+  background:linear-gradient(rgba(255,255,255,0),rgba(236,242,246,var(--o)) 60%,rgba(255,255,255,var(--o)));
+  animation:fall var(--d) linear infinite;animation-delay:var(--delay)}
+@keyframes fall{from{transform:translate(var(--x),-200px) rotate(-7deg)}to{transform:translate(calc(var(--x) - 240px),2000px) rotate(-7deg)}}
+</style></head><body><script>
+let seed=19;const r=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+for(let i=0;i<160;i++){const e=document.createElement('div');e.className='s';
+  const d=(0.7+r()*0.5).toFixed(2);
+  e.style.cssText=`--x:${Math.round(r()*1300)}px;--l:${Math.round(55+r()*75)}px;--o:${(.28+r()*.3).toFixed(2)};--d:${d}s;--delay:${(-r()*d).toFixed(2)}s`;
+  document.body.appendChild(e);}
+</script></body></html>

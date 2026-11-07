@@ -15,15 +15,20 @@ import argparse, datetime, json, os, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 DAYS = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"]  # date.weekday()
 PLACE = "קפה קורטדו · קיבוץ שניר"
-# a range that starts before 15:00 is a morning; qr_top / end_top keep the QR column and "כולם מוזמנים" clear of the item
+# a range that starts before 15:00 is a morning; end_top keeps "כולם מוזמנים" clear of the item.
+# No QR codes on any story (owner, 7.11.2026: "לא יוצא יותר ברקודים").
 SCENES = {
-    # owner, 6.11.2026: tea instead of the iced coffee, with a sahlab and a hot coffee beside it. The three glasses
-    # fill the table, so the QR codes sit in a row on the lawn above them (qr_dx), next to "כולם מוזמנים"
+    # owner, 6.11.2026: tea instead of the iced coffee, with a sahlab and a hot coffee beside it
     "morning": {"menu": "כריכים, מאפים וקפה על הדשא", "env": {"BASE": str(HERE / "base-hot.mp4"), "LOGO": "none"},
-                "layout": {"qr_top": 1076, "qr_dx": 231, "qr_dy": 0, "qr_right": 33, "end_top": 1086}},
+                "layout": {"end_top": 1086}},
     "evening": {"menu": "פיצה וקפה חם על הדשא", "env": {"BASE": str(HERE / "base-pizza.mp4"), "LOGO": "none"},
-                "layout": {"qr_top": 940, "end_top": 1180}},
+                "layout": {"end_top": 1180}},
+    # owner, 7.11.2026: the format for rain days. The morning frame with nobody there, the cart shut, a grey winter
+    # sky (scene-rain.jpg), falling drops on top (rain.html) and rainy piano (rain.wav)
+    "rain": {"menu": "", "env": {"BASE": str(HERE / "base-rain.mp4"), "LOGO": "none", "SOUND": str(HERE / "rain.wav")},
+             "layout": {}},
 }
+SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
 
 
@@ -34,9 +39,14 @@ def hours(x):
     return x
 
 
-def plan(date, times=(), reopens=None, note=None):
+def plan(date, times=(), reopens=None, note=None, rain=False):
     eve, am = f"{date - datetime.timedelta(1)}T18:30", f"{date}T09:00"
     day = {"day": DAYS[date.weekday()], "date": f"{date.day}.{date.month}", "place": PLACE}
+    if rain:  # closed because of rain (owner, 7.11.2026); reopens is optional: unknown = "נתראה כשיתבהר"
+        back = reopens and f"נתראה {'מחר' if reopens[0] == date + datetime.timedelta(1) else 'ב' + DAYS[reopens[0].weekday()]}, {', '.join(reopens[1])}"
+        return [dict(day, name=n, at=at, head=h, times=[], menu=m, note=f"{SORRY} · {back or 'נתראה כשיתבהר'}", end=False, scene="rain")
+                for n, at, h, m in [("rain-tomorrow", eve, "מחר סגורים", "מחר צפוי גשם חזק, אז נשארים בבית"),
+                                    ("rain-today", am, "היום סגורים", "הגשם חזק מדי, אז היום נשארנו בבית")]]
     if not times:
         back, when = reopens
         on = "ב" + DAYS[back.weekday()]
@@ -53,20 +63,38 @@ def plan(date, times=(), reopens=None, note=None):
                        times=[r], menu=SCENES[scene(r)]["menu"], scene=scene(r)) for r in times if r[:5] > "09:00"]
 
 
+def rain_frames(dst, n=194):
+    """Transparent 1080x1920 PNGs of falling drops (rain.html), one per frame at 24fps."""
+    from playwright.sync_api import sync_playwright
+    dst.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as p:
+        b = p.chromium.launch(); pg = b.new_page(viewport={"width": 1080, "height": 1920})
+        pg.goto((HERE / "rain.html").as_uri()); pg.wait_for_timeout(200)
+        for i in range(n):
+            pg.evaluate(f"document.getAnimations().forEach(a=>{{a.pause();a.currentTime={i * 1000 / 24}}})")
+            pg.screenshot(path=str(dst / f"{i:03d}.png"), omit_background=True)
+        b.close()
+
+
 def build(s, out):
     sc = SCENES[s["scene"]]
     with tempfile.TemporaryDirectory() as tmp:
         t = pathlib.Path(tmp)
+        extra = {}
+        if s["scene"] == "rain":
+            rain_frames(t / "rain"); extra["RAIN"] = str(t / "rain")
         # a time range inside the menu line stays left-to-right (bare, it renders as 18:30–16:30)
         menu = re.sub(r"\d\d:\d\d–\d\d:\d\d", r"<span style='direction:ltr;unicode-bidi:isolate'>\g<0></span>", s["menu"])
         (t / "today.json").write_text(json.dumps({**s, **sc["layout"], "menu": menu}, ensure_ascii=False), encoding="utf-8")
         subprocess.run([sys.executable, HERE / "overlay_today.py", t / "today.json", t / "layers",
-                        HERE.parent / "assets/fonts", HERE / "qr"], check=True, capture_output=True)
+                        HERE.parent / "assets/fonts"], check=True, capture_output=True)
         mp4 = out / f"{s['name']}.mp4"
         # calm.wav for every story (owner, 31.10.2026: "נעימה, זרימה", not the happy soundtrack.wav)
         subprocess.run(["bash", HERE / "make_today.sh", t / "layers", mp4], check=True, capture_output=True,
-                       env={**os.environ, "SOUND": str(HERE / "calm.wav"), **sc["env"],
-                            "LINE_B_DY": str(96 * max(0, len(s["times"]) - 1) + (56 if s.get("note") else 0))})
+                       env={**os.environ, "SOUND": str(HERE / "calm.wav"), **sc["env"], **extra,
+                            # no time rows (closed / rain): the second line sits right under the note
+                            "LINE_B_DY": str(-45 if not s["times"] and s.get("note") else
+                                             96 * max(0, len(s["times"]) - 1) + (56 if s.get("note") else 0))})
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "7.8", "-i", mp4, "-frames:v", "1", "-q:v", "2",
                     mp4.with_suffix(".jpg")], check=True)
 
@@ -77,15 +105,18 @@ def main():
     a.add_argument("--hours", nargs="+", type=hours, default=[], help="the day's published ranges")
     a.add_argument("--reopens", nargs="+", metavar=("DATE", "RANGE"), help="closed day: the next open date and its ranges")
     a.add_argument("--note", help="open day: a small line under the menu, in the owner's words")
+    a.add_argument("--rain", action="store_true", help="closed because of rain: the rain format (--reopens optional)")
     a.add_argument("--out", required=True, type=pathlib.Path)
     o = a.parse_args()
-    if bool(o.hours) == bool(o.reopens) or (o.reopens and len(o.reopens) < 2):
-        a.error("give --hours for an open day, or --reopens DATE RANGE... for a closed one")
+    if o.rain and o.hours:
+        a.error("--rain is for a day we close; give --reopens (or nothing) instead of --hours")
+    if (not o.rain and bool(o.hours) == bool(o.reopens)) or (o.reopens and len(o.reopens) < 2):
+        a.error("give --hours for an open day, or --reopens DATE RANGE... for a closed one (add --rain for a rain day)")
     back = o.reopens and (datetime.date.fromisoformat(o.reopens[0]), [hours(r) for r in o.reopens[1:]])
     if back and back[0] <= o.date:
         a.error("--reopens must be after --date")
     o.out.mkdir(parents=True, exist_ok=True)
-    for s in plan(o.date, o.hours, back, o.note):
+    for s in plan(o.date, o.hours, back, o.note, o.rain):
         build(s, o.out)
         print(json.dumps({"file": s["name"] + ".jpg", **{k: s[k] for k in ("at", "head", "day", "date", "times", "menu")}},
                          ensure_ascii=False), flush=True)
@@ -104,4 +135,9 @@ if __name__ == "__main__":
     assert [s["menu"] for s in shut] == ["נתראה ברביעי, 16:30–18:30", "נתראה מחר, 16:30–18:30"] and not shut[0]["times"]
     assert hours("09:00-13:00") == "09:00–13:00"
     assert plan(D(2026, 11, 6), ["09:00–15:00"], note="x")[1]["note"] == "x" and "note" not in sat[0]
+    wet = plan(D(2026, 11, 7), rain=True)
+    assert [(s["name"], s["at"], s["scene"]) for s in wet] == [("rain-tomorrow", "2026-11-06T18:30", "rain"),
+                                                               ("rain-today", "2026-11-07T09:00", "rain")]
+    assert wet[1]["note"] == "סליחה מכל הלב · נתראה כשיתבהר" and wet[1]["menu"] == "הגשם חזק מדי, אז היום נשארנו בבית"
+    assert plan(D(2026, 11, 7), reopens=(D(2026, 11, 8), ["09:00–13:00"]), rain=True)[1]["note"].endswith("נתראה מחר, 09:00–13:00")
     main()
