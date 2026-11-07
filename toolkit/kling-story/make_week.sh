@@ -9,7 +9,7 @@ add() { [ -f "$1" ] || return 0
   inputs+=(-loop 1 -t $D -i "$1")
   filters+=";[$n:v]format=rgba,fade=t=in:st=$2:d=0.25:alpha=1[l$n];[$prev][l$n]overlay=0:0[v$n]"
   prev=v$n; n=$((n+1)); }
-add "$L/00-shade.png" 0.47; add "$L/01-head.png" 0.95; add "$L/02-date.png" 1.43
+add "$L/00-shade.png" 0.47; add "$L/01-head.png" 0.95; add "$L/02-date.png" 1.43; add "$L/03-logo.png" 0.95
 t=1.91; for i in 0 1 2 3 4 5 6; do add "$L/1$i-day.png" $t; t=$(echo "$t+0.36" | bc); done  # one row per beat-ish
 add "$L/17-menu.png" 4.43; add "$L/90-end.png" 6.71
 ffmpeg -v error -y "${inputs[@]}" -filter_complex "$filters;[1:a]anull[a]" -map "[$prev]" -map "[a]" \

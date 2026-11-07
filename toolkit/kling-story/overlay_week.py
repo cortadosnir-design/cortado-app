@@ -44,6 +44,11 @@ if week.get("menu"):  # what's on (owner 31.10.2026)
     layers.append(("17-menu", f"<div class='c m' style='top:{y + 14}px'>{week['menu']}</div>")); y += 74
 assert y < week.get("end_top", 1360) - 20, f"rows run into כולם מוזמנים ({y}px)"  # end_top 1170 for base-hot: clear of the glasses
 layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))
+if week.get("logo"):  # grandma's logo, the cut-out version (owner, 31.10.2026: not a round crop)
+    lg = week["logo"]
+    layers.append(("03-logo", f"<img src='data:image/png;base64,{b64(pathlib.Path(__file__).parent / 'logo-cut.png')}' "
+                   f"style='position:absolute;right:{lg['right']}px;top:{lg['top']}px;width:{lg['w']}px;"
+                   f"filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))'>"))
 
 with sync_playwright() as p:
     br = p.chromium.launch(); pg = br.new_page(viewport={"width": 1080, "height": 1920})
