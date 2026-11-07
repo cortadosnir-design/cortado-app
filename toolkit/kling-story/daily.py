@@ -104,7 +104,9 @@ def main():
     a.add_argument("--date", required=True, type=datetime.date.fromisoformat)
     a.add_argument("--hours", nargs="+", type=hours, default=[], help="the day's published ranges")
     a.add_argument("--reopens", nargs="+", metavar=("DATE", "RANGE"), help="closed day: the next open date and its ranges")
-    a.add_argument("--note", help="open day: a small line under the menu, in the owner's words")
+    # owner, 7.11.2026: the rain line is standing on every open day for the winter; --note '' drops it (summer)
+    a.add_argument("--note", default="אם יירד גשם ניאלץ לסגור · עדכונים ברשתות",
+                   help="open day: a small line under the menu, in the owner's words; '' for none")
     a.add_argument("--rain", action="store_true", help="closed because of rain: the rain format (--reopens optional)")
     a.add_argument("--out", required=True, type=pathlib.Path)
     o = a.parse_args()
