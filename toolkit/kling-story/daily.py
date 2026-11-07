@@ -27,6 +27,9 @@ SCENES = {
     # sky (scene-rain.jpg), falling drops on top (rain.html) and rainy piano (rain.wav)
     "rain": {"menu": "", "env": {"BASE": str(HERE / "base-rain.mp4"), "LOGO": "none", "SOUND": str(HERE / "rain.wav")},
              "layout": {}},
+    # owner, 7.11.2026: a closed day must look closed: the cart shut, nobody on the lawn, a wintry sky, the tea,
+    # sahlab and hot coffee in front. Same frame as rain, without the drops and with the calm music
+    "closed": {"menu": "", "env": {"BASE": str(HERE / "base-rain.mp4"), "LOGO": "none"}, "layout": {}},
 }
 SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
@@ -50,7 +53,7 @@ def plan(date, times=(), reopens=None, note=None, rain=False):
     if not times:
         back, when = reopens
         on = "ב" + DAYS[back.weekday()]
-        return [dict(day, name=n, at=at, head=h, times=[], menu=f"נתראה {w}, {', '.join(when)}", end=False, scene="evening")
+        return [dict(day, name=n, at=at, head=h, times=[], menu=f"נתראה {w}, {', '.join(when)}", end=False, scene="closed")
                 for n, at, h, w in [("closed-tomorrow", eve, "מחר סגורים", on),
                                     ("closed-today", am, "היום סגורים", "מחר" if back == date + datetime.timedelta(1) else on)]]
     if note:  # one small line under the menu, e.g. closing early in rain; only when the owner asked for it

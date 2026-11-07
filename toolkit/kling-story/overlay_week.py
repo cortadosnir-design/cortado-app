@@ -25,7 +25,7 @@ html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-famil
 .row .t{{font-weight:700;font-size:56px;direction:ltr;unicode-bidi:isolate;text-align:left;line-height:1.12}}
 .note{{font-weight:800;font-size:46px;color:#fff;background:#C9774A;border-radius:24px;padding:4px 20px;margin-right:12px;vertical-align:middle;white-space:nowrap}}
 .row.off .t{{color:#F7F2DC;opacity:.75;font-weight:500}}
-.end{{position:absolute;left:44px;top:1360px;width:300px;text-align:center}}
+.end{{position:absolute;left:44px;top:{week.get("end_top", 1360)}px;width:300px;text-align:center}}
 .end span{{display:inline-block;background:#141417;color:#F7F2DC;font-weight:800;font-size:64px;line-height:1.1;padding:22px 34px;border-radius:40px}}
 """
 html = lambda body: f"<html><head><meta charset=utf-8><style>{CSS}</style></head><body>{body}</body></html>"
@@ -42,7 +42,7 @@ for i, (name, times, *note) in enumerate(week["days"]):  # optional 3rd item: a 
     y += 80 + 63 * (len(times) - 1)
 if week.get("menu"):  # what's on (owner 31.10.2026)
     layers.append(("17-menu", f"<div class='c m' style='top:{y + 14}px'>{week['menu']}</div>")); y += 74
-assert y < 1340, f"rows run into כולם מוזמנים ({y}px)"
+assert y < week.get("end_top", 1360) - 20, f"rows run into כולם מוזמנים ({y}px)"  # end_top 1170 for base-hot: clear of the glasses
 layers.append(("90-end", "<div class=end><span>כולם<br>מוזמנים</span></div>"))
 
 with sync_playwright() as p:

@@ -2,8 +2,9 @@
 # usage: make_week.sh <layers-dir> <out.mp4>  — weekly hours on the same Kling clip, logo and soundtrack as make_today.sh
 set -euo pipefail
 B="$(cd "$(dirname "$0")" && pwd)"; L="$1"; OUT="$2"; D=8.04
-inputs=(-i "$B/base-coffee.mp4" -i "${SOUND:-$B/soundtrack.wav}" -loop 1 -t $D -i "$B/logo-layer.png")
-filters="[0:v][2:v]overlay=0:0[v0]"; n=3; prev=v0
+# morning scene with tea, sahlab and hot coffee, no logo (owner, 6.11.2026); BASE/SOUND override
+inputs=(-i "${BASE:-$B/base-hot.mp4}" -i "${SOUND:-$B/calm.wav}")
+filters="[0:v]null[v0]"; n=2; prev=v0
 add() { [ -f "$1" ] || return 0
   inputs+=(-loop 1 -t $D -i "$1")
   filters+=";[$n:v]format=rgba,fade=t=in:st=$2:d=0.25:alpha=1[l$n];[$prev][l$n]overlay=0:0[v$n]"
