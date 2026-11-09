@@ -265,3 +265,16 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
   }
 }).catch(() => {});
 setInterval(renderStatus, 60000);
+
+/* ===== Google Analytics 4 (נכס cortado-ops) ===== */
+// בלי עוגיות, בלי Google Signals ובלי פרסום — כך כתוב גם במדיניות הפרטיות (#privacy).
+// shortcut: client_storage none = כל ביקור נספר כמשתמש חדש; לעבור לעוגיות רק יחד עם חלון הסכמה.
+if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות לא שולחות ביקורים
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ window.dataLayer.push(arguments); };
+  gtag("js", new Date());
+  gtag("config", "G-01HQG89GLD", { client_storage: "none", allow_google_signals: false, allow_ad_personalization_signals: false });
+  const ga = document.createElement("script");
+  ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
+  document.head.append(ga);
+}
