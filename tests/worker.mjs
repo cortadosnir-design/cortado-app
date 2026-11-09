@@ -745,7 +745,7 @@ if (f2) process.exitCode = 1;
   ok("initialize מחזיר גרסה ויכולת כלים", init.body.result.protocolVersion === "2025-06-18" && init.body.result.capabilities.tools);
   ok("התראה → 202 בלי גוף", (await call({ jsonrpc: "2.0", method: "notifications/initialized" })).status === 202);
   const list = await call({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  ok("כלי מטא, שירי העגלה ושניים של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,stories,instagram_accounts,instagram_audio,songs,songs_set,song_play,google_reviews,google_reply");
+  ok("כלי מטא, שירי העגלה ושלושה של גוגל", list.body.result.tools.map(t => t.name).join() === "account,facebook_daily,instagram_daily,posts,stories,instagram_accounts,instagram_audio,songs,songs_set,song_play,google_reviews,google_profile_daily,google_reply");
   const tool = async (name, args = {}) => (await call({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } })).body.result;
 
   const fb = (await tool("facebook_daily", { since: "2026-10-07", until: "2026-10-08" })).structuredContent;
@@ -825,12 +825,17 @@ if (f2) process.exitCode = 1;
       { reviewId: "rev_aaaaaa", reviewer: { displayName: "D B" }, starRating: "FIVE", comment: "מומלץ מאוד", createTime: "2026-10-17T07:50:00Z" },
       { reviewId: "rev_bbbbbb", reviewer: { displayName: "דור" }, starRating: "FIVE", comment: "", createTime: "2026-10-03T11:00:00Z", reviewReply: { comment: "תודה" } } ] });
     if (u.includes("/reply")) return res({ comment: JSON.parse(o.body).comment });
+    if (u.includes(":fetchMultiDailyMetricsTimeSeries")) return res({ multiDailyMetricTimeSeries: [{ dailyMetricTimeSeries: [
+      { dailyMetric: "BUSINESS_IMPRESSIONS_MOBILE_MAPS", timeSeries: { datedValues: [{ date: { year: 2026, month: 11, day: 2 }, value: "40" }, { date: { year: 2026, month: 11, day: 1 }, value: "7" }] } },
+      { dailyMetric: "BUSINESS_IMPRESSIONS_DESKTOP_MAPS", timeSeries: { datedValues: [{ date: { year: 2026, month: 11, day: 2 }, value: "2" }, { date: { year: 2026, month: 11, day: 1 } }] } },
+      { dailyMetric: "BUSINESS_DIRECTION_REQUESTS", timeSeries: { datedValues: [{ date: { year: 2026, month: 11, day: 2 }, value: "5" }] } },
+      { dailyMetric: "SOMETHING_NEW", timeSeries: { datedValues: [{ date: { year: 2026, month: 11, day: 2 }, value: "9" }] } } ] }] });
     throw new Error("unexpected " + u);
   };
   const fsGet = async (env, path) => store[path] || null;
   const fsPatch = async (env, path, f) => { store[path] = { ...(store[path] || {}), ...f }; return true; };
   const g = new Function("fail", "fsGet", "fsPatch", "sameStr", "ownersOf", "DEFAULT_OWNERS", "b64url", "GB_API", "gbAccessToken", "fetch",
-    wsrc.slice(a, z) + "\nreturn { googleConnect, googleCallback, gbReviews, gbReply, gbEnv };")(
+    wsrc.slice(a, z) + "\nreturn { googleConnect, googleCallback, gbReviews, gbReply, gbProfileDaily, gbEnv };")(
     (c, m) => Object.assign(new Error(m), { code: c }), fsGet, fsPatch, (x, y) => x === y, () => ["cortado.snir@gmail.com"], ["cortado.snir@gmail.com"],
     () => "STATE", "https://gb", async () => "A", fetch);
   const ENV = { FIREBASE_SA: "x" };
@@ -867,6 +872,11 @@ if (f2) process.exitCode = 1;
   ok("תשובה: PUT עם הטקסט", rep.ok && put && put[1].method === "PUT" && JSON.parse(put[1].body).comment === "תודה רבה");
   ok("תשובה ריקה או מזהה שבור → נדחה", (await g.gbReply(ENV, { reviewId: "rev_aaaaaa", comment: " " }).catch(e => e)).code === "bad_request"
     && (await g.gbReply(ENV, { reviewId: "../x", comment: "a" }).catch(e => e)).code === "bad_request");
+  const pd = await g.gbProfileDaily(ENV, { since: "2026-11-01", until: "2026-11-03" });
+  const pu = sent.find(([u]) => u.includes(":fetchMultiDailyMetricsTimeSeries"))[0];
+  ok("פרופיל: ימים בסדר עולה, נייד ומחשב מחוברים, אפס שגוגל השמיטה, מדד לא מוכר בחוץ", JSON.stringify(pd.rows) === JSON.stringify([
+    { day: "2026-11-01", maps: 7, search: 0, directions: 0, calls: 0, website: 0 }, { day: "2026-11-02", maps: 42, search: 0, directions: 5, calls: 0, website: 0 }]), JSON.stringify(pd));
+  ok("פרופיל: הכתובת לפי המיקום והטווח", pu.includes("/v1/locations/9:fetch") && pu.includes("dailyRange.start_date.day=1") && pu.includes("dailyRange.end_date.month=11") && pu.includes("dailyMetrics=CALL_CLICKS"), pu);
   console.log(`\n${p} עברו · ${f} נכשלו`);
   if (f) process.exitCode = 1;
 }

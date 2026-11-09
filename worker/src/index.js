@@ -655,6 +655,8 @@ const MCP_TOOLS = [
     inputSchema: { type: "object", properties: { preview: { type: "string", description: "The preview link from instagram_audio" } }, required: ["preview"] } },
   { name: "google_reviews", description: "Google reviews of the cart (Google Business Profile), newest first: id, reviewer name, stars, text, date, and the owner's reply if any. Default: only reviews without a reply.",
     inputSchema: { type: "object", properties: { unanswered_only: { type: "boolean", description: "default true" }, limit: { type: "number", description: "1-50, default 30" } } } },
+  { name: "google_profile_daily", description: "The cart's Google Business Profile per day (Google Search and Maps): maps and search (people who saw the profile on each), directions (direction requests), calls, website (clicks to the site). Rows: {day, ...}; Google is a few days behind and leaves out days with nothing. Range up to 90 days; default the last 28 days.",
+    inputSchema: { type: "object", properties: { since: { type: "string", description: "YYYY-MM-DD" }, until: { type: "string", description: "YYYY-MM-DD, inclusive" } } } },
   { name: "google_reply", description: "Publish (or replace) the owner's public reply to one Google review. Only after the owner approved the exact text.",
     inputSchema: { type: "object", properties: { review_id: { type: "string" }, comment: { type: "string", description: "The reply text, up to 4000 characters" } }, required: ["review_id", "comment"] } },
 ];
@@ -943,13 +945,14 @@ async function mcp(env, request, key){
   if (method === "initialize") return reply({ id, result: {
     protocolVersion: params.protocolVersion || "2025-06-18", capabilities: { tools: {} },
     serverInfo: { name: "cortado-meta", version: "1.0.0" },
-    instructions: "Facebook and Instagram data for Cafe Cortado (Kibbutz Snir), read-only from Meta's Graph API, plus its Google reviews: read them and publish owner-approved replies." } });
+    instructions: "Facebook and Instagram data for Cafe Cortado (Kibbutz Snir), read-only from Meta's Graph API, plus Google: its Business Profile numbers per day, and its reviews (read them and publish owner-approved replies)." } });
   if (method === "ping") return reply({ id, result: {} });
   if (method === "tools/list") return reply({ id, result: { tools: MCP_TOOLS } });
   if (method !== "tools/call") return reply({ id, error: { code: -32601, message: "Method not found: " + method } });
   const a = params.arguments || {};
   // גוגל לא צריכה את טוקן הפייסבוק. הפונקציות מוגדרות בחלק של גוגל, ונקראות רק כשבוחרים בהן.
   const google = { google_reviews: () => gbReviews(env, { unansweredOnly: a.unanswered_only !== false, limit: a.limit }),
+    google_profile_daily: () => gbProfileDaily(env, mcpRange(a, 90)),
     google_reply: () => gbReply(env, { reviewId: a.review_id, comment: a.comment }) }[params.name];
   const run = { account: mcpAccount, facebook_daily: mcpFacebookDaily, instagram_daily: mcpInstagramDaily, posts: mcpPosts, stories: mcpStories, instagram_accounts: mcpInstagramAccounts, instagram_audio: mcpInstagramAudio,
     songs: mcpSongs, songs_set: mcpSongsSet, song_play: mcpSongPlay }[params.name];
@@ -1277,6 +1280,28 @@ async function gbReply(env, { reviewId, comment }){
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw fail("google_error", "Google: " + (d.error?.message || r.status), 502);
   return { ok: true, review_id: id, reply: d.comment || text };
+}
+// הפרופיל בגוגל לפי יום (Business Profile Performance API, אותה הרשאה של הביקורות). גוגל משמיטה ערכים של אפס.
+const GB_PERF = { BUSINESS_IMPRESSIONS_DESKTOP_MAPS: "maps", BUSINESS_IMPRESSIONS_MOBILE_MAPS: "maps", BUSINESS_IMPRESSIONS_DESKTOP_SEARCH: "search", BUSINESS_IMPRESSIONS_MOBILE_SEARCH: "search",
+  BUSINESS_DIRECTION_REQUESTS: "directions", CALL_CLICKS: "calls", WEBSITE_CLICKS: "website" };
+async function gbProfileDaily(env, { since, until }){
+  const g = await gbReady(env), token = await gbAccessToken(g);
+  const q = new URLSearchParams(Object.keys(GB_PERF).map(m => ["dailyMetrics", m]));
+  for (const [k, date] of [["start_date", since], ["end_date", until]])
+    ["year", "month", "day"].forEach((part, i) => q.set(`dailyRange.${k}.${part}`, Number(date.split("-")[i])));
+  const r = await fetch(`https://businessprofileperformance.googleapis.com/v1/${g.GB_LOCATION}:fetchMultiDailyMetricsTimeSeries?${q}`,
+    { headers: { authorization: "Bearer " + token } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw fail("google_error", "Google: " + (d.error?.message || r.status), 502);
+  const days = {}, two = (n) => String(n).padStart(2, "0");
+  for (const s of (d.multiDailyMetricTimeSeries || []).flatMap(x => x.dailyMetricTimeSeries || [])){
+    const key = GB_PERF[s.dailyMetric];
+    if (key) for (const v of s.timeSeries?.datedValues || []){
+      const day = `${v.date.year}-${two(v.date.month)}-${two(v.date.day)}`;
+      (days[day] ||= { day, maps: 0, search: 0, directions: 0, calls: 0, website: 0 })[key] += Number(v.value) || 0;
+    }
+  }
+  return { since, until, rows: Object.values(days).sort((x, y) => x.day < y.day ? -1 : 1) };
 }
 
 async function setFacebookHours(env, b){
