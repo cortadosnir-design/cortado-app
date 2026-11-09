@@ -277,4 +277,11 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
   const ga = document.createElement("script");
   ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
   document.head.append(ga);
+  // הלחיצות שמביאות לקוחות. שם אירוע לכל יעד, כי פרמטר מותאם לא מופיע בדוחות בלי הגדרה ידנית בגוגל.
+  const GOALS = { "waze.com": "click_waze", "google.com/maps": "click_maps", "wa.me": "click_whatsapp", "tel:": "click_phone", "instagram.com": "click_instagram", "g.page": "click_review" };
+  document.addEventListener("click", e => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    const k = a && Object.keys(GOALS).find(k => a.href.includes(k));
+    if (k) gtag("event", GOALS[k], { transport_type: "beacon" });
+  });
 }
