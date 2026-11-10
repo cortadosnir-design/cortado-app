@@ -280,8 +280,12 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
   window.gtag = function(){ window.dataLayer.push(arguments); };
   gtag("js", new Date());
   gtag("config", "G-01HQG89GLD", { client_storage: "none", allow_google_signals: false, allow_ad_personalization_signals: false });
-  // gtag.js (כ-150KB) נטען רק אחרי שהדף צויר, כדי לא להתחרות בתמונה הראשית. עד אז האירועים מחכים ב-dataLayer.
+  // gtag.js (כ-150KB) נטען בנגיעה, בגלילה או בהקשה הראשונה, ולכל המאוחר אחרי 10 שניות. עד אז האירועים מחכים ב-dataLayer.
+  // טעינה מיד אחרי load הורידה את ציון הביצועים בנייד מ-100 ל-83 (PageSpeed, 10.11.2026).
+  // shortcut: ביקור של פחות מ-10 שניות בלי שום נגיעה לא נספר; לקצר את ההמתנה אם הספירה חשובה מהציון.
+  let gaOn = false;
   const loadGA = () => {
+    if (gaOn) return; gaOn = true;
     const ga = document.createElement("script");
     ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
     document.head.append(ga);
@@ -313,13 +317,16 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
     });
     document.body.append(el);
   };
+  ["pointerdown", "touchstart", "keydown", "scroll"].forEach(e => addEventListener(e, loadGA, { once: true, passive: true }));
+  setTimeout(loadGA, 10000);
   const reset = document.getElementById("consent-reset");
   if (reset) reset.addEventListener("click", () => { try { localStorage.removeItem("meta-consent"); } catch {} askConsent(); });
-  addEventListener("load", () => (window.requestIdleCallback || setTimeout)(() => {
-    loadGA();
-    const c = consent();
-    if (c === "yes") loadMeta(); else if (c !== "no") askConsent();
-  }, { timeout: 2000 }), { once: true });
+  // החלון עולה מיד (הקובץ הזה רץ אחרי הציור הראשון), כדי שהמסך הראשון יתייצב מהר. הפיקסל עצמו מחכה ל-load ולזמן פנוי.
+  const c = consent();
+  if (c === "yes"){
+    const idle = () => (window.requestIdleCallback || setTimeout)(loadMeta, { timeout: 2000 });
+    if (document.readyState === "complete") idle(); else addEventListener("load", idle, { once: true });
+  } else if (c !== "no") askConsent();
   // הלחיצות שמביאות לקוחות. שם אירוע לכל יעד, כי פרמטר מותאם לא מופיע בדוחות בלי הגדרה ידנית בגוגל.
   const GOALS = { "waze.com": "click_waze", "google.com/maps": "click_maps", "wa.me": "click_whatsapp", "tel:": "click_phone", "instagram.com": "click_instagram", "g.page": "click_review" };
   const META = { "waze.com": "FindLocation", "google.com/maps": "FindLocation", "wa.me": "Contact", "tel:": "Contact" }; // אירועים סטנדרטיים של מטא
