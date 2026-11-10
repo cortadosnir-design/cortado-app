@@ -274,9 +274,13 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
   window.gtag = function(){ window.dataLayer.push(arguments); };
   gtag("js", new Date());
   gtag("config", "G-01HQG89GLD", { client_storage: "none", allow_google_signals: false, allow_ad_personalization_signals: false });
-  const ga = document.createElement("script");
-  ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
-  document.head.append(ga);
+  // gtag.js (כ-150KB) נטען רק אחרי שהדף צויר, כדי לא להתחרות בתמונה הראשית. עד אז האירועים מחכים ב-dataLayer.
+  const loadGA = () => {
+    const ga = document.createElement("script");
+    ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
+    document.head.append(ga);
+  };
+  addEventListener("load", () => (window.requestIdleCallback || setTimeout)(loadGA, { timeout: 2000 }), { once: true });
   // הלחיצות שמביאות לקוחות. שם אירוע לכל יעד, כי פרמטר מותאם לא מופיע בדוחות בלי הגדרה ידנית בגוגל.
   const GOALS = { "waze.com": "click_waze", "google.com/maps": "click_maps", "wa.me": "click_whatsapp", "tel:": "click_phone", "instagram.com": "click_instagram", "g.page": "click_review" };
   document.addEventListener("click", e => {

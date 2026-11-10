@@ -1,0 +1,20 @@
+# IndexNow: מודיע ל-Bing (ולמנועים שמקבלים ממנו, כולל ChatGPT) שדף העגלה השתנה,
+# במקום לחכות לסריקה הבאה. המפתח ציבורי בכוונה: הקובץ c4c80615b7b0309c5d4466014567e8a9.txt בשורש האתר מוכיח בעלות.
+# דחיפות של רובוט השעות (GITHUB_TOKEN) לא מפעילות workflows, ולכן זה רץ רק על שינוי של אדם.
+name: IndexNow
+on:
+  push:
+    branches: [main]
+    paths: [cafe/index.html, llms.txt, sitemap.xml]
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for GitHub Pages
+        run: sleep 180
+      - name: Ping IndexNow
+        run: |
+          curl -sS -o /dev/null -w "IndexNow: %{http_code}\n" -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d '{"host":"cortadosnir-design.github.io","key":"c4c80615b7b0309c5d4466014567e8a9","keyLocation":"https://cortadosnir-design.github.io/cortado-app/c4c80615b7b0309c5d4466014567e8a9.txt","urlList":["https://cortadosnir-design.github.io/cortado-app/cafe/"]}'
