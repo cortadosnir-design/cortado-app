@@ -16,11 +16,14 @@ def banner(path):
        background:linear-gradient(#d28a52,#c47a44);box-shadow:0 7px 0 #a4602f,0 14px 22px rgba(120,70,30,.28);
        display:flex;align-items:center;gap:16px;color:#fff8e9;white-space:nowrap}}
     .ic{{flex:none;width:64px;height:64px;border-radius:50%;background:#fff8e9;display:flex;align-items:center;justify-content:center}}
-    .big{{font-weight:900;font-size:47px;line-height:1}}
+    .big{{font-weight:900;font-size:36px;line-height:1;flex:1;text-align:center}} .big span{{opacity:.7;font-weight:500;margin:0 4px}}
     .sep{{flex:none;width:3px;height:48px;border-radius:2px;background:rgba(255,248,233,.55);margin:0 6px}}
+    .st{{position:absolute;left:58px;top:{round(1040*S)-74}px;height:62px;padding:0 24px 0 20px;border-radius:31px;background:#3f2912;color:#fff8e9;
+        border:4px solid #fff8e9;font-weight:800;font-size:31px;display:flex;align-items:center;gap:10px;white-space:nowrap;transform:rotate(-5deg);box-shadow:0 8px 18px rgba(60,35,10,.35)}}
     .sm{{display:flex;flex-direction:column;line-height:1.14;font-size:25px;font-weight:500}} .sm b{{font-weight:800}}"""
+    swing = "<svg viewBox='0 0 40 40' width='40' height='40' fill='none' stroke='#fff8e9' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'><path d='M6 36 14 6h12l8 30M15 7v17M25 7v17M12.500 24.500h15'/></svg>"
     ball = "<svg viewBox='0 0 40 40' width='42' height='42' fill='none' stroke='#b96a35' stroke-width='2.8' stroke-linecap='round'><circle cx='20' cy='20' r='16'/><path d='M4 20h32M20 4v32M8.600 8.600c5.300 5.600 5.300 17.200 0 22.800M31.400 8.600c-5.300 5.600-5.300 17.200 0 22.800'/></svg>"
-    html = f"<div class=b><div class=ic>{ball}</div><div class=big>הפעלות לילדים</div><div class=sep></div><div class=sm><b>עמדות משחק ספורטיביות</b><span>עם יאיר ברקוביץ</span></div></div>"
+    html = f"<div class=b><div class=ic>{ball}</div><div class=big>עמדות משחק ספורטיביות לילדים <span>–</span> יאיר ברקוביץ'</div></div><div class=st>{swing}גן שעשועים צמוד</div>"
     with sync_playwright() as p:
         br = p.chromium.launch(); pg = br.new_page(viewport={"width": W, "height": H})
         pg.set_content(f"<html><head><meta charset=utf-8><style>{css}</style></head><body>{html}</body></html>"); pg.wait_for_timeout(300)
