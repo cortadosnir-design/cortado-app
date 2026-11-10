@@ -303,6 +303,11 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
     document.head.append(s);
     fbq("init", "2941474756214612");
     fbq("track", "PageView");
+    // Tag Manager (מאגר "קפה קורטדו") נטען יחד עם הפיקסל: תגים שיתווספו בו עלולים לשמור עוגיות.
+    dataLayer.push({ "gtm.start": Date.now(), event: "gtm.js" });
+    const t = document.createElement("script");
+    t.async = true; t.src = "https://www.googletagmanager.com/gtm.js?id=GTM-WTVQX7X6";
+    document.head.append(t);
   };
   const askConsent = () => {
     if (document.querySelector(".consent")) return;
