@@ -24,17 +24,23 @@
 <link rel="stylesheet" href="sc/scrollcraft.css">
 <style>
 /* הגופנים מוגשים מהאתר עצמו (fonts/), לא מ-Google Fonts: בלי בקשה שחוסמת את הציור הראשון,
-   ובלי להעביר את כתובת ה-IP של הגולש לצד שלישי. אותם קבצים ואותה חלוקה לטווחי תווים. */
+   ובלי להעביר את כתובת ה-IP של הגולש לצד שלישי.
+   הלטינית מפוצלת לשניים: ספרות ופיסוק (punct, קובץ קטן שכל דף עברי צריך) ואותיות (letters, נטען רק כשיש מילה באנגלית). */
 @font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-hebrew-wght-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-punct-wght-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-letters-wght-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-300-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-300-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-300-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-300-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-400-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-400-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-400-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-500-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-500-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-500-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-600-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-600-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-600-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-600-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 :root{
   --bone:#F6F2EB;
   --white:#FDFBF7;
@@ -455,6 +461,10 @@ footer :focus-visible{outline-color:var(--apricot)}
   .sk-art img{rotate:none!important;scale:none!important}
   .marquee .track{animation:none}
 }
+/* מה שמתחת למסך הראשון לא מחושב ולא מצויר עד שמתקרבים אליו: הפריסה הראשונה של הדף ירדה מ-109ms ל-35ms.
+   contain-intrinsic-size:auto זוכר את הגובה האמיתי אחרי הציור הראשון, כך שפס הגלילה לא קופץ בחזרה למעלה.
+   קפיצה לעוגן (#visit) צריכה גבהים אמיתיים, ולכן cafe.js מוסיף lay-all ל-<html> לפני כל קפיצה כזאת. */
+html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{content-visibility:auto;contain-intrinsic-size:auto 900px}
 </style>
 <script type="application/ld+json">
 {
@@ -791,7 +801,7 @@ footer :focus-visible{outline-color:var(--apricot)}
 <!-- 2 · נשימה: עיגול שנחתך מהדף ונפתח אל המדשאה -->
 <section class="lawn" id="lawn" data-sc-act="flow" aria-label="המדשאה">
   <figure class="lawn-fig">
-    <img src="img/lawn.jpg" srcset="img/lawn-800.webp 800w, img/lawn-1400.webp 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
+    <img src="img/lawn.jpg" srcset="img/lawn-800.webp 800w, img/lawn-1400.webp 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" fetchpriority="low" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
     <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
   </figure>
 </section>

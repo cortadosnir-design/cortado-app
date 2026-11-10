@@ -14,6 +14,12 @@ import { firebaseConfig } from "../config.js";
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 
 /* ===== פרטים קטנים ===== */
+// הדף מדלג על חישוב מה שמתחת למסך הראשון (content-visibility ב-index.html). קפיצה לעוגן
+// נוחתת לפי גבהים משוערים, ולכן לפני כל קפיצה כזאת מחשבים את כל הדף.
+const layAll = () => document.documentElement.classList.add("lay-all");
+if (location.hash) layAll();
+addEventListener("hashchange", layAll);
+document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest('a[href^="#"]')) layAll(); }, true);
 // קישור למידע משפטי (#privacy וכד') פותח את ה-<details> במקום לגלול לכותרת סגורה.
 function openFromHash(){
   const id = location.hash.slice(1); if (!id) return;
