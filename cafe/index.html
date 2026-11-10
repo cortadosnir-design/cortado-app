@@ -402,6 +402,14 @@ footer :focus-visible{outline-color:var(--apricot)}
 .fine{grid-column:1/-1;margin-top:24px;padding-top:22px;border-top:1px solid rgba(246,242,235,.2);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:rgba(246,242,235,.8)}
 @media (min-width:861px){.foot-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:40px}}
 
+/* חלון ההסכמה לעוגיות של מטא: צף מעל סרגל הפעולות, לא מכסה אותו. שני הכפתורים באותו משקל. */
+.consent{position:fixed;z-index:80;inset-inline-start:16px;bottom:16px;width:min(380px,calc(100vw - 32px));padding:16px;border-radius:var(--r-sm);background:var(--white);border:1px solid var(--hair);box-shadow:0 14px 40px -12px rgba(26,22,17,.45);font-size:15px;line-height:1.5}
+.consent a{font-weight:600}
+.consent div{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.consent button{min-height:44px;border-radius:var(--pill);border:1px solid var(--ink);background:transparent;color:var(--ink);font:600 15px/1 var(--sans);cursor:pointer}
+.consent button[data-v="yes"]{background:var(--ink);color:var(--cream)}
+#consent-reset{padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+@media (max-width:760px){.consent{inset-inline:12px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 /* mobile bar */
 .bar{display:none}
 @media (max-width:760px){
@@ -1034,7 +1042,7 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
   <div class="wrap legal-grid">
     <div>
       <h2 id="h-legal">מידע משפטי</h2>
-      <p class="intro">עודכן לאחרונה: אוקטובר 2026.</p>
+      <p class="intro">עודכן לאחרונה: נובמבר 2026.</p>
     </div>
     <div>
       <details id="business"><summary>פרטי העסק</summary><div class="doc">
@@ -1071,9 +1079,10 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
         <p>באתר אין טפסים, אין הרשמה ואין אזור אישי. אנחנו לא מבקשים מכם מידע אישי דרך האתר.</p>
         <p>אם תפנו אלינו בוואטסאפ, בטלפון או בדוא"ל, נקבל את מה שתבחרו לשלוח, למשל שם, מספר טלפון ותוכן ההודעה. נשתמש בזה רק כדי לענות לכם, לא נמכור ולא נעביר לאחרים, ולא נשלח לכם פרסומות בלי הסכמה מפורשת.</p>
         <h3>עוגיות (Cookies)</h3>
-        <p>האתר עצמו לא שומר עוגיות בדפדפן שלכם ולא משתמש באחסון מקומי לצורך מעקב. לכן אין באתר חלון לאישור עוגיות. אם נוסיף בעתיד עוגיות שאינן הכרחיות, נבקש קודם את הסכמתכם ונעדכן כאן.</p>
+        <p>בלי הסכמה שלכם האתר לא שומר עוגיות. בכניסה הראשונה אנחנו שואלים אם לאשר עוגיות של מטא (פייסבוק ואינסטגרם). רק אם אישרתם, הפיקסל של מטא נטען ושומר עוגיות בדפדפן שלכם. את הבחירה עצמה אנחנו שומרים באחסון המקומי של הדפדפן, כדי לא לשאול שוב. <button type="button" id="consent-reset">שינוי הבחירה</button></p>
         <h3>אנליטיקס ומעקב</h3>
-        <p>האתר משתמש ב-Google Analytics 4 כדי לספור ביקורים: אילו עמודים נצפו, מאיזה מכשיר ומאיזה מקור הגעתם, ועל אילו כפתורים לחצתם (ניווט, וואטסאפ, טלפון, אינסטגרם, ביקורת). הוא מוגדר בלי עוגיות, בלי Google Signals ובלי פרסום מותאם אישית. אין באתר פיקסל של פייסבוק או של מטא, ואין כלי פרסום אחרים.</p>
+        <p>האתר משתמש ב-Google Analytics 4 כדי לספור ביקורים: אילו עמודים נצפו, מאיזה מכשיר ומאיזה מקור הגעתם, ועל אילו כפתורים לחצתם (ניווט, וואטסאפ, טלפון, אינסטגרם, ביקורת). הוא מוגדר בלי עוגיות, בלי Google Signals ובלי פרסום מותאם אישית.</p>
+        <p>אם אישרתם עוגיות, פועל באתר גם הפיקסל של מטא. הוא מדווח למטא על הביקור ועל לחיצה על ניווט, וואטסאפ או טלפון, כדי שנוכל למדוד פרסום בפייסבוק ובאינסטגרם ולהציג אותו לאנשים שביקרו באתר. מטא מעבדת את המידע לפי מדיניות הנתונים שלה. בלי אישור, הפיקסל לא נטען.</p>
         <h3>צדדים שלישיים</h3>
         <ul>
           <li>אחסון: ספק האחסון של האתר עשוי לשמור יומני גישה טכניים, כמו כתובת IP, זמן הכניסה וסוג הדפדפן, לצורכי אבטחה ותפעול.</li>

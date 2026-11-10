@@ -273,7 +273,7 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
 setInterval(renderStatus, 60000);
 
 /* ===== Google Analytics 4 (נכס cortado-ops) ===== */
-// בלי עוגיות, בלי Google Signals ובלי פרסום — כך כתוב גם במדיניות הפרטיות (#privacy).
+// GA עצמו בלי עוגיות, בלי Google Signals ובלי פרסום — כך כתוב גם במדיניות הפרטיות (#privacy).
 // shortcut: client_storage none = כל ביקור נספר כמשתמש חדש; לעבור לעוגיות רק יחד עם חלון הסכמה.
 if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות לא שולחות ביקורים
   window.dataLayer = window.dataLayer || [];
@@ -286,12 +286,47 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות ל
     ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
     document.head.append(ga);
   };
-  addEventListener("load", () => (window.requestIdleCallback || setTimeout)(loadGA, { timeout: 2000 }), { once: true });
+  /* ===== פיקסל של מטא (ערכת הנתונים "קפה קורטדו") ===== */
+  // הפיקסל שומר עוגיות, ולכן נטען רק אחרי "מאשרים" בחלון ההסכמה. הבחירה נשמרת ב-localStorage,
+  // ואפשר לשנות אותה מתוך מדיניות הפרטיות (#consent-reset).
+  const consent = () => { try { return localStorage.getItem("meta-consent"); } catch { return null; } };
+  const loadMeta = () => {
+    if (window.fbq) return;
+    const n = window.fbq = function(){ n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+    window._fbq = n; n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
+    const s = document.createElement("script");
+    s.async = true; s.src = "https://connect.facebook.net/en_US/fbevents.js";
+    document.head.append(s);
+    fbq("init", "2941474756214612");
+    fbq("track", "PageView");
+  };
+  const askConsent = () => {
+    if (document.querySelector(".consent")) return;
+    const el = document.createElement("div");
+    el.className = "consent"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "עוגיות");
+    el.innerHTML = '<p>עוגיות של מטא, למדידת הפרסום שלנו. <a href="#privacy">פרטים</a></p><div><button type="button" data-v="no">לא תודה</button><button type="button" data-v="yes">מאשרים</button></div>';
+    el.addEventListener("click", e => {
+      const v = e.target.dataset && e.target.dataset.v; if (!v) return;
+      try { localStorage.setItem("meta-consent", v); } catch {}
+      el.remove();
+      if (v === "yes") loadMeta();
+    });
+    document.body.append(el);
+  };
+  const reset = document.getElementById("consent-reset");
+  if (reset) reset.addEventListener("click", () => { try { localStorage.removeItem("meta-consent"); } catch {} askConsent(); });
+  addEventListener("load", () => (window.requestIdleCallback || setTimeout)(() => {
+    loadGA();
+    const c = consent();
+    if (c === "yes") loadMeta(); else if (c !== "no") askConsent();
+  }, { timeout: 2000 }), { once: true });
   // הלחיצות שמביאות לקוחות. שם אירוע לכל יעד, כי פרמטר מותאם לא מופיע בדוחות בלי הגדרה ידנית בגוגל.
   const GOALS = { "waze.com": "click_waze", "google.com/maps": "click_maps", "wa.me": "click_whatsapp", "tel:": "click_phone", "instagram.com": "click_instagram", "g.page": "click_review" };
+  const META = { "waze.com": "FindLocation", "google.com/maps": "FindLocation", "wa.me": "Contact", "tel:": "Contact" }; // אירועים סטנדרטיים של מטא
   document.addEventListener("click", e => {
     const a = e.target.closest && e.target.closest("a[href]");
     const k = a && Object.keys(GOALS).find(k => a.href.includes(k));
     if (k) gtag("event", GOALS[k], { transport_type: "beacon" });
+    if (k && window.fbq && META[k]) fbq("track", META[k]);
   });
 }
