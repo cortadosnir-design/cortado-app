@@ -497,6 +497,9 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
 /* תמונה חיה: וידאו שקט בלולאה מעל התמונה עצמה. בלי הווידאו (רשת איטית, תנועה מופחתת) נשארת התמונה. */
 .live{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease-out;pointer-events:none}
 .live.on{opacity:1}
+/* בואו לבקר: צילום הדמדומים המלא במקום העגלה החתוכה, והוא חי */
+.visit-art.dusk{display:block;min-height:0;margin:0;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;box-shadow:0 30px 50px -24px rgba(0,0,0,.6)}
+.dusk img{width:100%;height:100%;object-fit:cover}
 </style>
 <script type="application/ld+json">
 {
@@ -981,12 +984,10 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
 <!-- 7 · מחויבות: העגלה בערב, השעות, ופעולה אחת -->
 <section class="visit" id="visit" data-sc-act="flow" aria-labelledby="h-visit">
   <div class="wrap visit-grid">
-    <div class="visit-art" aria-hidden="true">
-      <div class="moon"></div>
-      <i class="star" style="--x:18%;--y:12%"></i><i class="star" style="--x:72%;--y:8%;--d:-1s"></i><i class="star" style="--x:44%;--y:20%;--d:-2s"></i><i class="star" style="--x:86%;--y:28%;--d:-.5s"></i><i class="star" style="--x:8%;--y:34%;--d:-1.5s"></i>
-      <div class="cart-glow"></div>
-      <img class="eve" src="img/sc/evening-cart.webp" alt="" width="697" height="476" loading="lazy" data-sc-parallax="-0.9">
-    </div>
+    <figure class="visit-art dusk" aria-hidden="true">
+      <img src="img/evening.jpg" srcset="img/evening-900.webp 900w, img/evening-1600.webp 1600w" sizes="(min-width:900px) 50vw, 100vw" alt="" width="1600" height="1204" loading="lazy">
+      <video class="live" data-live="img/live/evening.mp4" muted loop playsinline preload="none" tabindex="-1"></video>
+    </figure>
     <div>
       <p class="label">שעות והגעה</p>
       <h2 id="h-visit" data-sc-in>בואו לבקר.</h2>
