@@ -3,6 +3,7 @@
 //   1. עומק אמיתי בהירו: perspective ב-CSS, וכאן רק הנדנוד העדין.
 //   2. הזרם: קו קפה אחד שיוצא מהכוסות, יורד לאורך השוליים ונמזג לכוס; ממנה ממשיך עד כפתור הניווט.
 //   3. כוס הקורטדו בתלת־ממד (three.js, נטען רק כשמתקרבים אליה). בלי WebGL נשארת כוס ה-SVG.
+//   4. תמונות חיות: וידאו שקט בלולאה מעל התמונות האמיתיות.
 // תנועה מופחתת: בלי נדנוד ובלי תלת־ממד, והזרם מצויר שלם ועומד.
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -30,6 +31,22 @@ if (hero && heroStage && !still){
     on = es[0].isIntersecting; cancelAnimationFrame(id);
     if (on) id = requestAnimationFrame(sway);
   }).observe(heroStage);
+}
+
+/* ===== תמונות חיות ===== */
+// וידאו שקט בלולאה שנוצר מהתמונה עצמה (Kling) ומונח מעליה. נטען רק כשמתקרבים, מנגן רק כשרואים אותו,
+// ולא נטען בכלל בתנועה מופחתת או במצב חיסכון בנתונים: אז נשארת התמונה.
+if (!still && !(navigator.connection && navigator.connection.saveData)){
+  const io = new IntersectionObserver((es) => {
+    for (const e of es){
+      const v = e.target;
+      if (e.isIntersecting){
+        if (!v.src){ v.src = v.dataset.live; v.addEventListener("playing", () => v.classList.add("on"), { once: true }); }
+        v.play().catch(() => {});                 // דפדפן שחוסם ניגון אוטומטי: התמונה נשארת
+      } else if (v.src) v.pause();
+    }
+  }, { rootMargin: "40% 0px" });
+  document.querySelectorAll("video.live").forEach((v) => io.observe(v));
 }
 
 /* ===== 2 · הזרם ===== */

@@ -489,6 +489,14 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
 .pour.gl-on .glass-wrap{pointer-events:none}
 #visit .btn{transition:background-color .6s ease-out,color .6s ease-out}
 #visit .btn.poured{background:#9A6230;color:var(--cream)}
+
+/* ===== שפת תנועה אחת (13.11.2026, אחרי מחקר: "הרבה יותר מקצועי"). מה שזז בדף: כניסה רכה של תוכן, התמונות החיות,
+   זרם הקפה והכוס. הקישוטים שזזו כל אחד בדרכו (נורות, אדים מצוירים, קערה מסתובבת, כוסות מתנדנדות, כוכבים) עומדים במקום. ===== */
+.bulb,.steam,.hot-cup .steam,.sk-hotgrid .hs,.star{display:none}
+.sk-spin img,.sk-duo img,.sk-coffee img,.sk-4 .sk-art2,.hot-cup,.sk-hotgrid svg{rotate:none!important;translate:none!important;scale:none!important;animation:none!important}
+/* תמונה חיה: וידאו שקט בלולאה מעל התמונה עצמה. בלי הווידאו (רשת איטית, תנועה מופחתת) נשארת התמונה. */
+.live{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease-out;pointer-events:none}
+.live.on{opacity:1}
 </style>
 <script type="application/ld+json">
 {
@@ -826,6 +834,7 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
 <section class="lawn" id="lawn" data-sc-act="flow" aria-label="המדשאה">
   <figure class="lawn-fig">
     <img src="img/lawn.jpg" srcset="img/lawn-800.webp 800w, img/lawn-1400.webp 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" fetchpriority="low" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
+    <video class="live" data-live="img/live/lawn.mp4" muted loop playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
     <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
   </figure>
 </section>
@@ -841,9 +850,9 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
     <p class="label">המקום</p>
     <h2 id="h-st" data-sc-in>עצירה אחת בדרך לנחל, שהופכת לחצי יום. <span>ההורים יושבים בצל עם קפה, הילדים בגן השעשועים, והכלב מקבל מים.</span></h2>
     <div class="facts" aria-label="זמני הגעה משוערים מהעגלה" data-sc-in data-sc-stagger="110">
-      <div><b>כ־<span data-sc-count="0 5" data-sc-count-ms="1100">5</span> דק׳</b><span>ברגל לטנק הסורי</span></div>
-      <div><b>כ־<span data-sc-count="0 8" data-sc-count-ms="1300">8</span> דק׳</b><span>ברגל לכניסה למפל הבניאס והשביל התלוי</span></div>
-      <div><b>כ־<span data-sc-count="0 10" data-sc-count-ms="1500">10</span> דק׳</b><span>נסיעה לשמורת נחל שניר (החצבאני), כביש 99</span></div>
+      <div><b>כ־<span>5</span> דק׳</b><span>ברגל לטנק הסורי</span></div>
+      <div><b>כ־<span>8</span> דק׳</b><span>ברגל לכניסה למפל הבניאס והשביל התלוי</span></div>
+      <div><b>כ־<span>10</span> דק׳</b><span>נסיעה לשמורת נחל שניר (החצבאני), כביש 99</span></div>
     </div>
   </div>
 </section>
@@ -944,7 +953,7 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
         <h2 id="h-rev" data-sc-in>מה כותבים<br>עלינו בגוגל.</h2>
       </div>
       <div class="score" aria-label="דירוג 5.0 מתוך 5">
-        <b data-sc-count="0.0 5.0" data-sc-count-ms="1600">5.0</b>
+        <b>5.0</b>
         <span><span class="stars" aria-hidden="true">★★★★★</span>מתוך 80 ביקורות בגוגל מפות<br>נכון לאוקטובר 2026</span>
       </div>
     </div>
@@ -983,7 +992,7 @@ html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{conten
       <h2 id="h-visit" data-sc-in>בואו לבקר.</h2>
       <p class="addr">דרך המפל, קיבוץ שניר<small>במרכז הקיבוץ, ליד המרכולית. מול המדשאה הגדולה. חניה בחינם, כולל חניה נגישה.</small></p>
       <div class="actions">
-        <a class="btn btn-apricot" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes" data-sc-magnet="0.25"><svg aria-hidden="true"><use href="#i-nav"/></svg>פתחו בוויז</a>
+        <a class="btn btn-apricot" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>פתחו בוויז</a>
         <a class="btn btn-line-bone" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">פתחו בגוגל מפות</a>
       </div>
       <table class="hours">
