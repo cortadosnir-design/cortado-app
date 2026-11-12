@@ -11,9 +11,8 @@
 <meta name="description" content="עגלת קפה משפחתית על הדשא בקיבוץ שניר, בגליל העליון. קפה, שייקים, כריכים ומאפים טריים, דקות ממפל הבניאס ומנחל שניר (החצבאני). פתוחים גם בשבת.">
 <link rel="canonical" href="https://cortadosnir-design.github.io/cortado-app/cafe/">
 <meta name="robots" content="noindex,nofollow">
-<!-- תצוגה מקדימה לאישור הבעלים (21.10.2026), לא לאנדקס. אחרי "כן": להחליף את cafe/ בתיקייה הזו
-     (index.html, cafe.js, sc/, img/), להחזיר את השורה למעלה ל-index,follow ולמחוק את cafe-next/. -->
-
+<!-- תצוגה מקדימה לאישור הבעלים (12.11.2026), לא לאנדקס: הקפה שמוביל את הדף (flow.js) וכוס בתלת־ממד.
+     אחרי "כן": להעתיק ל-cafe/ את index.html, boot.js, flow.js ו-sc/three.min.js, ולהחזיר את השורה למעלה ל-index,follow. -->
 <meta name="theme-color" content="#F6F2EB">
 <meta property="og:title" content="קפה קורטדו · קיבוץ שניר">
 <meta property="og:description" content="עגלת קפה משפחתית על הדשא בקיבוץ שניר, דקות מהבניאס ומנחל שניר. פתוחים גם בשבת.">
@@ -24,23 +23,27 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="img/logo.png" type="image/png">
 <link rel="apple-touch-icon" href="img/logo.png">
+<link rel="preload" as="image" href="img/sc/hero-plate.webp" imagesrcset="img/sc/hero-plate-700.webp 700w, img/sc/hero-plate.webp 1050w" imagesizes="(min-width:900px) 560px, 94vw" fetchpriority="high">
 <link rel="stylesheet" href="sc/scrollcraft.css">
-<link rel="stylesheet" href="sc/lenis.css">
-<!-- מסמן לפני הציור הראשון שהכותרת תיבנה מילה-מילה ב-GSAP, כדי שלא תופיע ואז תיעלם. בלי JS: הכותרת כרגיל -->
-<script src="sc/motion-flag.js"></script>
 <style>
 /* הגופנים מוגשים מהאתר עצמו (fonts/), לא מ-Google Fonts: בלי בקשה שחוסמת את הציור הראשון,
-   ובלי להעביר את כתובת ה-IP של הגולש לצד שלישי. אותם קבצים ואותה חלוקה לטווחי תווים. */
+   ובלי להעביר את כתובת ה-IP של הגולש לצד שלישי.
+   הלטינית מפוצלת לשניים: ספרות ופיסוק (punct, קובץ קטן שכל דף עברי צריך) ואותיות (letters, נטען רק כשיש מילה באנגלית). */
 @font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-hebrew-wght-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-punct-wght-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-letters-wght-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-300-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-300-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-300-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:300;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-300-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-400-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-400-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-400-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-500-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-500-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-500-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 @font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-hebrew-600-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-latin-600-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-punct-600-normal.woff2) format("woff2");unicode-range:U+0020-0040,U+005B-0060,U+007B-007E,U+00A0,U+00A7,U+00A9,U+00AB,U+00B0,U+00B7,U+00BB,U+00D7,U+2013,U+2014,U+2018-201D,U+2022,U+2026}
+@font-face{font-family:"IBM Plex Sans Hebrew";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-hebrew-letters-600-normal.woff2) format("woff2");unicode-range:U+0041-005A,U+0061-007A,U+00A1-00A6,U+00A8,U+00AA,U+00AC-00AF,U+00B1-00B6,U+00B8-00BA,U+00BC-00D6,U+00D8-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+20AC,U+2122,U+2212}
 :root{
   --bone:#F6F2EB;
   --white:#FDFBF7;
@@ -138,6 +141,10 @@ section[id]{scroll-margin-top:72px}
 .hero-h1{position:absolute;z-index:2;inset-inline:var(--gutter);bottom:calc(var(--fh) * .363 - .22em);font:800 clamp(44px,13vw,118px)/.94 var(--serif);letter-spacing:-.04em;color:var(--cream);text-shadow:0 2px 22px rgba(18,15,11,.45);translate:0 calc(-120px * var(--sc-p,0))}
 .hero-h1 .ln{display:block}
 .hero-h1 .ln:first-child{color:var(--apricot)}
+.stamp{position:absolute;z-index:5;left:16px;top:calc(64px + env(safe-area-inset-top,0px) + 14px);width:84px;height:84px;border-radius:50%;background:var(--apricot);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;rotate:-9deg;box-shadow:0 8px 20px -6px rgba(0,0,0,.4);text-align:center}
+.stamp b{font:800 27px/1 var(--serif);letter-spacing:-.03em}
+.stamp i{font-style:normal;font-size:9px;letter-spacing:1px;color:var(--rust)}
+.stamp small{font-size:11px;font-weight:600}
 .hero-actions{display:none}
 @media (min-width:900px){
   .hero-stage{--hh:calc(100svh - 110px);--fh:calc(var(--hh) - 96px)}
@@ -146,6 +153,8 @@ section[id]{scroll-margin-top:72px}
   .hero-h1{inset-inline:auto;inset-inline-start:var(--gutter);right:var(--gutter);width:min(52vw,760px);bottom:auto;top:calc(var(--hh) - var(--fh) * .6);color:var(--ink);text-shadow:none}
   .hero-h1 .ln:first-child{color:var(--rust)}
   .hero-actions{display:flex;gap:12px;position:absolute;z-index:4;right:var(--gutter);top:calc(var(--hh) - var(--fh) * .6 + 2 * .94 * clamp(44px,13vw,118px) + 36px)}
+  .stamp{left:calc(4vw + var(--fh) * .03);top:calc(var(--hh) - var(--fh) - 20px);width:112px;height:112px}
+  .stamp b{font-size:37px}.stamp i{font-size:11px}.stamp small{font-size:13px}
 }
 /* כניסה: הרקע מתיישב, הכוסות עולות, הכותרת נבנית שורה-שורה */
 .f-back img{animation:settle 1.6s cubic-bezier(.2,.7,.2,1) both}
@@ -153,22 +162,23 @@ section[id]{scroll-margin-top:72px}
 .hero-h1 .ln{animation:lineUp .9s cubic-bezier(.2,.8,.2,1) both}
 .hero-h1 .ln:nth-child(2){animation-delay:.12s}
 .hero-top{animation:fadeIn .9s .2s both}
+.stamp{animation:stampIn .8s .7s cubic-bezier(.3,1.4,.4,1) both}
 @keyframes settle{from{transform:scale(1.07)}to{transform:none}}
 @keyframes cupsIn{from{transform:translateY(22%);opacity:0}to{transform:none;opacity:1}}
 @keyframes lineUp{from{transform:translateY(40%);opacity:0}to{transform:none;opacity:1}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-/* GSAP בונה את הכותרת מילה-מילה (cafe.js). אם הספרייה לא נטענה, הכותרת מופיעה בכל זאת אחרי 1.6 שניות */
-.gs-h1 .hero-h1 .ln{animation:none}
-.gs-h1 .hero-h1{opacity:0;animation:fadeIn .01s 1.6s forwards}
-.hero-h1.gs-on{opacity:1;animation:none}
-/* Lenis מחליק את הגלילה בעצמו; גלילה חלקה של CSS נלחמת בו והדף מגמגם */
-html.lenis{scroll-behavior:auto}
+@keyframes stampIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 
-/* המצב החי (פתוח עכשיו / נפתח ב…) כבר במסך הראשון, עם קיצור לשעות ולדרך */
-/* בטלפון צר, כשהעגלה פתוחה, הכיתוב "פתוח עכשיו · עד 19:00" בכותרת דחק את שם העגלה לשתי שורות */
-@media (max-width:420px){.brand b{white-space:nowrap;font-size:19px}.top .status{font-size:13px;padding:0 10px;gap:6px}}
+/* "גללו": רמז לגלילה. נעלם אחרי הגלילה הראשונה, ולחיצה עליו מגלגלת למדשאה */
+.scroll-cue{position:absolute;z-index:6;left:50%;bottom:12px;translate:-50% 0;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 18px 0 14px;border-radius:var(--pill);background:rgba(26,22,17,.86);color:var(--cream);font-size:15px;font-weight:600;text-decoration:none;box-shadow:0 8px 20px -8px rgba(0,0,0,.5);transition:opacity .35s,translate .35s}
+.scroll-cue svg{width:20px;height:20px;animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateY(-2px)}50%{transform:translateY(4px)}}
+.hero.moved .scroll-cue{opacity:0;translate:-50% 12px;pointer-events:none}
 
 /* proof */
+.proof{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:26px var(--gutter) 0}
+.proof span{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:var(--r-sm);background:var(--white);border:1px solid var(--hair);font-size:15px;color:var(--ink-soft)}
+.proof b{color:var(--ink);font-weight:700}
 .stars{letter-spacing:2px;color:var(--rust)}
 
 /* ===== 2 · המדשאה: חיתוך עיגול שנפתח ===== */
@@ -238,6 +248,11 @@ html.lenis{scroll-behavior:auto}
 @media (min-width:861px){.story-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(32px,7vw,120px)}}
 
 /* ===== רצועת התפריט ===== */
+.marquee{background:var(--ink);color:var(--cream);overflow:hidden;white-space:nowrap;padding-block:16px}
+.marquee .track{display:inline-flex;gap:24px;align-items:center;animation:marq 38s linear infinite;font:700 clamp(24px,6.6vw,40px)/1 var(--serif);letter-spacing:-.02em;padding-inline-end:24px}
+.marquee .track span:nth-of-type(2n){color:var(--apricot)}
+.marquee .track i{width:9px;height:9px;border-radius:50%;background:var(--apricot);flex:none}
+@keyframes marq{to{transform:translateX(50%)}}
 
 /* ===== 5 · התפריט: כרטיסים נערמים ===== */
 .offer{padding-block:var(--sec) calc(var(--sec) * .6)}
@@ -260,7 +275,7 @@ html.lenis{scroll-behavior:auto}
 .sk-hotgrid .hs path{stroke:rgba(255,255,255,.85);stroke-width:2.2;stroke-dasharray:14 40;filter:blur(.8px);animation:rise 3s ease-in-out infinite}
 .sk-hotgrid .hs .w2{animation-delay:-1.5s}
 .sk-hotgrid figure:nth-child(2) .hs path{animation-delay:-.7s}.sk-hotgrid figure:nth-child(3) .hs path{animation-delay:-1.1s}.sk-hotgrid figure:nth-child(4) .hs path{animation-delay:-2.2s}
-@media (min-width:861px){.sk-hotgrid{grid-template-columns:repeat(4,minmax(0,1fr))}.sk-hotgrid svg{width:min(100%,170px)}}
+@media (min-width:861px){.sk-hotgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.sk-hotgrid svg{translate:none!important}}
 .hot-cup{width:min(56%,260px);height:auto;max-width:none;stroke:var(--apricot);overflow:visible;rotate:calc(-4deg + var(--sk-p,0) * 8deg)}
 .hot-cup .steam{stroke:var(--cream);stroke-dasharray:30;animation:steam 2.6s ease-in-out infinite}
@@ -278,7 +293,8 @@ html.lenis{scroll-behavior:auto}
 .sk-art img{width:auto;max-width:74%;max-height:min(34svh,330px);object-fit:contain;filter:drop-shadow(0 26px 26px rgba(0,0,0,.32));rotate:calc(-6deg + var(--sk-p,0) * 12deg);scale:calc(.92 + var(--sk-p,0) * .12)}
 .sk-art .sk-art2{position:absolute;max-width:40%;max-height:18svh;inset-inline-start:8%;bottom:4%;rotate:calc(10deg - var(--sk-p,0) * 16deg)}
 @media (max-height:700px) and (max-width:860px){.sk{top:calc(72px + var(--i,0) * 44px);min-height:max(290px,calc(100svh - 168px - var(--i,0) * 44px))}.sk h3{font-size:clamp(30px,8vw,48px)}.sk-art img{max-height:22svh}.sk-duo .sk-art2{max-height:15svh}.sk-hotgrid svg{width:min(100%,90px)}}
-@media (min-width:861px){.stack{max-width:1100px}.sk{top:calc(96px + var(--i,0) * 70px);min-height:max(420px,calc(100svh - 160px - var(--i,0) * 70px));grid-template-rows:auto 1fr}.sk-txt{padding:18px 40px 0}.sk-art img{max-height:min(40svh,380px)}}
+/* במחשב: טקסט ותמונה זה לצד זה, וגובה הכרטיס נגזר מגובה המסך — כך כרטיס נעוץ אף פעם לא גולש מתחת לקצה המסך */
+@media (min-width:861px){.stack{max-width:1100px}.sk{--step:clamp(40px,8svh,70px);--h:clamp(240px,calc(100svh - 120px - var(--i,0) * var(--step)),600px);top:calc(96px + var(--i,0) * var(--step));height:var(--h);min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}.sk-txt{padding:18px 40px}.sk-art{padding:20px 28px}.sk-art img{max-height:min(calc(var(--h) - 56px),440px)}.sk-art .sk-art2,.sk-duo .sk-art2{max-height:calc(var(--h) * .34)}.sk-spin img{max-height:min(calc(var(--h) - 96px),440px)}.sk-hotgrid{padding:12px 24px}.sk-hotgrid svg{width:min(100%,calc(var(--h) * .36))}}
 .offer-note{margin-top:28px;font-size:16px;color:var(--ink-soft)}
 
 /* ===== 6 · ביקורות ===== */
@@ -337,23 +353,25 @@ html.lenis{scroll-behavior:auto}
 .faq details:not([open]) summary::after{background-image:linear-gradient(var(--rust),var(--rust)),linear-gradient(var(--rust),var(--rust));background-size:11px 1.5px,1.5px 11px;background-position:center;background-repeat:no-repeat}
 .faq details[open] summary::after{transform:rotate(180deg)}
 .faq details p{padding:0 20px 20px;color:var(--ink-soft);max-width:58ch}
+.faq .brief{padding:22px;background:var(--apricot-soft);border-radius:var(--r);margin-bottom:8px}
+.faq .brief .label{margin-bottom:12px}
+.faq .brief p{color:#3F382F}
 .nb{white-space:nowrap}
 @media (min-width:861px){.faq-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}.faq .brief{padding:30px}}
 
 /* review ask */
+.ask{padding-block:0 clamp(56px,8vw,110px)}
+.ask .wrap{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--apricot-soft);border-radius:var(--r);padding-block:clamp(28px,4vw,48px);max-width:calc(var(--max) - var(--gutter) * 2);margin-inline:var(--gutter)}
+@media (min-width:1321px){.ask .wrap{margin-inline:auto}}
+.ask .wrap>div:first-child{flex:1 1 320px}
+.ask h2{font:800 clamp(32px,6vw,60px)/1 var(--serif);letter-spacing:-.035em}
+.ask p{color:#4A433A;margin-top:10px}
 
 /* english */
 .en{border-top:1px solid var(--hair);padding-block:clamp(56px,8vw,110px);text-align:left}
 .en-grid{display:grid;gap:20px}
 .en h2{font:700 clamp(30px,4vw,48px)/1.08 var(--serif);margin-top:14px}
 .en .body{display:flex;flex-direction:column;gap:14px;color:var(--ink-soft);max-width:62ch}
-/* הטקסט באנגלית סגור כברירת מחדל: הוא בדף בשביל תיירים, גוגל ועוזרי AI, ולא צריך לגלול דרכו */
-.en details.body{display:block}
-.en details.body>p{margin-top:14px}
-.en details.body>summary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:var(--pill);border:1px solid var(--hair);background:rgba(253,251,247,.85);color:var(--ink);font-weight:600;cursor:pointer;list-style:none}
-.en details.body>summary::-webkit-details-marker{display:none}
-.en details.body>summary::after{content:"+";font-size:18px;line-height:1;color:var(--rust)}
-.en details.body[open]>summary::after{content:"–"}
 @media (min-width:861px){.en-grid{grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(24px,5vw,80px)}}
 
 /* legal */
@@ -387,6 +405,14 @@ footer :focus-visible{outline-color:var(--apricot)}
 .fine{grid-column:1/-1;margin-top:24px;padding-top:22px;border-top:1px solid rgba(246,242,235,.2);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:rgba(246,242,235,.8)}
 @media (min-width:861px){.foot-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:40px}}
 
+/* חלון ההסכמה לעוגיות של מטא: צף מעל סרגל הפעולות, לא מכסה אותו. שני הכפתורים באותו משקל. */
+.consent{position:fixed;z-index:80;inset-inline-start:16px;bottom:16px;width:min(380px,calc(100vw - 32px));padding:16px;border-radius:var(--r-sm);background:var(--white);border:1px solid var(--hair);box-shadow:0 14px 40px -12px rgba(26,22,17,.45);font-size:15px;line-height:1.5}
+.consent a{font-weight:600}
+.consent div{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.consent button{min-height:44px;border-radius:var(--pill);border:1px solid var(--ink);background:transparent;color:var(--ink);font:600 15px/1 var(--sans);cursor:pointer}
+.consent button[data-v="yes"]{background:var(--ink);color:var(--cream)}
+#consent-reset{padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+@media (max-width:760px){.consent{inset-inline:12px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 /* mobile bar */
 .bar{display:none}
 @media (max-width:760px){
@@ -445,83 +471,24 @@ footer :focus-visible{outline-color:var(--apricot)}
   .stream{opacity:0!important}.glass{opacity:1!important;scale:none!important}.pour-top{display:none}
   .half{opacity:1!important}.ratio>div{opacity:1!important}
   .sk-art img{rotate:none!important;scale:none!important}
-  }
-/* ===== קליל (21.10.2026, "הכל נורא עמוס"): פחות קופסאות, פחות פריטים בכל מסך ===== */
-.brand b{white-space:nowrap}
-/* בטלפון: הכותרת למעלה על הרקע הבהיר, והתמונה מתחתיה נקייה, בלי טקסט עליה */
-@media (max-width:899px){
-  .hero-stage{--fh:min(173vw,calc(var(--hh) - 64px - 150px))}
-  .hero-top{display:none}
-  .hero-h1{top:calc(64px + env(safe-area-inset-top,0px) + 18px);bottom:auto;color:var(--ink);text-shadow:none}
-  .hero-h1 .ln:first-child{color:var(--rust)}
+  .marquee .track{animation:none}
 }
-/* זמני ההליכה: שורות עם קו דק במקום כרטיסים */
-.facts{gap:0}
-.facts>div{background:none;border:0;border-top:1px solid var(--hair);border-radius:0;padding:18px 0}
-@media (min-width:761px){.facts>div{padding:28px 0 0}}
-/* שאלות: שורות עם קו דק במקום קופסאות. "עוד שאלות" ו"בקצרה" נפתחים בלחיצה */
-.faq details{background:none;border:0;border-bottom:1px solid var(--hair);border-radius:0;margin-top:0}
-.faq details[open]{border-color:var(--hair)}
-.faq summary{padding:16px 0}
-.faq details p{padding:0 0 18px}
-.faq .more-q{border-bottom:0}
-.faq .more-q>summary{color:var(--rust);font-weight:700}
-/* המוזיקה עברה לתחתית הדף */
-.foot-sound{display:flex;align-items:center;gap:12px;min-height:52px;font-weight:500}
-/* ===== שפת צבע (21.10.2026, אחרי מחקר): הצבעים נגזרים מהמקום ומהלוגו, לא רק מהמשמש.
-   חלוקה 60-30-10: רקע בהיר ניטרלי לרוב הדף, משטח שני בהיר לקטעים ולכרטיסים, והמשמש של הלוגו רק לכפתורים.
-   צבע ההדגשה בטקסט (--rust, שם היסטורי) הוא חום הקפה. הבעלים בחר "חלב וקפה" מתוך שלושה כיוונים (21.10.2026) ===== */
-:root{
-  --bone:#FBF8F3;--cream:#FBF8F3;--white:#FFFFFF;--tint:#F3ECE2;--tint2:#F3ECE2;
-  --ink:#2E241D;--ink-soft:#6B5E52;--hair:#E8DFD3;
-  --rust:#7A4A2E;--board:#5B6B57;--apricot:#F2AF75;--apricot-soft:#FBE9D6;--rust-soft:#F3ECE2;
-  --c1:#F3ECE2;--c2:#FFFFFF;--c3:#F3ECE2;--c4:#FFFFFF;--c5:#F3ECE2;
-  --sc-canvas:#FBF8F3;--sc-ink:#2E241D;--sc-accent:#7A4A2E}
-body{background:var(--bone)}
-.hero-stage{background:var(--bone)}
-/* כרטיסי התפריט: משטחים בהירים לסירוגין, בלי משמש או צבע כהה כרקע */
-.sk{box-shadow:0 -8px 28px -16px rgba(30,38,32,.2);border:1px solid var(--hair);color:var(--ink)}
-.sk-1{background:var(--c1)}.sk-hot{background:var(--c2)}.sk-2{background:var(--c3)}.sk-3{background:var(--c4)}.sk-4{background:var(--c5)}
-.sk-1,.sk-hot,.sk-2,.sk-3,.sk-4{color:var(--ink)}
-.sk li,.sk-2 li,.sk-4 li{background:var(--bone);border:1px solid var(--hair)}
-.sk li em,.sk-2 li em,.sk-4 li em{background:var(--rust);color:#fff}
-.sk-art img{filter:drop-shadow(0 18px 20px rgba(30,38,32,.18))}
-.sk-hotgrid svg{stroke:var(--ink)}
-.sk-hotgrid figcaption{color:var(--rust)}
-.sk-hotgrid .hs path,.hot-cup .steam{stroke:rgba(30,38,32,.28)}
-.hot-cup{stroke:var(--rust)}
-.savta{background:var(--white);color:var(--ink);border:1px solid var(--hair);box-shadow:0 14px 30px -18px rgba(30,38,32,.28)}
-.savta cite{color:var(--rust)}
-.savta .mark{box-shadow:0 0 0 3px var(--white)}
-.ratio>div{background:var(--white);border-color:var(--hair)}
-/* ביקורות ושעות: המשטח השני, בהיר */
-.reviews{background:var(--tint);color:var(--ink)}
-.reviews .label,.score b,.score .stars,.rev-grid figure::before{color:var(--rust)}
-.score span,.rev-grid figcaption,.fine-note{color:var(--ink-soft)}
-.rev-grid figure{background:var(--white);border-color:var(--hair)}
-.visit{background:var(--tint2);color:var(--ink)}
-.visit .label{color:var(--rust)}
-.addr small,.hours-note{color:var(--ink-soft)}
-.hours{background:var(--white)}
-.eve{filter:drop-shadow(0 22px 24px rgba(30,38,32,.2))}
-.star{display:none}  /* כוכבי הלילה נבנו לרקע הכהה */
-.btn-line-bone{border-color:var(--ink);color:var(--ink)}
-.btn-line-bone:hover{background:var(--ink);color:var(--white)}
-.btn-ink:hover{background:var(--rust)}
-/* שאלות ותחתית */
-.faq summary::after{background-color:var(--tint)}
-footer{background:var(--tint);color:var(--ink)}
-.foot-mark{color:var(--rust)}
-footer h3,.fine{color:var(--ink-soft)}
-footer li a:hover{color:var(--rust)}
-.fine{border-top-color:var(--hair)}
-.reviews :focus-visible,footer :focus-visible,.visit :focus-visible{outline-color:var(--ink)}
-@media (max-width:760px){
-  .bar{background:rgba(255,255,255,.94);border:1px solid var(--hair);box-shadow:0 10px 30px -12px rgba(30,38,32,.28)}
-  .bar a{color:var(--ink)}
-  .bar a:active{background:rgba(30,38,32,.06)}
-  .bar :focus-visible{outline-color:var(--ink)}
-}
+/* מה שמתחת למסך הראשון לא מחושב ולא מצויר עד שמתקרבים אליו: הפריסה הראשונה של הדף ירדה מ-109ms ל-35ms.
+   contain-intrinsic-size:auto זוכר את הגובה האמיתי אחרי הציור הראשון, כך שפס הגלילה לא קופץ בחזרה למעלה.
+   קפיצה לעוגן (#visit) צריכה גבהים אמיתיים, ולכן cafe.js מוסיף lay-all ל-<html> לפני כל קפיצה כזאת. */
+html:not(.lay-all) main>*:not(.hero):not(.lawn),html:not(.lay-all) footer{content-visibility:auto;contain-intrinsic-size:auto 900px}
+
+/* ===== הקפה שמוביל את הדף (flow.js): עומק בהירו, זרם בין הקטעים, כוס בתלת־ממד ===== */
+.hero.d3 .hero-stage{perspective:1100px}
+.hero.d3 .frame{transform-style:preserve-3d;transform:rotateX(calc(9deg * var(--sc-p,0) + var(--swx,0deg) * (1 - var(--sc-p,0)))) rotateY(calc(var(--swy,0deg) * (1 - var(--sc-p,0))))}
+.hero.d3 .f-back .plate{transform:translateZ(calc(-30px - 150px * var(--sc-p,0)))}
+.hero.d3 .f-front .cups{transform:translateZ(calc(30px + 190px * var(--sc-p,0)))}
+.thread{position:fixed;top:0;left:0;z-index:20;pointer-events:none}
+.gl3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+.pour.gl-on .glass,.pour.gl-on .pour-top{visibility:hidden}
+.pour.gl-on .glass-wrap{pointer-events:none}
+#visit .btn{transition:background-color .6s ease-out,color .6s ease-out}
+#visit .btn.poured{background:#9A6230;color:var(--cream)}
 </style>
 <script type="application/ld+json">
 {
@@ -771,43 +738,35 @@ footer li a:hover{color:var(--rust)}
  "openingHoursSpecification": [
   {
    "@type": "OpeningHoursSpecification",
-   "dayOfWeek": "Monday",
-   "opens": "17:00",
-   "closes": "19:00",
-   "validFrom": "2026-10-18",
-   "validThrough": "2026-10-24"
-  },
-  {
-   "@type": "OpeningHoursSpecification",
-   "dayOfWeek": "Wednesday",
-   "opens": "17:00",
-   "closes": "19:00",
-   "validFrom": "2026-10-18",
-   "validThrough": "2026-10-24"
-  },
-  {
-   "@type": "OpeningHoursSpecification",
    "dayOfWeek": "Thursday",
-   "opens": "17:00",
-   "closes": "19:00",
-   "validFrom": "2026-10-18",
-   "validThrough": "2026-10-24"
+   "opens": "16:30",
+   "closes": "18:30",
+   "validFrom": "2026-11-08",
+   "validThrough": "2026-11-14"
   },
   {
    "@type": "OpeningHoursSpecification",
    "dayOfWeek": "Friday",
    "opens": "09:00",
-   "closes": "15:00",
-   "validFrom": "2026-10-18",
-   "validThrough": "2026-10-24"
+   "closes": "12:00",
+   "validFrom": "2026-11-08",
+   "validThrough": "2026-11-14"
   },
   {
    "@type": "OpeningHoursSpecification",
    "dayOfWeek": "Saturday",
    "opens": "09:00",
-   "closes": "19:00",
-   "validFrom": "2026-10-18",
-   "validThrough": "2026-10-24"
+   "closes": "12:00",
+   "validFrom": "2026-11-08",
+   "validThrough": "2026-11-14"
+  },
+  {
+   "@type": "OpeningHoursSpecification",
+   "dayOfWeek": "Saturday",
+   "opens": "15:00",
+   "closes": "18:30",
+   "validFrom": "2026-11-08",
+   "validThrough": "2026-11-14"
   }
  ]
 }
@@ -825,7 +784,7 @@ footer li a:hover{color:var(--rust)}
 <header class="top" id="top">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="קפה קורטדו, לראש העמוד">
-      <img src="img/logo.png" alt="" width="40" height="40">
+      <img src="img/logo-128.webp" alt="" width="40" height="40">
       <span><b translate="no">קפה קורטדו</b><small class="label-en">Kibbutz Snir</small></span>
     </a>
     <nav class="nav" aria-label="ניווט ראשי">
@@ -835,6 +794,7 @@ footer li a:hover{color:var(--rust)}
       <a href="#visit">שעות והגעה</a>
     </nav>
     <div class="top-end">
+      <button class="sound" type="button" aria-pressed="false" aria-label="מוזיקה של העגלה"><svg class="note" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
       <span class="status" id="status" role="status" aria-live="polite"><i></i><span>שעות פתיחה</span></span>
       <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו</a>
     </div>
@@ -846,27 +806,34 @@ footer li a:hover{color:var(--rust)}
 <!-- 1 · הגעה: סצנה בשכבות מתמונה אחת. העגלה נסוגה, הכוסות מתקרבות, הכותרת ביניהן. -->
 <section class="hero" id="hero" aria-labelledby="h1">
   <div class="hero-stage">
-    <div class="frame f-back" aria-hidden="true"><div class="plate"><img src="img/sc/hero-plate.webp" alt="" width="1050" height="1400" fetchpriority="high"><i class="bulb" style="--x:36.8%;--y:10.8%"></i><i class="bulb" style="--x:61%;--y:12.1%;--d:-.8s"></i><i class="bulb" style="--x:60.5%;--y:15.2%;--d:-1.6s"></i><i class="bulb" style="--x:81.5%;--y:12.9%;--d:-2.2s"></i></div></div>
+    <div class="frame f-back" aria-hidden="true"><div class="plate"><img src="img/sc/hero-plate.webp" srcset="img/sc/hero-plate-700.webp 700w, img/sc/hero-plate.webp 1050w" sizes="(min-width:900px) 560px, 94vw" alt="" width="1050" height="1400" fetchpriority="high"><i class="bulb" style="--x:36.8%;--y:10.8%"></i><i class="bulb" style="--x:61%;--y:12.1%;--d:-.8s"></i><i class="bulb" style="--x:60.5%;--y:15.2%;--d:-1.6s"></i><i class="bulb" style="--x:81.5%;--y:12.9%;--d:-2.2s"></i></div></div>
     <div class="hero-top">
+      <p class="label">עגלת קפה משפחתית · קיבוץ שניר, הגליל העליון</p>
       <p class="sub">מדשאה בצל עצים ותיקים, גן שעשועים ממול, וקורטדו טוב. דקות מהחצבאני ומהבניאס.</p>
     </div>
     <h1 id="h1" class="hero-h1"><span class="ln">קפה על הדשא,</span> <span class="ln">בלב קיבוץ שניר.</span></h1>
-    <div class="frame f-front" aria-hidden="true"><div class="cups"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M26 58 C20 46 32 38 26 26 C21 16 30 10 27 2"/><path class="w2" d="M34 58 C29 48 39 40 34 30 C30 22 37 16 35 8"/><path class="w3" d="M66 58 C60 46 72 38 66 26 C61 16 70 10 67 2"/><path class="w4" d="M74 58 C69 48 79 40 74 30 C70 22 77 16 75 8"/></svg><img src="img/sc/hero-cups-solid.webp" alt="" width="714" height="508"></div></div>
+    <div class="frame f-front" aria-hidden="true"><div class="cups"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M26 58 C20 46 32 38 26 26 C21 16 30 10 27 2"/><path class="w2" d="M34 58 C29 48 39 40 34 30 C30 22 37 16 35 8"/><path class="w3" d="M66 58 C60 46 72 38 66 26 C61 16 70 10 67 2"/><path class="w4" d="M74 58 C69 48 79 40 74 30 C70 22 77 16 75 8"/></svg><img src="img/sc/hero-cups-solid.webp" srcset="img/sc/hero-cups-solid-480.webp 480w, img/sc/hero-cups-solid.webp 714w" sizes="(min-width:900px) 380px, 64vw" alt="" width="714" height="508"></div></div>
+    <span class="stamp" aria-hidden="true"><b>5.0</b><i>★★★★★</i><small>בגוגל</small></span>
     <div class="hero-actions">
       <a class="btn btn-ink" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes"><svg aria-hidden="true"><use href="#i-nav"/></svg>נווטו אלינו בוויז</a>
       <a class="btn btn-glass" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">גוגל מפות</a>
     </div>
+    <a class="scroll-cue" href="#lawn"><span>גללו</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
 </section>
 
 <!-- 2 · נשימה: עיגול שנחתך מהדף ונפתח אל המדשאה -->
 <section class="lawn" id="lawn" data-sc-act="flow" aria-label="המדשאה">
   <figure class="lawn-fig">
-    <img src="img/lawn-1400.webp" srcset="img/lawn-800.webp 800w, img/lawn-1400.webp 1400w, img/lawn-2000.webp 2000w" sizes="100vw" loading="lazy" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
+    <img src="img/lawn.jpg" srcset="img/lawn-800.webp 800w, img/lawn-1400.webp 1400w, img/lawn.jpg 2000w" sizes="100vw" loading="lazy" fetchpriority="low" alt="המדשאה בקיבוץ שניר בצל עצי אורן, עם שולחנות פיקניק ואנשים יושבים" width="2000" height="1500">
     <figcaption><p>המדשאה, העצים, והזמן לשבת.</p><span class="label-en">Kibbutz Snir · Upper Galilee</span></figcaption>
   </figure>
 </section>
 
+<div class="proof" data-sc-in data-sc-stagger="80">
+  <span><b>5.0</b> <span class="stars" aria-hidden="true">★★★★★</span> 80 ביקורות בגוגל <small>(אוקטובר 2026)</small></span>
+  <span><b>פתוחים גם בשבת</b></span>
+</div>
 
 <!-- 3 · "זה בדרך שלי": מספרים אמיתיים בלבד -->
 <section class="statement" data-sc-act="flow" aria-labelledby="h-st">
@@ -882,7 +849,7 @@ footer li a:hover{color:var(--rust)}
 </section>
 
 <!-- 4 · השיא: הגלילה מוזגת קורטדו. חצי אספרסו, חצי חלב. ואז סבתא. -->
-<section class="pour" id="pour" data-sc-act="pin" data-sc-span="1.9" aria-labelledby="h-pour">
+<section class="pour" id="pour" data-sc-act="pin" data-sc-span="2.8" data-sc-drift="#F9E0C7" aria-labelledby="h-pour">
   <div data-sc-stage class="pour-stage">
     <div class="pour-copy">
       <h2 id="h-pour" class="pour-h" data-sc-cue="0 0.8 0">קורטדו.</h2>
@@ -914,7 +881,7 @@ footer li a:hover{color:var(--rust)}
       <div class="r-milk"><dt>חלב חם</dt><dd><span data-sc-count="0 50" data-sc-count-at="0.44 0.7">50</span>%</dd></div>
     </dl>
     <blockquote class="savta" data-sc-cue="0.84">
-      <img class="mark" src="img/logo.png" alt="" width="64" height="64">
+      <img class="mark" src="img/logo-128.webp" alt="" width="64" height="64">
       <p>קורטדו היה המשקה של סבתא. עכשיו הוא גם שלכם.</p>
       <cite>ניצן, שחר ועמית</cite>
     </blockquote>
@@ -924,7 +891,7 @@ footer li a:hover{color:var(--rust)}
 <!-- הסיפור: תמונת הצוות נחשפת בחיתוך -->
 <section class="story" id="story" data-sc-act="flow" aria-labelledby="h-story">
   <div class="wrap story-grid">
-    <figure class="story-img" data-sc-reveal="up" data-sc-reveal-at="0.08 0.45"><img src="img/team-1600.webp" srcset="img/team-800.webp 800w, img/team-1600.webp 1600w" sizes="(min-width:861px) 50vw, 100vw" loading="lazy" alt="הצוות ליד עגלת הקפה בקיבוץ שניר" width="1600" height="1200"></figure>
+    <figure class="story-img" data-sc-reveal="up" data-sc-reveal-at="0.08 0.45"><img src="img/team.jpg" srcset="img/team-800.webp 800w, img/team-1600.webp 1600w" sizes="(min-width:900px) 50vw, 100vw" loading="lazy" alt="הצוות ליד עגלת הקפה בקיבוץ שניר" width="1600" height="1200"></figure>
     <div data-sc-in data-sc-stagger="90">
       <p class="label">הסיפור</p>
       <h2 id="h-story">אחרי שנתיים רחוק, חזרנו הביתה.</h2>
@@ -934,6 +901,7 @@ footer li a:hover{color:var(--rust)}
   </div>
 </section>
 
+<div class="marquee" aria-hidden="true"><div class="track"><span>קורטדו</span><i></i><span>הפוך</span><i></i><span>סחלב</span><i></i><span>שייקים</span><i></i><span>אסאי</span><i></i><span>כריכים</span><i></i><span>מאפים</span><i></i><span>קורטדו</span><i></i><span>הפוך</span><i></i><span>סחלב</span><i></i><span>שייקים</span><i></i><span>אסאי</span><i></i><span>כריכים</span><i></i><span>מאפים</span><i></i></div></div>
 
 <!-- 5 · תיאבון: כרטיסים שנערמים זה על זה בגלילה -->
 <section class="offer" id="offer" data-sc-act="flow" aria-labelledby="h-offer">
@@ -945,7 +913,7 @@ footer li a:hover{color:var(--rust)}
   <div class="stack">
     <article class="sk sk-1">
       <div class="sk-txt"><h3>קפה</h3><p>עם חלב רגיל או צמחי, לבחירתכם.</p><ul><li>קורטדו</li><li>הפוך ואספרסו</li><li>אמריקנו</li><li>מקיאטו</li><li>אפוגאטו</li><li>קפה קר</li></ul></div>
-      <div class="sk-art sk-coffee"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M40 58 C34 46 46 38 40 26 C35 16 44 10 41 2"/><path class="w2" d="M52 58 C47 48 57 40 52 30 C48 22 55 16 53 8"/><path class="w3" d="M62 58 C56 46 68 38 62 26 C57 16 66 10 63 2"/></svg><img src="img/sc/menu-coffee.webp" alt="כוס קפה עם ציור לאטה, מלמעלה" width="900" height="900" loading="lazy"></div>
+      <div class="sk-art sk-coffee"><svg class="steam" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M40 58 C34 46 46 38 40 26 C35 16 44 10 41 2"/><path class="w2" d="M52 58 C47 48 57 40 52 30 C48 22 55 16 53 8"/><path class="w3" d="M62 58 C56 46 68 38 62 26 C57 16 66 10 63 2"/></svg><img src="img/sc/menu-coffee.webp" alt="כוס קפה עם ציור לאטה, מלמעלה" width="892" height="900" loading="lazy"></div>
     </article>
     <article class="sk sk-hot">
       <div class="sk-txt"><h3>שתייה חמה</h3><p>לחורף שבפתח.</p><ul><li>סחלב</li><li>סיידר חם</li><li>שוקו</li><li>תה בטעמים שונים</li></ul></div>
@@ -997,7 +965,6 @@ footer li a:hover{color:var(--rust)}
     <p class="fine-note">ציטוטים מתוך ביקורות ציבוריות בגוגל מפות, בקיצור קל ובלי שינוי תוכן. לא שילמנו ולא נתנו הטבה תמורת ביקורת.</p>
     <div class="more">
       <a class="btn btn-line-bone" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">לכל הביקורות</a>
-      <a class="btn btn-line-bone" href="https://g.page/r/CdzLGw5mY-WKEBM/review">כתבו ביקורת</a>
     </div>
   </div>
 </section>
@@ -1021,17 +988,17 @@ footer li a:hover{color:var(--rust)}
       </div>
       <table class="hours">
         <caption class="sr">שעות פתיחה לפי יום</caption>
-        <tbody id="hours" data-week="2026-10-18">
+        <tbody id="hours" data-week="2026-11-08">
           <tr data-d="0"><th scope="row">ראשון</th><td class="closed">סגור</td></tr>
-          <tr data-d="1"><th scope="row">שני</th><td dir="ltr">17:00–19:00</td></tr>
+          <tr data-d="1"><th scope="row">שני</th><td class="closed">סגור</td></tr>
           <tr data-d="2"><th scope="row">שלישי</th><td class="closed">סגור</td></tr>
-          <tr data-d="3"><th scope="row">רביעי</th><td dir="ltr">17:00–19:00</td></tr>
-          <tr data-d="4"><th scope="row">חמישי</th><td dir="ltr">17:00–19:00</td></tr>
-          <tr data-d="5"><th scope="row">שישי</th><td dir="ltr">09:00–15:00</td></tr>
-          <tr data-d="6"><th scope="row">שבת</th><td dir="ltr">09:00–19:00</td></tr>
+          <tr data-d="3"><th scope="row">רביעי</th><td class="closed">סגור</td></tr>
+          <tr data-d="4"><th scope="row">חמישי</th><td dir="ltr">16:30–18:30</td></tr>
+          <tr data-d="5"><th scope="row">שישי</th><td dir="ltr">09:00–12:00</td></tr>
+          <tr data-d="6"><th scope="row">שבת</th><td dir="ltr">09:00–12:00 · 15:00–18:30</td></tr>
         </tbody>
       </table>
-      <p class="hours-note" id="hours-note"><b>השעות לשבוע 18.10 – 24.10. </b>השעות מתעדכנות כאן כל שבוע ומשתנות לפי עונה ובחגים, ולכן הן והתווית "פתוח עכשיו" עשויות לא להיות מעודכנות. לפני נסיעה ארוכה כדאי לבדוק בגוגל מפות, באינסטגרם או בוואטסאפ.</p>
+      <p class="hours-note" id="hours-note"><b>השעות לשבוע 8.11 – 14.11. </b>השעות מתעדכנות כאן כל שבוע ומשתנות לפי עונה ובחגים, ולכן הן והתווית "פתוח עכשיו" עשויות לא להיות מעודכנות. לפני נסיעה ארוכה כדאי לבדוק בגוגל מפות, באינסטגרם או בוואטסאפ.</p>
     </div>
   </div>
 </section>
@@ -1040,24 +1007,32 @@ footer li a:hover{color:var(--rust)}
   <div class="wrap faq-grid">
     <h2 id="h-faq">לפני שיוצאים לדרך</h2>
     <div>
-      <details class="brief">
-        <summary>בקצרה, בפסקה אחת</summary>
+      <div class="brief">
+        <p class="label">בקצרה</p>
         <p>קפה קורטדו הוא עגלת קפה משפחתית על הדשא במרכז קיבוץ שניר שבגליל העליון, כ־8 דקות הליכה מהכניסה למפל הבניאס (שמורת נחל חרמון) והשביל התלוי, וכ־10 דקות נסיעה משמורת נחל שניר (החצבאני). פתוחים גם בשבת. יש קפה עם חלב רגיל או צמחי, שייקים, קערת אסאי, כריכים, פיצות ומאפים, וגם אפשרויות טבעוניות וללא גלוטן. מדשאה בצל עצים ותיקים, גן שעשועים ממול, חניה בחינם, <span class="nb">Wi-Fi</span> חינם, וכלבים מתקבלים בברכה. לעסק אין תעודת כשרות. המאפים כשרים.</p>
-      </details>
+      </div>
       <details><summary>אתם פתוחים בשבת?</summary><p>כן. השעות משתנות משבוע לשבוע: שעות השבוע בטבלה שלמעלה ובגוגל מפות, ושינויים מתעדכנים בסטורי באינסטגרם.</p></details>
       <details><summary>כמה אתם רחוקים מהבניאס ומנחל שניר?</summary><p>כ־8 דקות הליכה מהכניסה למפל הבניאס והשביל התלוי, כ־10 דקות נסיעה משמורת נחל שניר (החצבאני), וכ־5 דקות הליכה מהטנק הסורי. ברכב: כ־7 דקות לתל דן, כרבע שעה לקריית שמונה וכ־40 דקות לחרמון. אפשר לעצור אצלנו לקפה לפני המסלול או אחריו.</p></details>
       <details><summary>יש תעודת כשרות?</summary><p>לעסק אין תעודת כשרות. המאפים כשרים. העגלה חלבית.</p></details>
       <details><summary>יש אפשרויות טבעוניות וללא גלוטן?</summary><p>כן. יש שייקים טבעוניים, חלב צמחי לכל משקה ומאפים ללא גלוטן. אם יש לכם אלרגיה או צליאק, שאלו אותנו לפני ההזמנה.</p></details>
       <details><summary>אפשר להגיע עם כלב?</summary><p>בטח. כלבים מתקבלים בברכה, ויש להם מים.</p></details>
       <details><summary>איך מגיעים לעגלה בתוך הקיבוץ?</summary><p>נכנסים בשער הצהוב וממשיכים ישר, פונים ימינה במרכולית, והעגלה משמאל, על הדשא. יש מקום גם למיניבוסים.</p></details>
-      <details class="more-q"><summary>עוד שאלות</summary>
       <details><summary>אפשר להגיע עם קבוצה?</summary><p>כן, בתיאום מראש. <a class="link" href="https://wa.me/972543125466">שלחו וואטסאפ</a> או התקשרו <a class="link nb" href="tel:+972543125466"><span dir="ltr">054-312-5466</span></a>.</p></details>
       <details><summary>איך משלמים?</summary><p>במזומן, באשראי או בביט.</p></details>
       <details><summary>מה קורה בגשם ובחורף?</summary><p>אין ישיבה מקורה, ובגשם אנחנו בדרך כלל לא פותחים. בחורף שווה להתעדכן לפני שיוצאים, בסטורי באינסטגרם או <a class="link" href="https://wa.me/972543125466">בוואטסאפ</a>.</p></details>
       <details><summary>יש שירותים?</summary><p>כן, יש שירותים ללקוחות בקרבת העגלה.</p></details>
       <details><summary>המקום נגיש?</summary><p>יש חניה נגישה, כניסה נגישה ומקומות ישיבה נגישים לכיסאות גלגלים. יש גם Wi-Fi חינם. פרטים נוספים ב<a class="link" href="#accessibility">הצהרת הנגישות</a>.</p></details>
-      </details>
     </div>
+  </div>
+</section>
+
+<section class="ask" aria-labelledby="h-ask">
+  <div class="wrap">
+    <div>
+      <h2 id="h-ask">היה טוב? ספרו לעוד מטיילים.</h2>
+      <p>ביקורת בגוגל לוקחת חצי דקה, ועוזרת לעסק קטן בקיבוץ יותר ממה שנדמה.</p>
+    </div>
+    <a class="btn btn-line" href="https://g.page/r/CdzLGw5mY-WKEBM/review">כתבו ביקורת בגוגל</a>
   </div>
 </section>
 
@@ -1067,15 +1042,14 @@ footer li a:hover{color:var(--rust)}
       <p class="label-en">In English</p>
       <h2 id="h-en">Coffee on the lawn in Kibbutz Snir, by the Banias.</h2>
     </div>
-    <details class="body en-more">
-      <summary>Read about us in English</summary>
+    <div class="body">
       <p>Cortado (קפה קורטדו) is a family-run coffee cart on the lawn at the centre of Kibbutz Snir, in Israel's Upper Galilee. It is about an 8-minute walk from the entrance to the Banias waterfall and suspended trail (Hermon Stream Nature Reserve), and about a 10-minute drive on Road 99 from the Snir Stream (Hasbani) Nature Reserve. By car it is about 7 minutes to Tel Dan, 15 minutes to Kiryat Shmona and 40 minutes to Mount Hermon. Inside the kibbutz, drive straight on through the yellow gate and turn right at the grocery shop; the cart is on your left, on the lawn.</p>
       <p>Open on Saturdays too. Hours change from week to week, so check <a class="link" href="https://www.google.com/maps/search/?api=1&amp;query=cortado&amp;query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo">Google Maps</a> before you set out.</p>
       <p>Coffee with regular or plant-based milk, fruit shakes, açaí bowls, sandwiches, pizzas and pastries, with vegan and gluten-free options. A dairy kitchen. The cart has no kosher certificate; the pastries are kosher.</p>
       <p>A shaded lawn with a playground opposite, free parking including accessible parking, wheelchair-accessible seating and free <span class="nb">Wi-Fi</span>. Dogs are welcome. Groups by prior arrangement, and there is room for minibuses. Pay by cash, card or Bit. Restrooms nearby. There is no covered seating, so in rain and in winter check Instagram or WhatsApp before you set out.</p>
       <p>Opened in July 2025 by Amit Marx, Nitzan Melman and Shahar Gilad, after two years of evacuation from the north. The inspiration was a grandmother who brought café culture with her from Argentina. Cortado was her drink.</p>
       <p><a class="link" href="https://waze.com/ul?ll=33.23950,35.67803&amp;navigate=yes">Navigate with Waze</a> · <a class="link" href="https://wa.me/972543125466">WhatsApp</a> · <a class="link nb" href="tel:+972543125466">+972 54-312-5466</a></p>
-    </details>
+    </div>
   </div>
 </section>
 
@@ -1083,7 +1057,7 @@ footer li a:hover{color:var(--rust)}
   <div class="wrap legal-grid">
     <div>
       <h2 id="h-legal">מידע משפטי</h2>
-      <p class="intro">עודכן לאחרונה: אוקטובר 2026.</p>
+      <p class="intro">עודכן לאחרונה: נובמבר 2026.</p>
     </div>
     <div>
       <details id="business"><summary>פרטי העסק</summary><div class="doc">
@@ -1103,7 +1077,7 @@ footer li a:hover{color:var(--rust)}
           <li>ניגודיות צבעים של 4.5:1 לפחות בטקסט רגיל.</li>
           <li>הגדרת שפה וכיוון עברית, ותמיכה בהגדרת "הפחתת תנועה" של מערכת ההפעלה.</li>
           <li>התאמה למסכים קטנים ולהגדלת טקסט.</li>
-          <li>באתר אין טפסים ואין וידאו. מוזיקת רקע שקטה מתנגנת רק אחרי לחיצה על כפתור המוזיקה בתחתית העמוד, ולחיצה נוספת עוצרת אותה.</li>
+          <li>באתר אין טפסים ואין וידאו. מוזיקת רקע שקטה מתנגנת רק אחרי לחיצה על כפתור המוזיקה בראש העמוד, ולחיצה נוספת עוצרת אותה.</li>
         </ul>
         <h3>איך בדקנו</h3>
         <p>בדיקה אוטומטית בכלי axe-core ובדיקה ידנית בדפדפן כרום, במחשב וברוחב של טלפון. ייתכן שנשארו רכיבים שאינם נגישים במלואם. אם נתקלתם בבעיה, נשמח לדעת ולתקן.</p>
@@ -1120,9 +1094,10 @@ footer li a:hover{color:var(--rust)}
         <p>באתר אין טפסים, אין הרשמה ואין אזור אישי. אנחנו לא מבקשים מכם מידע אישי דרך האתר.</p>
         <p>אם תפנו אלינו בוואטסאפ, בטלפון או בדוא"ל, נקבל את מה שתבחרו לשלוח, למשל שם, מספר טלפון ותוכן ההודעה. נשתמש בזה רק כדי לענות לכם, לא נמכור ולא נעביר לאחרים, ולא נשלח לכם פרסומות בלי הסכמה מפורשת.</p>
         <h3>עוגיות (Cookies)</h3>
-        <p>האתר עצמו לא שומר עוגיות בדפדפן שלכם ולא משתמש באחסון מקומי לצורך מעקב. לכן אין באתר חלון לאישור עוגיות. אם נוסיף בעתיד עוגיות שאינן הכרחיות, נבקש קודם את הסכמתכם ונעדכן כאן.</p>
+        <p>בלי הסכמה שלכם האתר לא שומר עוגיות. בכניסה הראשונה אנחנו שואלים אם לאשר עוגיות של מטא (פייסבוק ואינסטגרם). רק אם אישרתם, הפיקסל של מטא נטען ושומר עוגיות בדפדפן שלכם. את הבחירה עצמה אנחנו שומרים באחסון המקומי של הדפדפן, כדי לא לשאול שוב. <button type="button" id="consent-reset">שינוי הבחירה</button></p>
         <h3>אנליטיקס ומעקב</h3>
-        <p>באתר אין Google Analytics, אין פיקסל של פייסבוק או של מטא, ואין כלי פרסום או מעקב אחרים.</p>
+        <p>האתר משתמש ב-Google Analytics 4 כדי לספור ביקורים: אילו עמודים נצפו, מאיזה מכשיר ומאיזה מקור הגעתם, ועל אילו כפתורים לחצתם (ניווט, וואטסאפ, טלפון, אינסטגרם, ביקורת). הוא מוגדר בלי עוגיות, בלי Google Signals ובלי פרסום מותאם אישית.</p>
+        <p>אם אישרתם עוגיות, פועל באתר גם הפיקסל של מטא. הוא מדווח למטא על הביקור ועל לחיצה על ניווט, וואטסאפ או טלפון, כדי שנוכל למדוד פרסום בפייסבוק ובאינסטגרם ולהציג אותו לאנשים שביקרו באתר. מטא מעבדת את המידע לפי מדיניות הנתונים שלה. יחד איתו נטען Google Tag Manager, שמנהל את כלי המדידה באתר. בלי אישור, שניהם לא נטענים.</p>
         <h3>צדדים שלישיים</h3>
         <ul>
           <li>אחסון: ספק האחסון של האתר עשוי לשמור יומני גישה טכניים, כמו כתובת IP, זמן הכניסה וסוג הדפדפן, לצורכי אבטחה ותפעול.</li>
@@ -1172,7 +1147,6 @@ footer li a:hover{color:var(--rust)}
         <li><a href="https://www.instagram.com/cortado_snir/">אינסטגרם</a></li>
         <li><a href="https://g.page/r/CdzLGw5mY-WKEBM/review">ביקורת בגוגל</a></li>
         <li><a href="#main">לראש העמוד</a></li>
-        <li class="foot-sound"><button class="sound" type="button" aria-pressed="false" aria-label="מוזיקה של העגלה"><svg class="note" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button><span>מוזיקה של העגלה</span></li>
       </ul>
     </div>
     <div class="fine"><nav aria-label="מידע משפטי" style="display:flex;gap:6px 22px;flex-wrap:wrap"><a href="#accessibility">הצהרת נגישות</a><a href="#privacy">מדיניות פרטיות</a><a href="#terms">תנאי שימוש</a><a href="#business">פרטי העסק</a></nav><span>לעסק אין תעודת כשרות. המאפים כשרים. העגלה חלבית.</span><span>© 2026 קפה קורטדו · קיבוץ שניר</span></div>
@@ -1185,9 +1159,5 @@ footer li a:hover{color:var(--rust)}
   <a href="tel:+972543125466"><svg aria-hidden="true"><use href="#i-phone"/></svg>חייגו</a>
 </nav>
 
-<script src="sc/gsap.min.js" defer></script>
-<script src="sc/SplitText.min.js" defer></script>
-<script src="sc/lenis.min.js" defer></script>
-<script src="sc/scrollcraft.js" defer></script>
-<script type="module" src="cafe.js"></script>
+<script type="module" src="boot.js"></script>
 </body></html>

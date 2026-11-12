@@ -14,6 +14,12 @@ import { firebaseConfig } from "../config.js";
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 
 /* ===== פרטים קטנים ===== */
+// הדף מדלג על חישוב מה שמתחת למסך הראשון (content-visibility ב-index.html). קפיצה לעוגן
+// נוחתת לפי גבהים משוערים, ולכן לפני כל קפיצה כזאת מחשבים את כל הדף.
+const layAll = () => document.documentElement.classList.add("lay-all");
+if (location.hash) layAll();
+addEventListener("hashchange", layAll);
+document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest('a[href^="#"]')) layAll(); }, true);
 // קישור למידע משפטי (#privacy וכד') פותח את ה-<details> במקום לגלול לכותרת סגורה.
 function openFromHash(){
   const id = location.hash.slice(1); if (!id) return;
@@ -34,26 +40,6 @@ window.addEventListener("hashchange", openFromHash); openFromHash();
 /* ===== תנועה: המנוע של scroll-craft (sc/scrollcraft.js) מפרסם --sc-p לכל קטע; הכוריאוגרפיה ב-CSS. ===== */
 if (window.ScrollCraft) window.ScrollCraft.mount(document.body);
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// גלילה חלקה (Lenis) בגלגלת ובמשטח מגע במחשב. בטלפון הגלילה נשארת של המערכת (syncTouch כבוי),
-// ומי שביקש פחות תנועה מקבל גלילה רגילה (respectReducedMotion). המנוע קורא את scrollY כרגיל, ולכן עובד איתו.
-// anchors: קישורי # ממשיכים לעבוד, ו-scroll-margin-top של הקטעים נשמר.
-if (window.Lenis) new window.Lenis({ autoRaf: true, anchors: true });
-
-// ההירו ב-GSAP: הכותרת עולה מילה-מילה מתוך מסכה, ותמונת העגלה מתקרבת לאט מאוד כל הזמן.
-// motion-flag.js הסתיר את הכותרת לפני הציור; כאן היא נחשפת. בלי GSAP: CSS מציג אותה אחרי 1.6 שניות.
-const h1 = document.querySelector(".hero-h1");
-if (h1 && window.gsap && window.SplitText && document.documentElement.classList.contains("gs-h1")){
-  const { gsap, SplitText } = window;
-  gsap.registerPlugin(SplitText);
-  // מילים ולא אותיות: פיצול עברית לאותיות שובר ניקוד וריווח
-  const splits = [...h1.querySelectorAll(".ln")].map(ln => new SplitText(ln, { type: "words", mask: "words" }));
-  h1.classList.add("gs-on");
-  // בסוף מחזירים את הטקסט המקורי: המסכות חותכות את הצל של הכותרת ואת האותיות היורדות (ק, ך)
-  gsap.from(splits.flatMap(s => s.words), { yPercent: 110, duration: 1, ease: "expo.out", stagger: 0.07, delay: 0.15,
-    onComplete: () => splits.forEach(s => s.revert()) });
-  gsap.to(".f-back .plate", { scale: 1.045, duration: 14, ease: "sine.inOut", yoyo: true, repeat: -1 });
-} else if (h1) h1.classList.add("gs-on");
 
 // ההירו לא נעוץ: הדף זז מהנגיעה הראשונה (הנעיצה גרמה להרגשה שאין למטה עוד דף), והשכבות מקבלות
 // את ההתקדמות מהגלילה עצמה. "גללו" נעלם אחרי הגלילה הראשונה.
@@ -110,7 +96,7 @@ if (heroStage && !still && matchMedia("(hover: hover) and (pointer: fine)").matc
   });
 }
 
-// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה קצת כשהבא עולה עליו (מעט: על כרטיסים בהירים הכהיה נראית אפורה), והמנה בכרטיס מסתובבת קלות עם הגלילה.
+// כרטיסי התפריט נערמים: הכרטיס שמתחת נסוג ומתכהה כשהבא עולה עליו, והמנה בכרטיס מסתובבת קלות עם הגלילה.
 const cards = [...document.querySelectorAll(".sk")];
 if (cards.length && !still){
   let raf = 0;
@@ -124,7 +110,7 @@ if (cards.length && !still){
       if (!next) return;
       const cover = Math.min(1, Math.max(0, 1 - (next.getBoundingClientRect().top - r.top) / r.height));
       c.style.transform = cover ? `scale(${(1 - cover * 0.06).toFixed(4)})` : "";
-      c.style.filter = cover ? `brightness(${(1 - cover * 0.07).toFixed(3)})` : "";
+      c.style.filter = cover ? `brightness(${(1 - cover * 0.25).toFixed(3)})` : "";
     });
   };
   addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(step); }, { passive: true });
@@ -285,3 +271,74 @@ fetch(url).then(r => r.ok ? r.json() : null).then(d => {
   }
 }).catch(() => {});
 setInterval(renderStatus, 60000);
+
+/* ===== Google Analytics 4 (נכס cortado-ops) ===== */
+// GA עצמו בלי עוגיות, בלי Google Signals ובלי פרסום — כך כתוב גם במדיניות הפרטיות (#privacy).
+// shortcut: client_storage none = כל ביקור נספר כמשתמש חדש; לעבור לעוגיות רק יחד עם חלון הסכמה.
+if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ // הבדיקות לא שולחות ביקורים
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ window.dataLayer.push(arguments); };
+  gtag("js", new Date());
+  gtag("config", "G-01HQG89GLD", { client_storage: "none", allow_google_signals: false, allow_ad_personalization_signals: false });
+  // gtag.js (כ-150KB) נטען בנגיעה, בגלילה או בהקשה הראשונה, ולכל המאוחר אחרי 10 שניות. עד אז האירועים מחכים ב-dataLayer.
+  // טעינה מיד אחרי load הורידה את ציון הביצועים בנייד מ-100 ל-83 (PageSpeed, 10.11.2026).
+  // shortcut: ביקור של פחות מ-10 שניות בלי שום נגיעה לא נספר; לקצר את ההמתנה אם הספירה חשובה מהציון.
+  let gaOn = false;
+  const loadGA = () => {
+    if (gaOn) return; gaOn = true;
+    const ga = document.createElement("script");
+    ga.async = true; ga.src = "https://www.googletagmanager.com/gtag/js?id=G-01HQG89GLD";
+    document.head.append(ga);
+  };
+  /* ===== פיקסל של מטא (ערכת הנתונים "קפה קורטדו") ===== */
+  // הפיקסל שומר עוגיות, ולכן נטען רק אחרי "מאשרים" בחלון ההסכמה. הבחירה נשמרת ב-localStorage,
+  // ואפשר לשנות אותה מתוך מדיניות הפרטיות (#consent-reset).
+  const consent = () => { try { return localStorage.getItem("meta-consent"); } catch { return null; } };
+  const loadMeta = () => {
+    if (window.fbq) return;
+    const n = window.fbq = function(){ n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+    window._fbq = n; n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
+    const s = document.createElement("script");
+    s.async = true; s.src = "https://connect.facebook.net/en_US/fbevents.js";
+    document.head.append(s);
+    fbq("init", "2941474756214612");
+    fbq("track", "PageView");
+    // Tag Manager (מאגר "קפה קורטדו") נטען יחד עם הפיקסל: תגים שיתווספו בו עלולים לשמור עוגיות.
+    dataLayer.push({ "gtm.start": Date.now(), event: "gtm.js" });
+    const t = document.createElement("script");
+    t.async = true; t.src = "https://www.googletagmanager.com/gtm.js?id=GTM-WTVQX7X6";
+    document.head.append(t);
+  };
+  const askConsent = () => {
+    if (document.querySelector(".consent")) return;
+    const el = document.createElement("div");
+    el.className = "consent"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "עוגיות");
+    el.innerHTML = '<p>עוגיות של מטא, למדידת הפרסום שלנו. <a href="#privacy">פרטים</a></p><div><button type="button" data-v="no">לא תודה</button><button type="button" data-v="yes">מאשרים</button></div>';
+    el.addEventListener("click", e => {
+      const v = e.target.dataset && e.target.dataset.v; if (!v) return;
+      try { localStorage.setItem("meta-consent", v); } catch {}
+      el.remove();
+      if (v === "yes") loadMeta();
+    });
+    document.body.append(el);
+  };
+  ["pointerdown", "touchstart", "keydown", "scroll"].forEach(e => addEventListener(e, loadGA, { once: true, passive: true }));
+  setTimeout(loadGA, 10000);
+  const reset = document.getElementById("consent-reset");
+  if (reset) reset.addEventListener("click", () => { try { localStorage.removeItem("meta-consent"); } catch {} askConsent(); });
+  // החלון עולה מיד (הקובץ הזה רץ אחרי הציור הראשון), כדי שהמסך הראשון יתייצב מהר. הפיקסל עצמו מחכה ל-load ולזמן פנוי.
+  const c = consent();
+  if (c === "yes"){
+    const idle = () => (window.requestIdleCallback || setTimeout)(loadMeta, { timeout: 2000 });
+    if (document.readyState === "complete") idle(); else addEventListener("load", idle, { once: true });
+  } else if (c !== "no") askConsent();
+  // הלחיצות שמביאות לקוחות. שם אירוע לכל יעד, כי פרמטר מותאם לא מופיע בדוחות בלי הגדרה ידנית בגוגל.
+  const GOALS = { "waze.com": "click_waze", "google.com/maps": "click_maps", "wa.me": "click_whatsapp", "tel:": "click_phone", "instagram.com": "click_instagram", "g.page": "click_review" };
+  const META = { "waze.com": "FindLocation", "google.com/maps": "FindLocation", "wa.me": "Contact", "tel:": "Contact" }; // אירועים סטנדרטיים של מטא
+  document.addEventListener("click", e => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    const k = a && Object.keys(GOALS).find(k => a.href.includes(k));
+    if (k) gtag("event", GOALS[k], { transport_type: "beacon" });
+    if (k && window.fbq && META[k]) fbq("track", META[k]);
+  });
+}
