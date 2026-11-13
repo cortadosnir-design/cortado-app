@@ -1,8 +1,9 @@
-// הסקריפטים של הדף עולים רק אחרי הציור הראשון (שני פריימים), כדי שלא יתחרו בתמונה הראשית.
-// כשהם רצו לפני הציור, ה-LCP בנייד נמדד 2.6 עד 4.3 שניות במקום 1.7 (PageSpeed, 10.11.2026).
-requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
-  const s = document.createElement("script");
-  s.src = "sc/scrollcraft.js";
-  s.onload = s.onerror = () => import("./cafe.js"); // cafe.js עובד גם בלי המנוע
-  document.head.append(s);
-})));
+// site.js: מסילת הוויטרינה. cafe.js: שעות מלוח המשמרות, "פתוח עכשיו", מוזיקה, אנליטיקס והסכמה.
+// התנועה (GSAP) והכוס בתלת־ממד נטענות אחרי הציור הראשון, כדי שלא יתחרו בתמונה הראשית. בלעדיהן הדף שלם.
+import("./site.js");
+import("./cafe.js").catch(() => {});
+const load = (src) => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.append(s); });
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  load("vendor/gsap.min.js").then(() => load("vendor/ScrollTrigger.min.js")).then(() => import("./motion.js")).catch(() => {});
+  import("./glass3d.js").catch(() => {});
+}));
