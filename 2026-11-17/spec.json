@@ -1,0 +1,29 @@
+{
+ "hook": "מהחלון של העגלה לדשא",
+ "motion": "kinetic",
+ "music": "drive",
+ "scenes": [
+  {
+   "media": "2026-11-17/window-2026-10-31.jpg",
+   "dur": 3.0
+  },
+  {
+   "media": "toolkit/assets/photos/coffee-3.jpg",
+   "text": "ציור קטן על הקצף",
+   "dur": 2.5
+  },
+  {
+   "media": "toolkit/assets/photos/hero.jpg",
+   "text": "שתיים לשולחן",
+   "dur": 2.5
+  },
+  {
+   "media": "toolkit/assets/photos/cortado-lawn.jpg",
+   "text": "ועכשיו רק לשבת",
+   "dur": 3.0
+  }
+ ],
+ "end": "נתראה בעגלה",
+ "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+ "seed": 96
+}
