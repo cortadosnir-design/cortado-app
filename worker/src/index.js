@@ -1097,67 +1097,71 @@ function gbTime(hhmm){
   return o;
 }
 
-/* גוגל מקבל שעות לפי תאריך (specialHours) לכל יום שפורסם, מהיום ועד 14 יום קדימה. השעות הקבועות (regularHours)
-   לא משתנות: שינוי של שבוע אחד לא הופך לשעות של כל השבועות. שעות מיוחדות של תאריכים אחרים (חג שהבעלים הגדיר
-   בגוגל, יום שעוד לא פורסם) נשארות כמו שהן.
-   עם GB_LIVE=0 זו בדיקה בלי כתיבה: מחזיר מה גוגל מציג עכשיו ומה היה נכתב. */
+/* גוגל מקבל את השעות הקבועות (regularHours) של שבעת הימים הקרובים, כמו פייסבוק: כל יום בשבוע עם השעות של
+   המופע הקרוב שלו (rollingWeek), ובכל לילה הסט מתעדכן לשבוע שמתקדם. מ-14.11.2026, בבקשת הבעלים: "אני לא רוצה שזה
+   יהיה בשעות מיוחדות, אני רוצה שזה יהיה בשעות של שבוע הבא כמו שצריך". שעות מיוחדות של תאריכים שפורסמו (גם כאלה
+   שנכתבו כאן לפני כן) נמחקות, כדי שלא ידרסו את הקבועות. שעות מיוחדות של תאריכים אחרים (חג שהבעלים הגדיר בגוגל)
+   נשארות כמו שהן. עם GB_LIVE=0 זו בדיקה בלי כתיבה: מחזיר מה גוגל מציג עכשיו ומה היה נכתב. */
 const GB_WINDOW = 14;
+const GB_DAYS = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const GB_HE = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+// התאריכים שפורסמו, מהיום ועד 14 יום קדימה: שעות מיוחדות בהם יורדות
 function googleDates(weeks, today){
   const out = [];
   for (let i = 0; i < GB_WINDOW; i++){
     const date = plusDays(today, i), line = weeks?.[sundayOfYmd(date)]?.[new Date(date + "T12:00:00Z").getUTCDay()];
-    if (line == null) continue;
-    out.push({ date, ranges: String(line).split(",").map(x => x.trim()).filter(Boolean).map(r => r.split("–").map(x => x.trim())) });
+    if (line != null) out.push(date);
   }
   return out;
 }
-const gbDate = (ymd) => ({ year: +ymd.slice(0, 4), month: +ymd.slice(5, 7), day: +ymd.slice(8, 10) });
 const gbYmd = (d) => `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
 const gbHm = (t) => `${String(t?.hours || 0).padStart(2, "0")}:${String(t?.minutes || 0).padStart(2, "0")}`;
-function specialPeriods(days){
-  return days.flatMap(({ date, ranges }) => ranges.length
-    ? ranges.slice(0, 2).map(([o, c]) => ({ startDate: gbDate(date), endDate: gbDate(date), openTime: gbTime(o), closeTime: gbTime(c) }))
-    : [{ startDate: gbDate(date), endDate: gbDate(date), closed: true }]);
+// pairs[d] = [["09:00","12:00"], ...] → תקופות של גוגל. יום בלי טווחים = סגור (אין לו תקופה).
+function regularPeriods(pairs){
+  return pairs.flatMap((list, d) => (list || []).slice(0, 2).map(([o, c]) =>
+    ({ openDay: GB_DAYS[d], openTime: gbTime(o), closeDay: GB_DAYS[d], closeTime: gbTime(c) })));
 }
-// תאריך → "09:00–12:00, 17:00–19:00" או "סגור", כדי להשוות ולהציג
-function byDate(periods){
-  const m = {};
-  for (const p of periods || []){
-    const d = gbYmd(p.startDate);
-    m[d] = p.closed ? "סגור" : [m[d] === "סגור" ? "" : m[d], `${gbHm(p.openTime)}–${gbHm(p.closeTime)}`].filter(Boolean).sort().join(", ");
-  }
-  return m;
+// יום בשבוע → "09:00–12:00, 15:00–18:30" או "סגור", כדי להשוות ולהציג
+function byDay(periods){
+  const m = GB_DAYS.map(() => []);
+  for (const p of periods || []){ const d = GB_DAYS.indexOf(p.openDay); if (d >= 0) m[d].push(`${gbHm(p.openTime)}–${gbHm(p.closeTime)}`); }
+  return m.map(x => x.length ? x.sort().join(", ") : "סגור");
 }
-async function setGoogleHours(env, { weeks, today }){
+async function setGoogleHours(env, { pairs, weeks, today }){
   for (const k of ["GB_LOCATION","GB_CLIENT_ID","GB_CLIENT_SECRET","GB_REFRESH_TOKEN"])
     if (!env[k]) throw fail("not_configured",
       "גוגל עוד לא מחוברת. ה-API של Business Profile דורש אישור מגוגל, ואחריו ארבעה משתנים בשרת.", 501);
-  const days = googleDates(weeks, today);
-  if (!days.length) throw fail("bad_request", "אין אף יום שפורסם לעדכן.");
+  if (!Array.isArray(pairs) || pairs.length !== 7 || !pairs.every(Array.isArray)) throw fail("bad_request", "חסרות שעות לחלק מימי השבוע.");
   const token = await gbAccessToken(env), auth = { authorization: "Bearer " + token };
   const read = async () => {
-    const r = await fetch(`${GB_API}/${env.GB_LOCATION}?readMask=specialHours`, { headers: auth });
+    const r = await fetch(`${GB_API}/${env.GB_LOCATION}?readMask=regularHours,specialHours`, { headers: auth });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw fail("google_error", d.error?.message || "לא הצלחתי לקרוא את השעות מגוגל.", 502);
-    return d.specialHours?.specialHourPeriods || [];
+    return { regular: d.regularHours?.periods || [], special: d.specialHours?.specialHourPeriods || [] };
   };
-  const mine = new Set(days.map(x => x.date)), periods = specialPeriods(days);
+  const mine = new Set(googleDates(weeks, today)), periods = regularPeriods(pairs);
   const before = await read();
-  const keep = before.filter(p => { const d = gbYmd(p.startDate); return d >= today && !mine.has(d); });
-  const want = byDate(periods), now = byDate(before);
-  const diff = days.map(x => x.date).filter(d => (now[d] || "לפי השעות הקבועות") !== want[d])
-    .map(d => `${d.slice(8)}.${+d.slice(5, 7)}: עכשיו ${now[d] || "לפי השעות הקבועות"} → ${want[d]}`);
+  const keep = before.special.filter(p => { const d = gbYmd(p.startDate); return d >= today && !mine.has(d); });
+  const drop = [...new Set(before.special.map(p => gbYmd(p.startDate)).filter(d => d >= today && mine.has(d)))].sort();
+  const want = byDay(periods), now = byDay(before.regular);
+  const diff = GB_DAYS.map((_, d) => d).filter(d => now[d] !== want[d]).map(d => `${GB_HE[d]}: עכשיו ${now[d]} → ${want[d]}`);
+  if (drop.length) diff.push(`שעות מיוחדות שיימחקו: ${drop.map(d => `${d.slice(8)}.${+d.slice(5, 7)}`).join(", ")}`);
   if (env.GB_LIVE === "0") return { dry: true, text: diff.length ? diff.join("\n") : "גוגל כבר מציג את השעות האלה" };
-  const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=specialHours`, {
+  const r = await fetch(`${GB_API}/${env.GB_LOCATION}?updateMask=regularHours,specialHours`, {
     method: "PATCH", headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify({ specialHours: { specialHourPeriods: [...periods, ...keep] } }),
+    body: JSON.stringify({ regularHours: { periods }, specialHours: { specialHourPeriods: keep } }),
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw fail("google_error", d.error?.message || "גוגל דחתה את העדכון.", 502);
   let check;
-  try { const got = byDate(await read()); const bad = [...mine].filter(x => got[x] !== want[x]); check = bad.length ? `גוגל מציג שעות אחרות ב-${bad.join(", ")}` : "ok"; }
-  catch (e){ check = "לא הצלחתי לקרוא חזרה מגוגל: " + hebrew(e.message); }
-  return { ok: true, days: days.length, check };
+  try {
+    const got = await read(), shown = byDay(got.regular);
+    const bad = GB_DAYS.map((_, i) => i).filter(i => shown[i] !== want[i]).map(i => GB_HE[i]);
+    const left = got.special.map(p => gbYmd(p.startDate)).filter(x => mine.has(x));
+    check = bad.length ? `גוגל מציג שעות אחרות ביום ${bad.join(", ")}`
+      : left.length ? `נשארו בגוגל שעות מיוחדות ב-${[...new Set(left)].join(", ")}` : "ok";
+  } catch (e){ check = "לא הצלחתי לקרוא חזרה מגוגל: " + hebrew(e.message); }
+  return { ok: true, days: 7, check };
 }
 
 /* ===== ביקורות בגוגל + חיבור חד-פעמי (17.10.2026) =====
@@ -1428,7 +1432,7 @@ async function publishRolling(env, weeks, today){
     catch (e){ out.facebookCheck = "לא הצלחתי לקרוא חזרה מפייסבוק: " + hebrew(e.message); }
   } catch (e){ out.facebook = e.code === "not_configured" ? "עמוד הפייסבוק עוד לא מחובר." : hebrew(e.message); }
   try {
-    const g = await setGoogleHours(await gbEnv(env), { weeks, today });
+    const g = await setGoogleHours(await gbEnv(env), { pairs: r.pairs, weeks, today });
     if (g.dry) Object.assign(out, { google: "dry", googleDry: g.text });
     else Object.assign(out, { google: "ok", googleCheck: g.check });
   } catch (e){ out.google = e.code === "not_configured" ? "manual" : hebrew(e.message); }
