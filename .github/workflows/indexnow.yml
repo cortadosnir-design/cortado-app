@@ -5,7 +5,7 @@ name: IndexNow
 on:
   push:
     branches: [main]
-    paths: [cafe/index.html, llms.txt, sitemap.xml]
+    paths: [cafe/index.html, cafe/en/index.html, llms.txt, sitemap.xml]
   workflow_dispatch:
 jobs:
   ping:
@@ -17,4 +17,4 @@ jobs:
         run: |
           curl -sS -o /dev/null -w "IndexNow: %{http_code}\n" -X POST "https://api.indexnow.org/indexnow" \
             -H "Content-Type: application/json; charset=utf-8" \
-            -d '{"host":"cortadosnir-design.github.io","key":"c4c80615b7b0309c5d4466014567e8a9","keyLocation":"https://cortadosnir-design.github.io/cortado-app/c4c80615b7b0309c5d4466014567e8a9.txt","urlList":["https://cortadosnir-design.github.io/cortado-app/cafe/"]}'
+            -d '{"host":"cortadosnir-design.github.io","key":"c4c80615b7b0309c5d4466014567e8a9","keyLocation":"https://cortadosnir-design.github.io/cortado-app/c4c80615b7b0309c5d4466014567e8a9.txt","urlList":["https://cortadosnir-design.github.io/cortado-app/cafe/","https://cortadosnir-design.github.io/cortado-app/cafe/en/"]}'

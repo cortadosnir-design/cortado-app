@@ -59,6 +59,7 @@ After two years of evacuation from the north, Nitzan Melman (ניצן מלמן),
 ## Links
 
 - [Landing page (Hebrew, with a short English section)](https://cortadosnir-design.github.io/cortado-app/cafe/): menu, story, this week's hours, directions, accessibility statement
+- [English page](https://cortadosnir-design.github.io/cortado-app/cafe/en/): directions, menu, practical details and the story, in English
 - [Google Maps listing](https://www.google.com/maps/search/?api=1&query=cortado&query_place_id=ChIJMcNCVNy7HhUR3MsbDmZj5Yo): current hours and reviews
 - [Instagram](https://www.instagram.com/cortado_snir/): daily updates
 - [Navigate with Waze](https://waze.com/ul?ll=33.23950,35.67803&navigate=yes)
