@@ -36,8 +36,11 @@ NO_NOTE = {"2026-11-14"}
 # guests on a given open day, in the owner's words: replaces the menu and the small line on open-tomorrow/open-today.
 # Keep the winter rain line inside "note" (owner, 7.11.2026: standing on every open day).
 # owner, 15.11.2026: Friday 20.11 ללוש (@lalush_dough) from 09:00 with sourdough breads and cakes, and החומוס של אריקה 12:00–15:00
-SPECIAL = {"2026-11-20": {"menu": "לחמי מחמצת ועוגות של ללוש · כריכים וקפה",
-                          "note": "החומוס של אריקה 12:00–15:00 · אם יירד גשם ניאלץ לסגור"}}
+# owner, 15.11.2026: "שטיפה תדגיש" — both guests in the terracotta pill
+PILL = "background:#C9774A;color:#fff;font-weight:800;border-radius:22px;padding:2px 18px;text-shadow:none"
+SPECIAL = {"2026-11-20": {"menu": f"<span style='{PILL}'>ללוש: לחמי מחמצת ועוגות</span>",
+                          "note": f"<span style='{PILL};font-size:40px'>החומוס של אריקה 12:00–15:00</span>"
+                                  "<br>אם יירד גשם ניאלץ לסגור · עדכונים ברשתות"}}
 SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
 
@@ -105,7 +108,7 @@ def build(s, out):
                        env={**os.environ, "SOUND": str(HERE / "calm.wav"), **sc["env"], **extra,
                             # no time rows (closed / rain): the second line sits right under the note
                             "LINE_B_DY": str(-45 if not s["times"] and s.get("note") else
-                                             96 * max(0, len(s["times"]) - 1) + (56 if s.get("note") else 0))})
+                                             96 * max(0, len(s["times"]) - 1) + 56 * (1 + s["note"].count("<br>") if s.get("note") else 0))})
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "7.8", "-i", mp4, "-frames:v", "1", "-q:v", "2",
                     mp4.with_suffix(".jpg")], check=True)
 
