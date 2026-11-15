@@ -33,6 +33,11 @@ SCENES = {
 }
 # days without the winter rain line, even by default (owner, 7.11.2026: the fair, Saturday 14.11)
 NO_NOTE = {"2026-11-14"}
+# guests on a given open day, in the owner's words: replaces the menu and the small line on open-tomorrow/open-today.
+# Keep the winter rain line inside "note" (owner, 7.11.2026: standing on every open day).
+# owner, 15.11.2026: Friday 20.11 ללוש (@lalush_dough) from 09:00 with sourdough breads and cakes, and החומוס של אריקה 12:00–15:00
+SPECIAL = {"2026-11-20": {"menu": "לחמי מחמצת ועוגות של ללוש · כריכים וקפה",
+                          "note": "החומוס של אריקה 12:00–15:00 · אם יירד גשם ניאלץ לסגור"}}
 SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
 
@@ -62,7 +67,7 @@ def plan(date, times=(), reopens=None, note=None, rain=False):
         day["note"] = note
     scene = lambda r: "morning" if r[:5] < "15:00" else "evening"
     menu = SCENES[scene(times[0])]["menu"] if len({scene(r) for r in times}) == 1 else "בבוקר כריכים ומאפים · בערב פיצה"
-    out = [dict(day, name=n, at=at, head=h, times=list(times), menu=menu, scene=scene(times[0]))
+    out = [{**dict(day, name=n, at=at, head=h, times=list(times), menu=menu, scene=scene(times[0])), **SPECIAL.get(str(date), {})}
            for n, at, h in [("open-tomorrow", eve, "פתוחים מחר"), ("open-today", am, "פתוחים היום")]]
     return out + [dict(day, name="open-now-" + r[:5].replace(":", ""), at=f"{date}T{r[:5]}", head="פתוחים עכשיו",
                        times=[r], menu=SCENES[scene(r)]["menu"], scene=scene(r)) for r in times if r[:5] > "09:00"]
@@ -89,8 +94,9 @@ def build(s, out):
         if s["scene"] == "rain":
             rain_frames(t / "rain"); extra["RAIN"] = str(t / "rain")
         # a time range inside the menu line stays left-to-right (bare, it renders as 18:30–16:30)
-        menu = re.sub(r"\d\d:\d\d–\d\d:\d\d", r"<span style='direction:ltr;unicode-bidi:isolate'>\g<0></span>", s["menu"])
-        (t / "today.json").write_text(json.dumps({**s, **sc["layout"], "menu": menu}, ensure_ascii=False), encoding="utf-8")
+        ltr = lambda x: re.sub(r"\d\d:\d\d–\d\d:\d\d", r"<span style='direction:ltr;unicode-bidi:isolate'>\g<0></span>", x)
+        fix = {"menu": ltr(s["menu"]), **({"note": ltr(s["note"])} if s.get("note") else {})}  # the note too (20.11: 12:00–15:00)
+        (t / "today.json").write_text(json.dumps({**s, **sc["layout"], **fix}, ensure_ascii=False), encoding="utf-8")
         subprocess.run([sys.executable, HERE / "overlay_today.py", t / "today.json", t / "layers",
                         HERE.parent / "assets/fonts"], check=True, capture_output=True)
         mp4 = out / f"{s['name']}.mp4"
@@ -144,6 +150,8 @@ if __name__ == "__main__":
     assert [s["menu"] for s in shut] == ["נתראה ברביעי, 16:30–18:30", "נתראה מחר, 16:30–18:30"] and not shut[0]["times"]
     assert hours("09:00-13:00") == "09:00–13:00"
     assert plan(D(2026, 11, 6), ["09:00–15:00"], note="x")[1]["note"] == "x" and "note" not in sat[0]
+    fri = plan(D(2026, 11, 20), ["09:00–15:00"], note="אם יירד גשם ניאלץ לסגור · עדכונים ברשתות")
+    assert all("ללוש" in s["menu"] and "אריקה" in s["note"] and "גשם" in s["note"] for s in fri) and len(fri) == 2
     wet = plan(D(2026, 11, 7), rain=True)
     assert [(s["name"], s["at"], s["scene"]) for s in wet] == [("rain-tomorrow", "2026-11-06T18:30", "rain"),
                                                                ("rain-today", "2026-11-07T09:00", "rain")]

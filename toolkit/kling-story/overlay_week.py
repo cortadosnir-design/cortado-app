@@ -14,7 +14,7 @@ b64 = lambda p: base64.b64encode(p.read_bytes()).decode()
 CSS = f"""
 @font-face{{font-family:Rubik;src:url(data:font/ttf;base64,{b64(fonts/'Rubik-VF.ttf')})}}
 html,body{{margin:0;width:1080px;height:1920px;background:transparent;font-family:Rubik;direction:rtl}}
-.shade{{position:absolute;inset:0 0 auto 0;height:1120px;background:linear-gradient(rgba(20,20,23,.78),rgba(20,20,23,.62) 80%,rgba(20,20,23,0))}}
+.shade{{position:absolute;inset:0 0 auto 0;height:{week.get("shade", 1120)}px;background:linear-gradient(rgba(20,20,23,.78),rgba(20,20,23,.62) 80%,rgba(20,20,23,0))}}
 .c{{position:absolute;width:100%;text-align:center;color:#F7F2DC;text-shadow:0 3px 14px rgba(0,0,0,.45)}}
 .h{{top:150px;font-weight:800;font-size:82px}}
 .d{{top:250px;font-weight:500;font-size:42px;opacity:.92}}
