@@ -38,8 +38,9 @@ NO_NOTE = {"2026-11-14"}
 # owner, 15.11.2026: Friday 20.11 ללוש (@lalush_dough) from 09:00 with sourdough breads and cakes, and החומוס של אריקה 12:00–15:00
 # owner, 15.11.2026: "שטיפה תדגיש" — both guests in the terracotta pill
 PILL = "background:#C9774A;color:#fff;font-weight:800;border-radius:22px;padding:2px 18px;text-shadow:none"
-SPECIAL = {"2026-11-20": {"menu": f"<span style='{PILL}'>ללוש: לחמי מחמצת ועוגות</span>",
-                          "note": f"<span style='{PILL};font-size:40px'>החומוס של אריקה 12:00–15:00</span>"
+# owner, 19.11.2026: "ללוש מגיעים ב-9 ועד גמר המלאי, והחומוס מגיע מ-1 עד 3"
+SPECIAL = {"2026-11-20": {"menu": f"<span style='{PILL};font-size:42px'>ללוש: לחמי מחמצת מ-09:00 עד גמר המלאי</span>",
+                          "note": f"<span style='{PILL};font-size:40px'>החומוס של אריקה 13:00–15:00</span>"
                                   "<br>אם יירד גשם ניאלץ לסגור · עדכונים ברשתות"}}
 SORRY = "סליחה מכל הלב"
 RANGE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$")
