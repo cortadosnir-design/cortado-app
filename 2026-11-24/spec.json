@@ -1,0 +1,7 @@
+{"hook": "הקורטדו של סבתא אאידה", "motion": "kinetic", "music": "drive",
+ "scenes": [
+  {"media": "toolkit/assets/photos/cart.jpg", "dur": 3.0},
+  {"media": "toolkit/assets/photos/coffee-5.jpg", "dur": 2.5},
+  {"media": "toolkit/assets/photos/coffee-4.jpg", "text": "לקח זמן עד שהצלחנו", "dur": 3.5}
+ ],
+ "end": "נתראה בעגלה", "place": "קיבוץ שניר · על הדשא ליד המרכולית", "seed": 129}

@@ -1,0 +1,24 @@
+{
+ "hook": "בשביל זה פתחנו עגלה",
+ "motion": "pop",
+ "music": "cafe",
+ "scenes": [
+  {
+   "media": "toolkit/assets/photos/lawn.jpg",
+   "dur": 3.0
+  },
+  {
+   "media": "2026-10-23/nora/nora-ceramics.jpg",
+   "text": "השכנים מגלריה כפיים",
+   "dur": 3.0
+  },
+  {
+   "media": "2026-10-23/avira/counter-dusk.jpg",
+   "text": "תודה שאתם באים אלינו",
+   "dur": 3.5
+  }
+ ],
+ "end": "נתראה בעגלה",
+ "place": "קיבוץ שניר · על הדשא ליד המרכולית",
+ "seed": 140
+}
