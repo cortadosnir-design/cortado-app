@@ -277,7 +277,7 @@ footer { background: var(--color-ink); color: var(--color-paper); padding-block:
 
 /* quick actions on a phone, consent */
 .bar { display: none; }
-.consent { position: fixed; z-index: var(--z-toast); inset-inline-start: var(--space-md); inset-block-end: var(--space-md); width: min(380px, calc(100% - var(--space-xl))); padding: var(--space-md); border-radius: var(--radius-card); background: var(--color-paper); border: 1px solid var(--color-rule); font-size: var(--text-sm); }
+.consent { position: fixed; z-index: var(--z-toast); inset-inline-end: var(--space-md); inset-block-end: var(--space-md); width: min(380px, calc(100% - var(--space-xl))); padding: var(--space-md); border-radius: var(--radius-card); background: var(--color-paper); border: 1px solid var(--color-rule); font-size: var(--text-sm); }
 .consent div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); margin-block-start: var(--space-sm); }
 .consent button { min-height: 44px; border-radius: var(--radius-control); border: 1px solid var(--color-ink); background: transparent; color: var(--color-ink); font-weight: 600; cursor: pointer; }
 .consent button[data-v="yes"] { background: var(--color-ink); color: var(--color-paper); }
@@ -302,7 +302,8 @@ footer { background: var(--color-ink); color: var(--color-paper); padding-block:
 @media (max-width: 40rem) {
   .ann-track { justify-content: flex-start; gap: var(--space-xl); width: max-content; padding-inline: 0; animation: ann 26s linear infinite; }
   .ann-track span[aria-hidden] { display: inline; }
-  .hero-photo { height: auto; aspect-ratio: 4 / 5; }
+  .top { position: static; }
+  .hero-photo { height: clamp(280px, 40dvh, 380px); }
   .hero-photo img { object-position: 50% 50%; }
   .hero-card { margin-block-start: calc(var(--space-2xl) * -1); padding: var(--space-lg); margin-inline: 0; }
   .v-b .hero-card { padding: 0; }
@@ -314,7 +315,9 @@ footer { background: var(--color-ink); color: var(--color-paper); padding-block:
   .bar { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: var(--z-sticky); display: grid; grid-template-columns: 2fr 1fr 1fr; background: var(--color-ink); color: var(--color-paper); }
   .bar a { display: grid; place-items: center; min-height: 56px; text-decoration: none; font-weight: 600; font-size: var(--text-sm); }
   .bar .main { background: var(--color-accent); color: var(--color-accent-ink); }
-  .consent { inset-inline: var(--space-sm); width: auto; inset-block-end: calc(var(--space-2xl) + var(--space-sm)); }
+  .consent { inset-inline: var(--space-xs); width: auto; inset-block-end: calc(56px + var(--space-xs)); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-sm); line-height: 1.35; }
+  .consent div { margin-block-start: 0; }
+  .consent button { padding-inline: var(--space-sm); }
 }
 @keyframes ann { to { transform: translateX(50%); } }
 </style>
@@ -645,11 +648,11 @@ footer { background: var(--color-ink); color: var(--color-paper); padding-block:
     </div>
     <div class="rail-body">
       <ul class="track" id="track" tabindex="0" aria-label="מה בוויטרינה">
-<li class="card"><div class="tile"><img class="cover" src="img/v-pastries.webp" alt="קרואסונים, מאפה שוקולד ושבלול קינמון" width="800" height="800" loading="lazy"></div><h3>מגוון מאפים</h3><p>קרואסונים ומאפים טריים, משתנים מיום ליום</p></li>
-<li class="card"><div class="tile"><img class="cover" src="img/v-sandwiches.webp" alt="כריך עם סלק, נבטים ואגוזים" width="800" height="800" loading="lazy"></div><h3>כריכים</h3><p>סלק, נבטים ואגוזים</p></li>
-<li class="card"><div class="tile"><img class="cover" src="img/v-pies.webp" alt="טארט פקאן, טארט שוקולד וקיש קטן" width="800" height="800" loading="lazy"></div><h3>פאי וטארטים</h3><p>מהוויטרינה, משתנים מיום ליום</p></li>
-<li class="card"><div class="tile"><img class="cover" src="img/v-pizza.webp" alt="פיצה מרגריטה עם בזיליקום" width="800" height="800" loading="lazy"></div><h3>פיצות</h3><p>טריות, ומשתנות מיום ליום</p></li>
-<li class="card"><div class="tile"><img class="cover" src="img/v-acai.webp" alt="קערת אסאי עם תותים, אוכמניות, בננה וגרנולה" width="800" height="800" loading="lazy"><span class="tag">טבעוני</span></div><h3>קערת אסאי ושייקים</h3><p>קערת אסאי ושייקי פירות</p></li>
+<li class="card"><div class="tile"><img class="cover" src="img/v-pastries.webp" alt="מאפי שמרים עם קראמבל על מגש בוויטרינה" width="800" height="800" loading="lazy"></div><h3>מגוון מאפים</h3><p>קרואסונים ומאפים טריים, משתנים מיום ליום</p></li>
+<li class="card"><div class="tile"><img class="cover" src="img/v-sandwiches.webp" alt="כריך מלחם מלא עם סלק, גזר, מלפפון וחסה, חתוך לשניים" width="800" height="800" loading="lazy"></div><h3>כריכים</h3><p>סלק, נבטים ואגוזים</p></li>
+<li class="card"><div class="tile"><img class="cover" src="img/v-pies.webp" alt="טארט מרנג, טארט קראמבל וטארט פקאן" width="800" height="800" loading="lazy"></div><h3>פאי וטארטים</h3><p>מהוויטרינה, משתנים מיום ליום</p></li>
+<li class="card"><div class="tile"><img class="cover" src="img/v-pizza.webp" alt="פיצה עם זיתים ירוקים, חתוכה לשש בקרטון" width="800" height="800" loading="lazy"></div><h3>פיצות</h3><p>טריות, ומשתנות מיום ליום</p></li>
+<li class="card"><div class="tile"><img class="cover" src="img/v-acai.webp" alt="שייק פירות סגול ושייק מנגו בכוסות" width="800" height="800" loading="lazy"><span class="tag">טבעוני</span></div><h3>קערת אסאי ושייקים</h3><p>קערת אסאי ושייקי פירות</p></li>
       </ul>
       <div class="rail-ctl" hidden><button type="button" data-dir="-1" aria-label="הקודם"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><output aria-live="off">1 / 5</output><button type="button" data-dir="1" aria-label="הבא"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
       <p class="rail-note">חלק מהתמונות להמחשה. יש לכם אלרגיה, רגישות או צליאק? שאלו אותנו לפני ההזמנה על הרכיבים ועל חשש למגע צולב.</p>
